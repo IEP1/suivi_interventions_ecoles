@@ -2,12 +2,14 @@
 # ne jamais publier sur le repo de code, qui doit rester public pour GitHub Pages.
 *.docx
 *.xlsx
+*.ics
 desktop.ini
 01 Logo IEP1.png
 
-# Import ponctuel de la structure pédagogique (données personnelles) : ne jamais publier,
-# utilisé une seule fois en local pour peupler le repo privé de données.
+# Import ponctuel de la structure pédagogique / des visites d'agenda (données personnelles) :
+# ne jamais publier, utilisé une seule fois en local pour peupler le repo privé de données.
 js/import-equipes.local.js
+js/import-calendrier.local.js
 import.html
 
 .DS_Store
