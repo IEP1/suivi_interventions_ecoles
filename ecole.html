@@ -72,8 +72,16 @@
 <div class="fond-modale no-print" id="modale-ajout">
   <div class="contenu-modale">
     <h3>Ajouter une intervention</h3>
-    <label>Type d'intervention</label>
-    <div class="grille-types" id="grille-types-modale"></div>
+    <div class="ligne-champs">
+      <div class="champ">
+        <label for="mi-categorie">Catégorie</label>
+        <select id="mi-categorie"></select>
+      </div>
+      <div class="champ">
+        <label for="mi-type">Type d'intervention</label>
+        <select id="mi-type"></select>
+      </div>
+    </div>
     <div class="champ">
       <label for="type-personnalise">…ou action personnalisée (libellé libre)</label>
       <input type="text" id="type-personnalise" placeholder="Ex : Médiation avec une famille">
@@ -110,6 +118,7 @@
 <script src="js/github-store.js"></script>
 <script src="js/data-store.js"></script>
 <script src="js/stats.js"></script>
+<script src="js/type-selector.js"></script>
 <script src="js/layout.js"></script>
 <script>
 injecterEntete('ecoles.html');
@@ -121,7 +130,7 @@ let ECOLE = null;
 let INTERVENTIONS = [];
 let TYPES = [];
 let INTERVENANTS = [];
-let typeSelectionneId = null;
+let selecteurType = null;
 let graphEcole;
 
 function rendreEntete() {
@@ -212,27 +221,8 @@ function rendreHistorique() {
   document.getElementById('msg-vide').style.display = tri.length ? 'none' : 'block';
 }
 
-function rendreGrilleTypesModale() {
-  const zone = document.getElementById('grille-types-modale');
-  zone.innerHTML = TYPES.map(t => `
-    <button type="button" class="chip-type" data-id="${t.id}">
-      ${t.label}
-      <span class="cat">${CATEGORIES_INTERVENTION[t.categorie]}</span>
-    </button>`).join('');
-  zone.querySelectorAll('.chip-type').forEach(btn => {
-    btn.addEventListener('click', () => {
-      typeSelectionneId = btn.dataset.id;
-      zone.querySelectorAll('.chip-type').forEach(b => b.classList.remove('selectionne'));
-      btn.classList.add('selectionne');
-      document.getElementById('type-personnalise').value = '';
-    });
-  });
-}
-
 function ouvrirModale() {
-  typeSelectionneId = null;
-  document.getElementById('grille-types-modale').querySelectorAll('.chip-type').forEach(b => b.classList.remove('selectionne'));
-  document.getElementById('type-personnalise').value = '';
+  selecteurType.reset();
   document.getElementById('mi-date').value = new Date().toISOString().slice(0, 10);
   document.getElementById('mi-theme').value = '';
   document.getElementById('mi-notes').value = '';
@@ -248,18 +238,20 @@ async function validerIntervention() {
   const msg = document.getElementById('mi-message');
   const date = document.getElementById('mi-date').value;
   const perso = document.getElementById('type-personnalise').value.trim();
+  const typeChoisi = selecteurType.typeSelectionneId();
   if (!date) { msg.className = 'alerte alerte-warn'; msg.textContent = 'Merci de renseigner une date.'; msg.style.display = 'block'; return; }
-  if (!typeSelectionneId && !perso) { msg.className = 'alerte alerte-warn'; msg.textContent = "Merci de choisir un type d'intervention ou de saisir une action personnalisée."; msg.style.display = 'block'; return; }
+  if (!typeChoisi && !perso) { msg.className = 'alerte alerte-warn'; msg.textContent = "Merci de choisir un type d'intervention ou de saisir une action personnalisée."; msg.style.display = 'block'; return; }
 
   const btn = document.getElementById('btn-valider-intervention');
   btn.disabled = true;
   msg.className = 'alerte alerte-info'; msg.textContent = 'Enregistrement en cours…'; msg.style.display = 'block';
   try {
-    let typeId = typeSelectionneId;
+    let typeId = typeChoisi;
     if (perso) {
       const type = await Store.ajouterTypePersonnalise(perso);
       typeId = type.id;
       TYPES = await Store.chargerTypes();
+      selecteurType.majTypes(TYPES);
     }
     const intervention = {
       id: genererIdIntervention(),
@@ -295,12 +287,13 @@ async function init() {
   [INTERVENANTS, TYPES, equipe] = await Promise.all([Store.chargerIntervenants(), Store.chargerTypes(), Store.chargerEquipeEcole(ecoleId)]);
   INTERVENTIONS = (await Store.chargerInterventionsEcole(ecoleId)).interventions;
 
+  selecteurType = initialiserSelecteurType({ selCategorieId: 'mi-categorie', selTypeId: 'mi-type', inputPersonaliseId: 'type-personnalise', types: TYPES });
+
   rendreEntete();
   rendreEquipe(equipe);
   rendreStats();
   rendreGraphique();
   rendreHistorique();
-  rendreGrilleTypesModale();
 
   document.getElementById('zone-chargement').style.display = 'none';
   document.getElementById('zone-contenu').style.display = 'block';
@@ -309,12 +302,6 @@ async function init() {
 document.getElementById('btn-ouvrir-modale').addEventListener('click', ouvrirModale);
 document.getElementById('btn-fermer-modale').addEventListener('click', fermerModale);
 document.getElementById('btn-valider-intervention').addEventListener('click', validerIntervention);
-document.getElementById('type-personnalise').addEventListener('input', () => {
-  if (document.getElementById('type-personnalise').value.trim()) {
-    typeSelectionneId = null;
-    document.getElementById('grille-types-modale').querySelectorAll('.chip-type').forEach(b => b.classList.remove('selectionne'));
-  }
-});
 
 if (!ecoleId) {
   document.getElementById('zone-chargement').className = 'alerte alerte-err';

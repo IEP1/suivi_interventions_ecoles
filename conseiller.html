@@ -33,8 +33,16 @@
     <p class="intro">Saisissez une action et attribuez-la à une ou plusieurs écoles en une fois : elle sera enregistrée dans l'historique de chacune.</p>
 
     <div class="carte">
-      <label>Type d'intervention</label>
-      <div class="grille-types" id="grille-types"></div>
+      <div class="ligne-champs">
+        <div class="champ">
+          <label for="ci-categorie">Catégorie</label>
+          <select id="ci-categorie"></select>
+        </div>
+        <div class="champ">
+          <label for="ci-type">Type d'intervention</label>
+          <select id="ci-type"></select>
+        </div>
+      </div>
       <div class="champ">
         <label for="type-personnalise">…ou action personnalisée (libellé libre)</label>
         <input type="text" id="type-personnalise" placeholder="Ex : Médiation avec une famille">
@@ -91,6 +99,7 @@
 <script src="js/github-store.js"></script>
 <script src="js/data-store.js"></script>
 <script src="js/stats.js"></script>
+<script src="js/type-selector.js"></script>
 <script src="js/layout.js"></script>
 <script>
 injecterEntete('conseillers.html');
@@ -102,24 +111,7 @@ let INTERVENANT = null;
 let INTERVENANTS_TOUS = [];
 let ECOLES = [];
 let TYPES = [];
-let typeSelectionneId = null;
-
-function rendreGrilleTypes() {
-  const zone = document.getElementById('grille-types');
-  zone.innerHTML = TYPES.map(t => `
-    <button type="button" class="chip-type" data-id="${t.id}">
-      ${t.label}
-      <span class="cat">${CATEGORIES_INTERVENTION[t.categorie]}</span>
-    </button>`).join('');
-  zone.querySelectorAll('.chip-type').forEach(btn => {
-    btn.addEventListener('click', () => {
-      typeSelectionneId = btn.dataset.id;
-      zone.querySelectorAll('.chip-type').forEach(b => b.classList.remove('selectionne'));
-      btn.classList.add('selectionne');
-      document.getElementById('type-personnalise').value = '';
-    });
-  });
-}
+let selecteurType = null;
 
 function rendreListeEcoles() {
   const zone = document.getElementById('liste-ecoles');
@@ -178,20 +170,22 @@ async function valider() {
   const msg = document.getElementById('ci-message');
   const date = document.getElementById('ci-date').value;
   const perso = document.getElementById('type-personnalise').value.trim();
+  const typeChoisi = selecteurType.typeSelectionneId();
   const ecolesChoisies = ecolesSelectionnees();
 
   if (!date) { msg.className = 'alerte alerte-warn'; msg.textContent = 'Merci de renseigner une date.'; msg.style.display = 'block'; return; }
-  if (!typeSelectionneId && !perso) { msg.className = 'alerte alerte-warn'; msg.textContent = "Merci de choisir un type d'intervention ou de saisir une action personnalisée."; msg.style.display = 'block'; return; }
+  if (!typeChoisi && !perso) { msg.className = 'alerte alerte-warn'; msg.textContent = "Merci de choisir un type d'intervention ou de saisir une action personnalisée."; msg.style.display = 'block'; return; }
   if (!ecolesChoisies.length) { msg.className = 'alerte alerte-warn'; msg.textContent = 'Merci de sélectionner au moins une école.'; msg.style.display = 'block'; return; }
 
   const btn = document.getElementById('btn-valider');
   btn.disabled = true;
   try {
-    let typeId = typeSelectionneId;
+    let typeId = typeChoisi;
     if (perso) {
       const type = await Store.ajouterTypePersonnalise(perso);
       typeId = type.id;
       TYPES = await Store.chargerTypes();
+      selecteurType.majTypes(TYPES);
     }
     const groupeId = 'grp-' + Date.now().toString(36);
     for (let i = 0; i < ecolesChoisies.length; i++) {
@@ -216,9 +210,7 @@ async function valider() {
     msg.textContent = `Action enregistrée sur ${ecolesChoisies.length} école(s).`;
     document.getElementById('ci-theme').value = '';
     document.getElementById('ci-notes').value = '';
-    document.getElementById('type-personnalise').value = '';
-    typeSelectionneId = null;
-    document.querySelectorAll('#grille-types .chip-type').forEach(b => b.classList.remove('selectionne'));
+    selecteurType.reset();
     await chargerHistorique();
   } catch (e) {
     msg.className = 'alerte alerte-err'; msg.textContent = e.message; msg.style.display = 'block';
@@ -259,7 +251,7 @@ async function init() {
 
   document.getElementById('titre-intervenant').textContent = INTERVENANT.nom;
   document.getElementById('ci-date').value = new Date().toISOString().slice(0, 10);
-  rendreGrilleTypes();
+  selecteurType = initialiserSelecteurType({ selCategorieId: 'ci-categorie', selTypeId: 'ci-type', inputPersonaliseId: 'type-personnalise', types: TYPES });
   rendreListeEcoles();
   rendreListeEcolesReferentes();
   await chargerHistorique();
@@ -280,12 +272,6 @@ document.getElementById('btn-aucune-ecole').addEventListener('click', () => {
   document.querySelectorAll('#liste-ecoles input').forEach(c => c.checked = false);
 });
 document.getElementById('btn-valider').addEventListener('click', valider);
-document.getElementById('type-personnalise').addEventListener('input', () => {
-  if (document.getElementById('type-personnalise').value.trim()) {
-    typeSelectionneId = null;
-    document.querySelectorAll('#grille-types .chip-type').forEach(b => b.classList.remove('selectionne'));
-  }
-});
 
 if (!intervenantId) {
   document.getElementById('zone-chargement').className = 'alerte alerte-err';
