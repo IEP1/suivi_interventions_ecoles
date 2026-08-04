@@ -96,6 +96,14 @@ l'importer dans le repo privé :
    relisez chaque école ensuite (bouton **Modifier** sur sa fiche) pour corriger d'éventuelles
    coquilles.
 
+## Cache navigateur (important pour les futures modifications)
+
+Chaque `<script src="js/...">` et `<link href="css/style.css">` porte un suffixe `?v=6`. Les
+navigateurs mettent ces fichiers en cache agressivement ; sans ce suffixe, une page HTML modifiée
+peut charger d'anciens fichiers JS/CSS en cache et planter (erreurs `null` sur des éléments qui
+n'existent plus). **À chaque modification d'un fichier dans `js/` ou `css/style.css`, augmenter
+le numéro `?v=` dans tous les fichiers HTML qui le chargent.**
+
 ## À venir (v2)
 
 - Synthèse automatique du projet d'école par établissement (axes prioritaires, actions
