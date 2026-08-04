@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conseillers — Suivi des interventions IEP1</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="entete-app"></div>
+
+<main>
+  <h2>Espace conseiller</h2>
+  <p class="intro">Choisissez qui saisit une action, pour l'attribuer directement à une ou plusieurs écoles.</p>
+
+  <div id="zone-chargement" class="alerte alerte-info">Chargement…</div>
+  <div class="grille-entree" id="grille-intervenants" style="display:none;"></div>
+</main>
+
+<p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
+
+<script src="js/seed-data.js"></script>
+<script src="js/github-store.js"></script>
+<script src="js/data-store.js"></script>
+<script src="js/layout.js"></script>
+<script>
+injecterEntete('conseillers.html');
+
+const ICONES_ROLE = { cpc: '🧑‍🏫', secretariat: '🗂️', ien: '🎓' };
+const LIBELLES_ROLE = { cpc: 'Conseiller pédagogique', secretariat: 'Secrétariat', ien: 'Inspecteur de l\'Éducation nationale' };
+
+async function init() {
+  const intervenants = await Store.chargerIntervenants();
+  const zone = document.getElementById('grille-intervenants');
+  zone.innerHTML = intervenants.map(i => `
+    <a class="carte-entree" href="conseiller.html?id=${i.id}">
+      <span class="icone">${ICONES_ROLE[i.role] || '👤'}</span>
+      <h3>${i.nom}</h3>
+      <p>${LIBELLES_ROLE[i.role] || ''}</p>
+    </a>`).join('');
+  document.getElementById('zone-chargement').style.display = 'none';
+  zone.style.display = 'grid';
+}
+
+init().catch(err => {
+  document.getElementById('zone-chargement').className = 'alerte alerte-err';
+  document.getElementById('zone-chargement').textContent = 'Erreur au chargement : ' + err.message;
+});
+</script>
+</body>
+</html>

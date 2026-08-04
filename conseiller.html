@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Espace conseiller — Suivi des interventions IEP1</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="entete-app"></div>
+
+<main>
+  <p class="no-print"><a href="conseillers.html">&larr; Changer de conseiller</a></p>
+
+  <div id="zone-chargement" class="alerte alerte-info">Chargement…</div>
+
+  <div id="zone-contenu" style="display:none;">
+    <h2 id="titre-intervenant"></h2>
+    <p class="intro">Saisissez une action et attribuez-la à une ou plusieurs écoles en une fois : elle sera enregistrée dans l'historique de chacune.</p>
+
+    <div class="carte">
+      <label>Type d'intervention</label>
+      <div class="grille-types" id="grille-types"></div>
+      <div class="champ">
+        <label for="type-personnalise">…ou action personnalisée (libellé libre)</label>
+        <input type="text" id="type-personnalise" placeholder="Ex : Médiation avec une famille">
+      </div>
+      <div class="ligne-champs">
+        <div class="champ">
+          <label for="ci-date">Date</label>
+          <input type="date" id="ci-date">
+        </div>
+      </div>
+      <div class="champ">
+        <label for="ci-theme">Thème / personne suivie <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
+        <input type="text" id="ci-theme" placeholder="Ex : Journée de formation Narramus">
+      </div>
+      <div class="champ">
+        <label for="ci-notes">Notes <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
+        <textarea id="ci-notes" rows="3"></textarea>
+      </div>
+    </div>
+
+    <div class="carte">
+      <div class="barre-actions">
+        <label style="margin:0;">Écoles concernées</label>
+        <div class="groupe-btns">
+          <button class="btn btn-sm btn-secondaire" id="btn-mes-ecoles" type="button">Mes écoles référentes</button>
+          <button class="btn btn-sm btn-secondaire" id="btn-toutes-ecoles" type="button">Toutes</button>
+          <button class="btn btn-sm btn-secondaire" id="btn-aucune-ecole" type="button">Aucune</button>
+        </div>
+      </div>
+      <div class="liste-selection-ecoles" id="liste-ecoles"></div>
+    </div>
+
+    <p id="ci-message" class="alerte" style="display:none;"></p>
+    <div class="groupe-btns">
+      <button class="btn btn-primaire" id="btn-valider" type="button">Valider et attribuer</button>
+    </div>
+
+    <div class="carte" style="margin-top:24px;">
+      <h3 style="margin-top:0;">Dernières actions saisies par cet intervenant</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Type</th><th>École</th><th>Thème / personne</th></tr></thead>
+          <tbody id="corps-historique"></tbody>
+        </table>
+      </div>
+      <p class="intro" id="msg-vide-historique" style="display:none;margin-top:10px;">Aucune action saisie par cet intervenant pour l'instant.</p>
+    </div>
+  </div>
+</main>
+
+<p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
+
+<script src="js/seed-data.js"></script>
+<script src="js/github-store.js"></script>
+<script src="js/data-store.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/layout.js"></script>
+<script>
+injecterEntete('conseillers.html');
+
+const params = new URLSearchParams(location.search);
+const intervenantId = params.get('id');
+
+let INTERVENANT = null;
+let ECOLES = [];
+let TYPES = [];
+let typeSelectionneId = null;
+
+function rendreGrilleTypes() {
+  const zone = document.getElementById('grille-types');
+  zone.innerHTML = TYPES.map(t => `
+    <button type="button" class="chip-type" data-id="${t.id}">
+      ${t.label}
+      <span class="cat">${CATEGORIES_INTERVENTION[t.categorie]}</span>
+    </button>`).join('');
+  zone.querySelectorAll('.chip-type').forEach(btn => {
+    btn.addEventListener('click', () => {
+      typeSelectionneId = btn.dataset.id;
+      zone.querySelectorAll('.chip-type').forEach(b => b.classList.remove('selectionne'));
+      btn.classList.add('selectionne');
+      document.getElementById('type-personnalise').value = '';
+    });
+  });
+}
+
+function rendreListeEcoles() {
+  const zone = document.getElementById('liste-ecoles');
+  zone.innerHTML = ECOLES.map(e => `
+    <label class="case-ecole">
+      <input type="checkbox" value="${e.id}" ${e.cpcReferent === intervenantId ? 'checked' : ''}>
+      ${e.nom}
+    </label>`).join('');
+}
+
+function ecolesSelectionnees() {
+  return [...document.querySelectorAll('#liste-ecoles input:checked')].map(c => c.value);
+}
+
+async function valider() {
+  const msg = document.getElementById('ci-message');
+  const date = document.getElementById('ci-date').value;
+  const perso = document.getElementById('type-personnalise').value.trim();
+  const ecolesChoisies = ecolesSelectionnees();
+
+  if (!date) { msg.className = 'alerte alerte-warn'; msg.textContent = 'Merci de renseigner une date.'; msg.style.display = 'block'; return; }
+  if (!typeSelectionneId && !perso) { msg.className = 'alerte alerte-warn'; msg.textContent = "Merci de choisir un type d'intervention ou de saisir une action personnalisée."; msg.style.display = 'block'; return; }
+  if (!ecolesChoisies.length) { msg.className = 'alerte alerte-warn'; msg.textContent = 'Merci de sélectionner au moins une école.'; msg.style.display = 'block'; return; }
+
+  const btn = document.getElementById('btn-valider');
+  btn.disabled = true;
+  try {
+    let typeId = typeSelectionneId;
+    if (perso) {
+      const type = await Store.ajouterTypePersonnalise(perso);
+      typeId = type.id;
+      TYPES = await Store.chargerTypes();
+    }
+    const groupeId = 'grp-' + Date.now().toString(36);
+    for (let i = 0; i < ecolesChoisies.length; i++) {
+      const ecoleId = ecolesChoisies[i];
+      const ecole = ECOLES.find(e => e.id === ecoleId);
+      msg.className = 'alerte alerte-info';
+      msg.textContent = `Enregistrement… (${i + 1}/${ecolesChoisies.length} : ${ecole.nom})`;
+      msg.style.display = 'block';
+      const intervention = {
+        id: genererIdIntervention(),
+        groupeId,
+        date,
+        typeId,
+        intervenantId,
+        theme: document.getElementById('ci-theme').value.trim(),
+        notes: document.getElementById('ci-notes').value.trim(),
+        horodatage: horodatageMaintenant()
+      };
+      await Store.ajouterIntervention(ecoleId, intervention, ecole.nom);
+    }
+    msg.className = 'alerte alerte-ok';
+    msg.textContent = `Action enregistrée sur ${ecolesChoisies.length} école(s).`;
+    document.getElementById('ci-theme').value = '';
+    document.getElementById('ci-notes').value = '';
+    document.getElementById('type-personnalise').value = '';
+    typeSelectionneId = null;
+    document.querySelectorAll('#grille-types .chip-type').forEach(b => b.classList.remove('selectionne'));
+    await chargerHistorique();
+  } catch (e) {
+    msg.className = 'alerte alerte-err'; msg.textContent = e.message; msg.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function chargerHistorique() {
+  const ecolesAvecDonnees = await Store.chargerToutesLesEcolesAvecInterventions();
+  const mesActions = [];
+  ecolesAvecDonnees.forEach(e => {
+    e.interventions.filter(iv => iv.intervenantId === intervenantId).forEach(iv => mesActions.push({ ...iv, ecoleId: e.id, ecoleNom: e.nom }));
+  });
+  mesActions.sort((a, b) => b.date.localeCompare(a.date) || b.horodatage.localeCompare(a.horodatage));
+  const corps = document.getElementById('corps-historique');
+  corps.innerHTML = mesActions.slice(0, 30).map(iv => {
+    const type = TYPES.find(t => t.id === iv.typeId);
+    return `<tr>
+      <td>${formaterDate(iv.date)}</td>
+      <td>${type ? type.label : iv.typeId}</td>
+      <td><a href="ecole.html?id=${iv.ecoleId || ''}">${iv.ecoleNom}</a></td>
+      <td>${iv.theme || '—'}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('msg-vide-historique').style.display = mesActions.length ? 'none' : 'block';
+}
+
+async function init() {
+  const intervenants = await Store.chargerIntervenants();
+  INTERVENANT = intervenants.find(i => i.id === intervenantId);
+  if (!INTERVENANT) {
+    document.getElementById('zone-chargement').className = 'alerte alerte-err';
+    document.getElementById('zone-chargement').textContent = 'Intervenant introuvable.';
+    return;
+  }
+  [ECOLES, TYPES] = await Promise.all([Store.chargerEcoles(), Store.chargerTypes()]);
+
+  document.getElementById('titre-intervenant').textContent = INTERVENANT.nom;
+  document.getElementById('ci-date').value = new Date().toISOString().slice(0, 10);
+  rendreGrilleTypes();
+  rendreListeEcoles();
+  await chargerHistorique();
+
+  document.getElementById('zone-chargement').style.display = 'none';
+  document.getElementById('zone-contenu').style.display = 'block';
+}
+
+document.getElementById('btn-mes-ecoles').addEventListener('click', () => {
+  document.querySelectorAll('#liste-ecoles input').forEach(c => c.checked = ECOLES.find(e => e.id === c.value).cpcReferent === intervenantId);
+});
+document.getElementById('btn-toutes-ecoles').addEventListener('click', () => {
+  document.querySelectorAll('#liste-ecoles input').forEach(c => c.checked = true);
+});
+document.getElementById('btn-aucune-ecole').addEventListener('click', () => {
+  document.querySelectorAll('#liste-ecoles input').forEach(c => c.checked = false);
+});
+document.getElementById('btn-valider').addEventListener('click', valider);
+document.getElementById('type-personnalise').addEventListener('input', () => {
+  if (document.getElementById('type-personnalise').value.trim()) {
+    typeSelectionneId = null;
+    document.querySelectorAll('#grille-types .chip-type').forEach(b => b.classList.remove('selectionne'));
+  }
+});
+
+if (!intervenantId) {
+  document.getElementById('zone-chargement').className = 'alerte alerte-err';
+  document.getElementById('zone-chargement').textContent = 'Aucun intervenant sélectionné.';
+} else {
+  init().catch(err => {
+    document.getElementById('zone-chargement').className = 'alerte alerte-err';
+    document.getElementById('zone-chargement').textContent = 'Erreur au chargement : ' + err.message;
+  });
+}
+</script>
+</body>
+</html>

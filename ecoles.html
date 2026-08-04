@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Écoles — Suivi des interventions IEP1</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="entete-app"></div>
+
+<main>
+  <div class="barre-actions">
+    <div>
+      <h2>Écoles</h2>
+      <p class="intro" style="margin-bottom:0;">Cliquez sur une école pour consulter ses statistiques et ajouter une intervention.</p>
+    </div>
+    <input type="search" id="recherche" placeholder="Rechercher une école…" style="max-width:260px;">
+  </div>
+
+  <div id="zone-chargement" class="alerte alerte-info">Chargement…</div>
+  <div id="zone-groupes" style="display:none;"></div>
+</main>
+
+<p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
+
+<script src="js/seed-data.js"></script>
+<script src="js/github-store.js"></script>
+<script src="js/data-store.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/layout.js"></script>
+<script>
+injecterEntete('ecoles.html');
+
+let ECOLES_AVEC_DONNEES = [];
+
+function rendreGroupes(filtre) {
+  const zone = document.getElementById('zone-groupes');
+  const f = (filtre || '').trim().toLowerCase();
+  const filtrees = ECOLES_AVEC_DONNEES.filter(e => e.nom.toLowerCase().includes(f));
+
+  const ordreTypes = ['maternelle', 'elementaire', 'groupe-scolaire', 'structure'];
+  let html = '';
+  ordreTypes.forEach(type => {
+    const groupe = filtrees.filter(e => e.type === type);
+    if (!groupe.length) return;
+    html += `<div class="groupe-ecoles-titre">${TYPES_ECOLE[type]}s</div><div class="grille-ecoles">`;
+    groupe.forEach(e => {
+      const fraicheur = calculerFraicheurEcole(e.interventions);
+      html += `
+        <a class="carte-ecole" href="ecole.html?id=${e.id}">
+          <span class="pastille-fraicheur ${fraicheur.classe}">${fraicheur.libelle}</span>
+          <span class="nom-ecole">${e.nom}</span>
+          <span class="meta-ecole">${e.direction || ''}</span>
+          <span class="meta-ecole">${e.interventions.length} intervention(s) enregistrée(s)</span>
+        </a>`;
+    });
+    html += `</div>`;
+  });
+  zone.innerHTML = html || '<p class="intro">Aucune école ne correspond à la recherche.</p>';
+}
+
+async function init() {
+  ECOLES_AVEC_DONNEES = await Store.chargerToutesLesEcolesAvecInterventions();
+  document.getElementById('zone-chargement').style.display = 'none';
+  document.getElementById('zone-groupes').style.display = 'block';
+  rendreGroupes('');
+}
+
+document.getElementById('recherche').addEventListener('input', (e) => rendreGroupes(e.target.value));
+
+init().catch(err => {
+  document.getElementById('zone-chargement').className = 'alerte alerte-err';
+  document.getElementById('zone-chargement').textContent = 'Erreur au chargement : ' + err.message;
+});
+</script>
+</body>
+</html>
