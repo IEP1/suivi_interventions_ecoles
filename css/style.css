@@ -276,6 +276,28 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--teal); outl
 .case-ecole:hover { background: var(--bg); }
 .case-ecole input { width: auto; }
 
+/* ===== Chips d'écoles (sélection légère par petits boutons) ===== */
+.grille-chips-ecoles { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip-ecole {
+  border: 1px solid var(--bordure); background: white; border-radius: 20px;
+  padding: 6px 14px; font-size: 0.83rem; font-weight: 600; color: var(--navy);
+  cursor: pointer; transition: background .1s, border-color .1s, color .1s;
+}
+.chip-ecole:hover { border-color: var(--teal); }
+.chip-ecole.selectionne { background: var(--navy); border-color: var(--navy); color: white; }
+.chips-lecture { display: flex; flex-wrap: wrap; gap: 7px; }
+.chips-lecture a.chip-ecole-lien {
+  display: inline-block; border: 1px solid var(--bordure); background: var(--teal-light);
+  color: var(--navy); border-radius: 20px; padding: 6px 14px; font-size: 0.83rem; font-weight: 600;
+  text-decoration: none;
+}
+.chips-lecture a.chip-ecole-lien:hover { border-color: var(--teal); }
+
+/* ===== Onglets (bascule légère entre deux vues) ===== */
+.onglets { display: inline-flex; gap: 4px; background: var(--bg); border: 1px solid var(--bordure); border-radius: 20px; padding: 3px; margin-bottom: 14px; }
+.onglet { border: none; background: transparent; padding: 6px 14px; border-radius: 16px; font-size: 0.83rem; font-weight: 600; color: var(--texte-muted); cursor: pointer; }
+.onglet.actif { background: white; color: var(--navy); box-shadow: var(--ombre); }
+
 /* ===== Modale ===== */
 .fond-modale { display: none; position: fixed; inset: 0; background: rgba(14,33,56,.55); z-index: 100; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 40px 16px; }
 .fond-modale.ouverte { display: flex; }

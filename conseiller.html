@@ -19,29 +19,26 @@
 
     <div class="carte">
       <div class="barre-actions">
-        <div>
-          <h3 style="margin:0;">Mes écoles de référence</h3>
-          <p class="intro" style="margin:4px 0 0;">Cochez vos écoles pour y accéder plus vite et les pré-sélectionner automatiquement ci-dessous.</p>
-        </div>
-        <button class="btn btn-sm btn-primaire" id="btn-enregistrer-referentes" type="button">Enregistrer</button>
+        <h3 style="margin:0;">Mes écoles de référence</h3>
+        <button class="btn btn-sm btn-secondaire" id="btn-modifier-referentes" type="button">Modifier</button>
       </div>
-      <div class="liste-selection-ecoles" id="liste-ecoles-referentes"></div>
-      <p id="msg-referentes" class="alerte" style="display:none;margin-top:10px;"></p>
-      <div id="acces-rapide-ecoles" style="margin-top:14px;"></div>
+      <div id="vue-referentes-lecture"></div>
+      <div id="vue-referentes-edition" style="display:none;">
+        <div class="grille-chips-ecoles" id="chips-referentes"></div>
+        <p id="msg-referentes" class="alerte" style="display:none;margin-top:10px;"></p>
+        <div class="groupe-btns" style="margin-top:12px;">
+          <button class="btn btn-sm btn-secondaire" id="btn-annuler-referentes" type="button">Annuler</button>
+          <button class="btn btn-sm btn-primaire" id="btn-enregistrer-referentes" type="button">Valider</button>
+        </div>
+      </div>
     </div>
 
     <p class="intro">Saisissez une action et attribuez-la à une ou plusieurs écoles en une fois : elle sera enregistrée dans l'historique de chacune.</p>
 
     <div class="carte">
-      <div class="ligne-champs">
-        <div class="champ">
-          <label for="ci-categorie">Catégorie</label>
-          <select id="ci-categorie"></select>
-        </div>
-        <div class="champ">
-          <label for="ci-type">Type d'intervention</label>
-          <select id="ci-type"></select>
-        </div>
+      <div class="champ">
+        <label for="ci-type">Type d'intervention</label>
+        <select id="ci-type"></select>
       </div>
       <div class="champ">
         <label for="type-personnalise">…ou action personnalisée (libellé libre)</label>
@@ -64,15 +61,15 @@
     </div>
 
     <div class="carte">
-      <div class="barre-actions">
-        <label style="margin:0;">Écoles concernées</label>
-        <div class="groupe-btns">
-          <button class="btn btn-sm btn-secondaire" id="btn-mes-ecoles" type="button">Mes écoles référentes</button>
-          <button class="btn btn-sm btn-secondaire" id="btn-toutes-ecoles" type="button">Toutes</button>
-          <button class="btn btn-sm btn-secondaire" id="btn-aucune-ecole" type="button">Aucune</button>
-        </div>
+      <label>Écoles concernées</label>
+      <div class="onglets">
+        <button type="button" class="onglet actif" id="onglet-mode-referentes">Mes écoles de référence</button>
+        <button type="button" class="onglet" id="onglet-mode-choisir">Choisir une/des écoles</button>
       </div>
-      <div class="liste-selection-ecoles" id="liste-ecoles"></div>
+      <div id="vue-action-referentes"></div>
+      <div id="vue-action-choisir" style="display:none;">
+        <div class="grille-chips-ecoles" id="chips-action-ecoles"></div>
+      </div>
     </div>
 
     <p id="ci-message" class="alerte" style="display:none;"></p>
@@ -100,6 +97,7 @@
 <script src="js/data-store.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/type-selector.js"></script>
+<script src="js/school-picker.js"></script>
 <script src="js/layout.js"></script>
 <script>
 injecterEntete('conseillers.html');
@@ -112,37 +110,46 @@ let INTERVENANTS_TOUS = [];
 let ECOLES = [];
 let TYPES = [];
 let selecteurType = null;
+let chipsReferentesPicker = null;
+let chipsActionPicker = null;
+let modeAction = 'referentes';
 
-function rendreListeEcoles() {
-  const zone = document.getElementById('liste-ecoles');
-  zone.innerHTML = ECOLES.map(e => `
-    <label class="case-ecole">
-      <input type="checkbox" value="${e.id}" ${e.cpcReferent === intervenantId ? 'checked' : ''}>
-      ${e.nom}
-    </label>`).join('');
+function mesEcolesReferentes() {
+  return ECOLES.filter(e => e.cpcReferent === intervenantId);
 }
 
-function rendreListeEcolesReferentes() {
-  const zone = document.getElementById('liste-ecoles-referentes');
-  zone.innerHTML = ECOLES.map(e => `
-    <label class="case-ecole">
-      <input type="checkbox" class="case-referente" value="${e.id}" ${e.cpcReferent === intervenantId ? 'checked' : ''}>
-      ${e.nom}${e.cpcReferent && e.cpcReferent !== intervenantId ? ' <span style="color:var(--texte-muted);">(réf. actuel : ' + (INTERVENANTS_TOUS.find(i => i.id === e.cpcReferent) || {}).nom + ')</span>' : ''}
-    </label>`).join('');
-  rendreAccesRapide();
+function rendreVueReferentesLecture() {
+  rendreChipsLecture(
+    document.getElementById('vue-referentes-lecture'),
+    mesEcolesReferentes(),
+    "Aucune école de référence enregistrée. Cliquez sur « Modifier » pour en choisir."
+  );
 }
 
-function rendreAccesRapide() {
-  const mesEcoles = ECOLES.filter(e => e.cpcReferent === intervenantId);
-  const zone = document.getElementById('acces-rapide-ecoles');
-  if (!mesEcoles.length) { zone.innerHTML = '<p class="intro" style="margin:0;">Aucune école de référence enregistrée pour l\'instant.</p>'; return; }
-  zone.innerHTML = '<div class="groupe-btns">' + mesEcoles.map(e => `<a class="btn btn-sm btn-secondaire" href="ecole.html?id=${e.id}">${e.nom}</a>`).join('') + '</div>';
+function rendreVueActionReferentes() {
+  rendreChipsLecture(
+    document.getElementById('vue-action-referentes'),
+    mesEcolesReferentes(),
+    "Aucune école de référence — utilisez l'onglet « Choisir une/des écoles »."
+  );
+}
+
+function ouvrirEditionReferentes() {
+  document.getElementById('vue-referentes-lecture').style.display = 'none';
+  document.getElementById('vue-referentes-edition').style.display = 'block';
+  document.getElementById('msg-referentes').style.display = 'none';
+  chipsReferentesPicker = creerGrilleChipsEcoles(document.getElementById('chips-referentes'), ECOLES, mesEcolesReferentes().map(e => e.id));
+}
+
+function fermerEditionReferentes() {
+  document.getElementById('vue-referentes-lecture').style.display = 'block';
+  document.getElementById('vue-referentes-edition').style.display = 'none';
 }
 
 async function enregistrerEcolesReferentes() {
   const msg = document.getElementById('msg-referentes');
   const btn = document.getElementById('btn-enregistrer-referentes');
-  const cochees = new Set([...document.querySelectorAll('.case-referente:checked')].map(c => c.value));
+  const cochees = new Set(chipsReferentesPicker.getSelection());
   btn.disabled = true;
   msg.className = 'alerte alerte-info'; msg.textContent = 'Enregistrement…'; msg.style.display = 'block';
   try {
@@ -152,18 +159,26 @@ async function enregistrerEcolesReferentes() {
       return e;
     });
     await Store.sauvegarderEcoles(ECOLES);
-    msg.className = 'alerte alerte-ok'; msg.textContent = 'Écoles de référence enregistrées.';
-    rendreListeEcolesReferentes();
-    rendreListeEcoles();
+    rendreVueReferentesLecture();
+    rendreVueActionReferentes();
+    fermerEditionReferentes();
   } catch (e) {
-    msg.className = 'alerte alerte-err'; msg.textContent = e.message;
+    msg.className = 'alerte alerte-err'; msg.textContent = e.message; msg.style.display = 'block';
   } finally {
     btn.disabled = false;
   }
 }
 
+function basculerModeAction(mode) {
+  modeAction = mode;
+  document.getElementById('onglet-mode-referentes').classList.toggle('actif', mode === 'referentes');
+  document.getElementById('onglet-mode-choisir').classList.toggle('actif', mode === 'choisir');
+  document.getElementById('vue-action-referentes').style.display = mode === 'referentes' ? 'block' : 'none';
+  document.getElementById('vue-action-choisir').style.display = mode === 'choisir' ? 'block' : 'none';
+}
+
 function ecolesSelectionnees() {
-  return [...document.querySelectorAll('#liste-ecoles input:checked')].map(c => c.value);
+  return modeAction === 'referentes' ? mesEcolesReferentes().map(e => e.id) : chipsActionPicker.getSelection();
 }
 
 async function valider() {
@@ -251,26 +266,21 @@ async function init() {
 
   document.getElementById('titre-intervenant').textContent = INTERVENANT.nom;
   document.getElementById('ci-date').value = new Date().toISOString().slice(0, 10);
-  selecteurType = initialiserSelecteurType({ selCategorieId: 'ci-categorie', selTypeId: 'ci-type', inputPersonaliseId: 'type-personnalise', types: TYPES });
-  rendreListeEcoles();
-  rendreListeEcolesReferentes();
+  selecteurType = initialiserSelecteurType({ selTypeId: 'ci-type', inputPersonaliseId: 'type-personnalise', types: TYPES });
+  rendreVueReferentesLecture();
+  rendreVueActionReferentes();
+  chipsActionPicker = creerGrilleChipsEcoles(document.getElementById('chips-action-ecoles'), ECOLES, mesEcolesReferentes().map(e => e.id));
   await chargerHistorique();
 
   document.getElementById('zone-chargement').style.display = 'none';
   document.getElementById('zone-contenu').style.display = 'block';
 }
 
+document.getElementById('btn-modifier-referentes').addEventListener('click', ouvrirEditionReferentes);
+document.getElementById('btn-annuler-referentes').addEventListener('click', fermerEditionReferentes);
 document.getElementById('btn-enregistrer-referentes').addEventListener('click', enregistrerEcolesReferentes);
-
-document.getElementById('btn-mes-ecoles').addEventListener('click', () => {
-  document.querySelectorAll('#liste-ecoles input').forEach(c => c.checked = ECOLES.find(e => e.id === c.value).cpcReferent === intervenantId);
-});
-document.getElementById('btn-toutes-ecoles').addEventListener('click', () => {
-  document.querySelectorAll('#liste-ecoles input').forEach(c => c.checked = true);
-});
-document.getElementById('btn-aucune-ecole').addEventListener('click', () => {
-  document.querySelectorAll('#liste-ecoles input').forEach(c => c.checked = false);
-});
+document.getElementById('onglet-mode-referentes').addEventListener('click', () => basculerModeAction('referentes'));
+document.getElementById('onglet-mode-choisir').addEventListener('click', () => basculerModeAction('choisir'));
 document.getElementById('btn-valider').addEventListener('click', valider);
 
 if (!intervenantId) {

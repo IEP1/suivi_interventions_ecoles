@@ -72,15 +72,9 @@
 <div class="fond-modale no-print" id="modale-ajout">
   <div class="contenu-modale">
     <h3>Ajouter une intervention</h3>
-    <div class="ligne-champs">
-      <div class="champ">
-        <label for="mi-categorie">Catégorie</label>
-        <select id="mi-categorie"></select>
-      </div>
-      <div class="champ">
-        <label for="mi-type">Type d'intervention</label>
-        <select id="mi-type"></select>
-      </div>
+    <div class="champ">
+      <label for="mi-type">Type d'intervention</label>
+      <select id="mi-type"></select>
     </div>
     <div class="champ">
       <label for="type-personnalise">…ou action personnalisée (libellé libre)</label>
@@ -287,7 +281,7 @@ async function init() {
   [INTERVENANTS, TYPES, equipe] = await Promise.all([Store.chargerIntervenants(), Store.chargerTypes(), Store.chargerEquipeEcole(ecoleId)]);
   INTERVENTIONS = (await Store.chargerInterventionsEcole(ecoleId)).interventions;
 
-  selecteurType = initialiserSelecteurType({ selCategorieId: 'mi-categorie', selTypeId: 'mi-type', inputPersonaliseId: 'type-personnalise', types: TYPES });
+  selecteurType = initialiserSelecteurType({ selTypeId: 'mi-type', inputPersonaliseId: 'type-personnalise', types: TYPES });
 
   rendreEntete();
   rendreEquipe(equipe);
