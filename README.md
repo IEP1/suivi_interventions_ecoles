@@ -54,19 +54,47 @@ rien ne peut être enregistré durablement.
   suivi de stagiaire, conseils des maîtres/d'école/de cycle, projet d'école, liaisons GS-CP et
   CM2-6e, animations pédagogiques, interventions sur sollicitation…). Toute action personnalisée
   saisie une fois vient enrichir la liste proposée aux suivantes.
+- **Intervenants** (`conseillers.html`) : ajout et suppression manuels d'intervenants (nom + rôle
+  parmi conseiller pédagogique / secrétariat / IEN).
+- **Écoles de référence** (`conseiller.html`) : chaque intervenant peut cocher ses écoles de
+  référence depuis sa propre page, pour y accéder plus vite et pré-remplir automatiquement la
+  liste lors de la saisie d'une action groupée.
+- **Structure pédagogique** (`equipe.html`) : accessible depuis chaque fiche école (bouton
+  « Modifier »), permet de saisir/éditer l'équipe enseignante (nom, prénom, niveau de classe,
+  statut, référent ou responsabilité) et le psychologue scolaire référent. Ces informations ne
+  sont **jamais publiées** dans le code : elles vivent uniquement dans le repo privé de données.
 
-Chaque école a son propre fichier de données dans le repo privé (`interventions/<id>.json`), ce
-qui évite les conflits entre conseillers qui saisissent en même temps sur des écoles
-différentes. Chaque écriture crée un commit sur le repo de données : c'est votre historique de
-sauvegardes.
+Chaque école a son propre fichier de données dans le repo privé (`interventions/<id>.json`,
+`equipes/<id>.json`), ce qui évite les conflits entre conseillers qui saisissent en même temps
+sur des écoles différentes. Chaque écriture crée un commit sur le repo de données : c'est votre
+historique de sauvegardes.
 
 ## Fichiers du repo de données
 
 - `ecoles.json` — liste des écoles (nom, type, direction, CPC référent).
-- `intervenants.json` — les 5 CPC, le secrétariat, l'IEN.
+- `intervenants.json` — conseillers pédagogiques, secrétariat, IEN.
 - `types-intervention.json` — types d'intervention proposés (dont les types personnalisés créés
   en cours d'usage).
 - `interventions/<ecoleId>.json` — historique des interventions de cette école.
+- `equipes/<ecoleId>.json` — structure pédagogique de cette école (enseignants, psychologue
+  référent).
+
+## Pré-remplir la structure pédagogique (une seule fois)
+
+Un fichier local `js/import-equipes.local.js` (jamais publié, voir `.gitignore`) contient la
+structure pédagogique des 21 écoles extraite de "Tableau bord circonscription IEP1.xlsx". Pour
+l'importer dans le repo privé :
+
+1. Ces deux fichiers existent déjà dans votre dossier de projet local (jamais poussés sur
+   GitHub, voir `.gitignore`) : `js/import-equipes.local.js` et `import.html`.
+2. Lancez le site en local (`python -m http.server` à la racine du projet) et ouvrez
+   `http://localhost:8000/import.html` (ou le port utilisé).
+3. Connectez le repo de données via **⚙ Données** si besoin, puis cliquez
+   **Importer la structure pédagogique**.
+4. Le fichier source contient quelques accents mal restitués (encodage déjà abîmé dans le
+   classeur d'origine) : une correction automatique a été appliquée à l'extraction, mais
+   relisez chaque école ensuite (bouton **Modifier** sur sa fiche) pour corriger d'éventuelles
+   coquilles.
 
 ## À venir (v2)
 

@@ -40,6 +40,15 @@ const Store = {
     return type;
   },
 
+  /** Structure pédagogique d'une école : { psychologueScolaire: '', enseignants: [...] }. */
+  async chargerEquipeEcole(ecoleId) {
+    const { data } = await chargerJSON(`equipes/${ecoleId}.json`, { psychologueScolaire: '', enseignants: [] });
+    return data;
+  },
+  async sauvegarderEquipeEcole(ecoleId, data, nomEcole) {
+    await sauvegarderJSON(`equipes/${ecoleId}.json`, data, `Mise à jour structure pédagogique ${nomEcole || ecoleId}`);
+  },
+
   /** Interventions d'une école : { interventions: [...] }. */
   async chargerInterventionsEcole(ecoleId) {
     const { data } = await chargerJSON(`interventions/${ecoleId}.json`, { interventions: [] });
@@ -69,6 +78,15 @@ const Store = {
 
 function genererIdIntervention() {
   return 'iv-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
+}
+
+function genererIdEnseignant() {
+  return 'ens-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
+}
+
+function genererIdIntervenant(nom) {
+  const base = nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]/g, '').slice(0, 14) || 'intervenant';
+  return base + '-' + Math.random().toString(36).slice(2, 6);
 }
 
 function horodatageMaintenant() {

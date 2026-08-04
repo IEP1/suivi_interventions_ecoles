@@ -16,6 +16,20 @@
 
   <div id="zone-contenu" style="display:none;">
     <h2 id="titre-intervenant"></h2>
+
+    <div class="carte">
+      <div class="barre-actions">
+        <div>
+          <h3 style="margin:0;">Mes écoles de référence</h3>
+          <p class="intro" style="margin:4px 0 0;">Cochez vos écoles pour y accéder plus vite et les pré-sélectionner automatiquement ci-dessous.</p>
+        </div>
+        <button class="btn btn-sm btn-primaire" id="btn-enregistrer-referentes" type="button">Enregistrer</button>
+      </div>
+      <div class="liste-selection-ecoles" id="liste-ecoles-referentes"></div>
+      <p id="msg-referentes" class="alerte" style="display:none;margin-top:10px;"></p>
+      <div id="acces-rapide-ecoles" style="margin-top:14px;"></div>
+    </div>
+
     <p class="intro">Saisissez une action et attribuez-la à une ou plusieurs écoles en une fois : elle sera enregistrée dans l'historique de chacune.</p>
 
     <div class="carte">
@@ -85,6 +99,7 @@ const params = new URLSearchParams(location.search);
 const intervenantId = params.get('id');
 
 let INTERVENANT = null;
+let INTERVENANTS_TOUS = [];
 let ECOLES = [];
 let TYPES = [];
 let typeSelectionneId = null;
@@ -113,6 +128,46 @@ function rendreListeEcoles() {
       <input type="checkbox" value="${e.id}" ${e.cpcReferent === intervenantId ? 'checked' : ''}>
       ${e.nom}
     </label>`).join('');
+}
+
+function rendreListeEcolesReferentes() {
+  const zone = document.getElementById('liste-ecoles-referentes');
+  zone.innerHTML = ECOLES.map(e => `
+    <label class="case-ecole">
+      <input type="checkbox" class="case-referente" value="${e.id}" ${e.cpcReferent === intervenantId ? 'checked' : ''}>
+      ${e.nom}${e.cpcReferent && e.cpcReferent !== intervenantId ? ' <span style="color:var(--texte-muted);">(réf. actuel : ' + (INTERVENANTS_TOUS.find(i => i.id === e.cpcReferent) || {}).nom + ')</span>' : ''}
+    </label>`).join('');
+  rendreAccesRapide();
+}
+
+function rendreAccesRapide() {
+  const mesEcoles = ECOLES.filter(e => e.cpcReferent === intervenantId);
+  const zone = document.getElementById('acces-rapide-ecoles');
+  if (!mesEcoles.length) { zone.innerHTML = '<p class="intro" style="margin:0;">Aucune école de référence enregistrée pour l\'instant.</p>'; return; }
+  zone.innerHTML = '<div class="groupe-btns">' + mesEcoles.map(e => `<a class="btn btn-sm btn-secondaire" href="ecole.html?id=${e.id}">${e.nom}</a>`).join('') + '</div>';
+}
+
+async function enregistrerEcolesReferentes() {
+  const msg = document.getElementById('msg-referentes');
+  const btn = document.getElementById('btn-enregistrer-referentes');
+  const cochees = new Set([...document.querySelectorAll('.case-referente:checked')].map(c => c.value));
+  btn.disabled = true;
+  msg.className = 'alerte alerte-info'; msg.textContent = 'Enregistrement…'; msg.style.display = 'block';
+  try {
+    ECOLES = ECOLES.map(e => {
+      if (cochees.has(e.id)) return { ...e, cpcReferent: intervenantId };
+      if (e.cpcReferent === intervenantId) return { ...e, cpcReferent: null };
+      return e;
+    });
+    await Store.sauvegarderEcoles(ECOLES);
+    msg.className = 'alerte alerte-ok'; msg.textContent = 'Écoles de référence enregistrées.';
+    rendreListeEcolesReferentes();
+    rendreListeEcoles();
+  } catch (e) {
+    msg.className = 'alerte alerte-err'; msg.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function ecolesSelectionnees() {
@@ -193,8 +248,8 @@ async function chargerHistorique() {
 }
 
 async function init() {
-  const intervenants = await Store.chargerIntervenants();
-  INTERVENANT = intervenants.find(i => i.id === intervenantId);
+  INTERVENANTS_TOUS = await Store.chargerIntervenants();
+  INTERVENANT = INTERVENANTS_TOUS.find(i => i.id === intervenantId);
   if (!INTERVENANT) {
     document.getElementById('zone-chargement').className = 'alerte alerte-err';
     document.getElementById('zone-chargement').textContent = 'Intervenant introuvable.';
@@ -206,11 +261,14 @@ async function init() {
   document.getElementById('ci-date').value = new Date().toISOString().slice(0, 10);
   rendreGrilleTypes();
   rendreListeEcoles();
+  rendreListeEcolesReferentes();
   await chargerHistorique();
 
   document.getElementById('zone-chargement').style.display = 'none';
   document.getElementById('zone-contenu').style.display = 'block';
 }
+
+document.getElementById('btn-enregistrer-referentes').addEventListener('click', enregistrerEcolesReferentes);
 
 document.getElementById('btn-mes-ecoles').addEventListener('click', () => {
   document.querySelectorAll('#liste-ecoles input').forEach(c => c.checked = ECOLES.find(e => e.id === c.value).cpcReferent === intervenantId);

@@ -5,6 +5,11 @@
 desktop.ini
 01 Logo IEP1.png
 
+# Import ponctuel de la structure pédagogique (données personnelles) : ne jamais publier,
+# utilisé une seule fois en local pour peupler le repo privé de données.
+js/import-equipes.local.js
+import.html
+
 .DS_Store
 Thumbs.db
 .claude/settings.local.json

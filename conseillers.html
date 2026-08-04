@@ -10,8 +10,36 @@
 <div id="entete-app"></div>
 
 <main>
-  <h2>Espace conseiller</h2>
-  <p class="intro">Choisissez qui saisit une action, pour l'attribuer directement à une ou plusieurs écoles.</p>
+  <div class="barre-actions">
+    <div>
+      <h2>Espace conseiller</h2>
+      <p class="intro" style="margin-bottom:0;">Choisissez qui saisit une action, pour l'attribuer directement à une ou plusieurs écoles.</p>
+    </div>
+    <button class="btn btn-sm btn-primaire" id="btn-ouvrir-ajout">+ Ajouter un intervenant</button>
+  </div>
+
+  <div class="carte" id="carte-ajout" style="display:none;">
+    <h3 style="margin-top:0;">Nouvel intervenant</h3>
+    <div class="ligne-champs">
+      <div class="champ">
+        <label for="nv-nom">Nom complet</label>
+        <input type="text" id="nv-nom" placeholder="Ex : Prénom NOM">
+      </div>
+      <div class="champ" style="max-width:240px;">
+        <label for="nv-role">Rôle</label>
+        <select id="nv-role">
+          <option value="cpc">Conseiller / conseillère pédagogique</option>
+          <option value="secretariat">Secrétariat</option>
+          <option value="ien">IEN (Inspecteur)</option>
+        </select>
+      </div>
+    </div>
+    <p id="msg-ajout" class="alerte" style="display:none;"></p>
+    <div class="groupe-btns">
+      <button class="btn btn-secondaire" id="btn-annuler-ajout" type="button">Annuler</button>
+      <button class="btn btn-primaire" id="btn-valider-ajout" type="button">Ajouter</button>
+    </div>
+  </div>
 
   <div id="zone-chargement" class="alerte alerte-info">Chargement…</div>
   <div class="grille-entree" id="grille-intervenants" style="display:none;"></div>
@@ -27,19 +55,66 @@
 injecterEntete('conseillers.html');
 
 const ICONES_ROLE = { cpc: '🧑‍🏫', secretariat: '🗂️', ien: '🎓' };
-const LIBELLES_ROLE = { cpc: 'Conseiller pédagogique', secretariat: 'Secrétariat', ien: 'Inspecteur de l\'Éducation nationale' };
+const LIBELLES_ROLE = { cpc: 'Conseiller pédagogique', secretariat: 'Secrétariat', ien: "Inspecteur de l'Éducation nationale" };
 
-async function init() {
-  const intervenants = await Store.chargerIntervenants();
+let INTERVENANTS = [];
+
+async function rendre() {
   const zone = document.getElementById('grille-intervenants');
-  zone.innerHTML = intervenants.map(i => `
-    <a class="carte-entree" href="conseiller.html?id=${i.id}">
+  zone.innerHTML = INTERVENANTS.map(i => `
+    <div class="carte-entree" style="position:relative;">
+      <button type="button" class="btn btn-sm btn-danger" data-suppr="${i.id}" style="position:absolute;top:14px;right:14px;">✕</button>
       <span class="icone">${ICONES_ROLE[i.role] || '👤'}</span>
       <h3>${i.nom}</h3>
       <p>${LIBELLES_ROLE[i.role] || ''}</p>
-    </a>`).join('');
+      <a class="btn btn-sm btn-primaire" style="align-self:flex-start;" href="conseiller.html?id=${i.id}">Ouvrir</a>
+    </div>`).join('');
+  zone.querySelectorAll('[data-suppr]').forEach(btn => btn.addEventListener('click', () => supprimer(btn.dataset.suppr)));
+}
+
+async function supprimer(id) {
+  const i = INTERVENANTS.find(x => x.id === id);
+  if (!i) return;
+  if (!confirm(`Supprimer ${i.nom} de la liste des intervenants ? Son historique d'interventions déjà saisi reste conservé dans les écoles.`)) return;
+  try {
+    INTERVENANTS = INTERVENANTS.filter(x => x.id !== id);
+    await Store.sauvegarderIntervenants(INTERVENANTS);
+    rendre();
+  } catch (e) {
+    alert("Échec de la suppression : " + e.message);
+    await init();
+  }
+}
+
+document.getElementById('btn-ouvrir-ajout').addEventListener('click', () => {
+  document.getElementById('carte-ajout').style.display = 'block';
+  document.getElementById('nv-nom').value = '';
+  document.getElementById('msg-ajout').style.display = 'none';
+});
+document.getElementById('btn-annuler-ajout').addEventListener('click', () => {
+  document.getElementById('carte-ajout').style.display = 'none';
+});
+document.getElementById('btn-valider-ajout').addEventListener('click', async () => {
+  const nom = document.getElementById('nv-nom').value.trim();
+  const role = document.getElementById('nv-role').value;
+  const msg = document.getElementById('msg-ajout');
+  if (!nom) { msg.className = 'alerte alerte-warn'; msg.textContent = 'Merci de saisir un nom.'; msg.style.display = 'block'; return; }
+  try {
+    const nouvel = { id: genererIdIntervenant(nom), nom, role };
+    INTERVENANTS.push(nouvel);
+    await Store.sauvegarderIntervenants(INTERVENANTS);
+    document.getElementById('carte-ajout').style.display = 'none';
+    rendre();
+  } catch (e) {
+    msg.className = 'alerte alerte-err'; msg.textContent = e.message; msg.style.display = 'block';
+  }
+});
+
+async function init() {
+  INTERVENANTS = await Store.chargerIntervenants();
   document.getElementById('zone-chargement').style.display = 'none';
-  zone.style.display = 'grid';
+  document.getElementById('grille-intervenants').style.display = 'grid';
+  rendre();
 }
 
 init().catch(err => {

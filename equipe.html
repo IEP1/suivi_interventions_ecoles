@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Structure pédagogique — Suivi des interventions IEP1</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="entete-app"></div>
+
+<main>
+  <p class="no-print" id="lien-retour"><a href="ecoles.html">&larr; Retour aux écoles</a></p>
+
+  <div id="zone-chargement" class="alerte alerte-info">Chargement…</div>
+
+  <div id="zone-contenu" style="display:none;">
+    <h2 id="titre">Structure pédagogique</h2>
+    <p class="intro">Ces informations (équipe enseignante, psychologue référent) sont stockées uniquement dans le repo privé de données — jamais publiées.</p>
+
+    <div class="carte">
+      <div class="champ" style="max-width:360px;">
+        <label for="psy">Psychologue scolaire référent</label>
+        <input type="text" id="psy" placeholder="Nom du/de la psychologue">
+      </div>
+    </div>
+
+    <div class="carte">
+      <div class="barre-actions">
+        <h3 style="margin:0;">Équipe enseignante</h3>
+        <button class="btn btn-sm btn-secondaire" id="btn-ajouter-ligne" type="button">+ Ajouter un enseignant</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Nom</th><th>Prénom</th><th>Niveau / classe</th><th>Statut</th><th>Référent / responsabilité</th><th></th></tr></thead>
+          <tbody id="corps-equipe"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <p id="msg" class="alerte" style="display:none;"></p>
+    <div class="groupe-btns">
+      <button class="btn btn-primaire" id="btn-enregistrer" type="button">Enregistrer</button>
+    </div>
+  </div>
+</main>
+
+<p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
+
+<script src="js/seed-data.js"></script>
+<script src="js/github-store.js"></script>
+<script src="js/data-store.js"></script>
+<script src="js/layout.js"></script>
+<script>
+injecterEntete('ecoles.html');
+
+const params = new URLSearchParams(location.search);
+const ecoleId = params.get('id');
+let ECOLE = null;
+
+function ligneHTML(t) {
+  return `<tr data-id="${t.id}">
+    <td><input type="text" class="c-nom" value="${echapper(t.nom)}"></td>
+    <td><input type="text" class="c-prenom" value="${echapper(t.prenom)}"></td>
+    <td><input type="text" class="c-niveau" value="${echapper(t.niveau)}"></td>
+    <td><input type="text" class="c-statut" value="${echapper(t.statut)}"></td>
+    <td><input type="text" class="c-referent" value="${echapper(t.referent)}"></td>
+    <td><button class="btn btn-sm btn-danger" type="button" onclick="this.closest('tr').remove()">Suppr.</button></td>
+  </tr>`;
+}
+
+function echapper(s) {
+  const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML;
+}
+
+function ajouterLigne(t) {
+  document.getElementById('corps-equipe').insertAdjacentHTML('beforeend', ligneHTML(t || { id: genererIdEnseignant(), nom: '', prenom: '', niveau: '', statut: '', referent: '' }));
+}
+
+async function enregistrer() {
+  const msg = document.getElementById('msg');
+  const lignes = [...document.querySelectorAll('#corps-equipe tr')];
+  const enseignants = lignes.map(tr => ({
+    id: tr.dataset.id,
+    nom: tr.querySelector('.c-nom').value.trim(),
+    prenom: tr.querySelector('.c-prenom').value.trim(),
+    niveau: tr.querySelector('.c-niveau').value.trim(),
+    statut: tr.querySelector('.c-statut').value.trim(),
+    referent: tr.querySelector('.c-referent').value.trim()
+  })).filter(t => t.nom || t.prenom);
+
+  const btn = document.getElementById('btn-enregistrer');
+  btn.disabled = true;
+  msg.className = 'alerte alerte-info'; msg.textContent = 'Enregistrement…'; msg.style.display = 'block';
+  try {
+    await Store.sauvegarderEquipeEcole(ecoleId, { psychologueScolaire: document.getElementById('psy').value.trim(), enseignants }, ECOLE.nom);
+    msg.className = 'alerte alerte-ok'; msg.textContent = 'Structure pédagogique enregistrée.';
+  } catch (e) {
+    msg.className = 'alerte alerte-err'; msg.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function init() {
+  const ecoles = await Store.chargerEcoles();
+  ECOLE = ecoles.find(e => e.id === ecoleId);
+  if (!ECOLE) {
+    document.getElementById('zone-chargement').className = 'alerte alerte-err';
+    document.getElementById('zone-chargement').textContent = 'École introuvable.';
+    return;
+  }
+  document.getElementById('titre').textContent = 'Structure pédagogique — ' + ECOLE.nom;
+  document.getElementById('lien-retour').innerHTML = `<a href="ecole.html?id=${ecoleId}">&larr; Retour à la fiche école</a>`;
+
+  const equipe = await Store.chargerEquipeEcole(ecoleId);
+  document.getElementById('psy').value = equipe.psychologueScolaire || '';
+  equipe.enseignants.forEach(ajouterLigne);
+
+  document.getElementById('zone-chargement').style.display = 'none';
+  document.getElementById('zone-contenu').style.display = 'block';
+}
+
+document.getElementById('btn-ajouter-ligne').addEventListener('click', () => ajouterLigne());
+document.getElementById('btn-enregistrer').addEventListener('click', enregistrer);
+
+if (!ecoleId) {
+  document.getElementById('zone-chargement').className = 'alerte alerte-err';
+  document.getElementById('zone-chargement').textContent = "Aucune école sélectionnée.";
+} else {
+  init().catch(err => {
+    document.getElementById('zone-chargement').className = 'alerte alerte-err';
+    document.getElementById('zone-chargement').textContent = 'Erreur au chargement : ' + err.message;
+  });
+}
+</script>
+</body>
+</html>

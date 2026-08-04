@@ -10,20 +10,20 @@
 
 const SEED_ECOLES = [
   { id: 'bardou', nom: 'BARDOU Victorien', type: 'elementaire', direction: 'CHALUMEAU Stéphanie', cpcReferent: 'nadia' },
-  { id: 'benebig', nom: 'BENEBIG Louis', type: 'elementaire', direction: 'BENOIST Viviane', cpcReferent: 'maria' },
+  { id: 'benebig', nom: 'BENEBIG Louis', type: 'elementaire', direction: 'BENOIST Viviane', cpcReferent: null },
   { id: 'cht', nom: 'CHT (Médipôle)', type: 'structure', direction: 'TENG Sonja', cpcReferent: 'vaea' },
   { id: 'clain', nom: 'CLAIN Gustave', type: 'elementaire', direction: 'DJEKIC Carole', cpcReferent: 'vincent' },
   { id: 'dorbritz', nom: 'DORBRITZ Frédéric-Louis', type: 'elementaire', direction: 'HUSSON Olivier', cpcReferent: 'vaea' },
   { id: 'dsmer', nom: 'DUMBEA-SUR-MER', type: 'elementaire', direction: 'TANAKA Kyncienta', cpcReferent: 'vaea' },
-  { id: 'eepu-fong', nom: 'FONG Renée élém.', type: 'elementaire', direction: 'COURTINE Stéphane', cpcReferent: 'maria' },
-  { id: 'empu-fong', nom: 'FONG Renée mat.', type: 'maternelle', direction: 'DUMAS Vanessa', cpcReferent: 'maria' },
+  { id: 'eepu-fong', nom: 'FONG Renée élém.', type: 'elementaire', direction: 'COURTINE Stéphane', cpcReferent: null },
+  { id: 'empu-fong', nom: 'FONG Renée mat.', type: 'maternelle', direction: 'DUMAS Vanessa', cpcReferent: null },
   { id: 'eepu-mdr', nom: 'DELACHARLERIE-ROLLY Michelle élém.', type: 'elementaire', direction: 'GUIHARD Karen', cpcReferent: 'nadege' },
   { id: 'empu-mdr', nom: 'DELACHARLERIE-ROLLY Michelle mat.', type: 'maternelle', direction: 'CANTINOLLE Xavier', cpcReferent: 'nadege' },
   { id: 'dillenseger', nom: 'GS DILLENSEGER Alphonse', type: 'groupe-scolaire', direction: 'ROUMAGNE-LAVAUX Christelle', cpcReferent: 'nadia' },
   { id: 'l-de-greslan', nom: 'GS LOUISE DE GRESLAN', type: 'groupe-scolaire', direction: 'LAFENÊTRE Jérôme', cpcReferent: 'nadege' },
   { id: 'mainguet', nom: 'MAINGUET Jack', type: 'elementaire', direction: 'CHANSIGAUD Angélique', cpcReferent: 'vincent' },
   { id: 'myosotis', nom: 'LES MYOSOTIS', type: 'maternelle', direction: 'DESPINOY Emmanuelle', cpcReferent: 'nadia' },
-  { id: 'niaoulis', nom: 'LES NIAOULIS', type: 'maternelle', direction: 'GUBANSKI Franck', cpcReferent: 'maria' },
+  { id: 'niaoulis', nom: 'LES NIAOULIS', type: 'maternelle', direction: 'GUBANSKI Franck', cpcReferent: null },
   { id: 'oasis', nom: "L'OASIS", type: 'maternelle', direction: 'DOUCET Sylviane', cpcReferent: 'vincent' },
   { id: 'orangers', nom: 'LES ORANGERS', type: 'maternelle', direction: 'RIGAULT Harmony', cpcReferent: 'vincent' },
   { id: 'yahoue', nom: 'GS YAHOUE', type: 'groupe-scolaire', direction: 'GUAGENTI Karine', cpcReferent: 'nadege' },
@@ -46,13 +46,14 @@ const TYPES_ECOLE = {
  * compte d'un CPC).
  */
 const SEED_INTERVENANTS = [
-  { id: 'vincent', nom: 'Vincent RENAIS', role: 'cpc' },
-  { id: 'maria', nom: 'Maria', role: 'cpc' },
+  { id: 'cyrille', nom: 'Cyrille PHILIPPE', role: 'ien' },
   { id: 'nadia', nom: 'Nadia CAFFA', role: 'cpc' },
   { id: 'nadege', nom: 'Nadège REDON', role: 'cpc' },
-  { id: 'vaea', nom: 'Vaea', role: 'cpc' },
-  { id: 'secretariat', nom: 'Secrétariat IEP1', role: 'secretariat' },
-  { id: 'ien', nom: "IEN (Inspecteur)", role: 'ien' }
+  { id: 'vaea', nom: 'Vaéa DOUARCHE', role: 'cpc' },
+  { id: 'stephanie', nom: 'Stéphanie MATHELON', role: 'cpc' },
+  { id: 'marielouise', nom: 'Marie-Louise KAKUE', role: 'cpc' },
+  { id: 'vincent', nom: 'Vincent RENAIS', role: 'cpc' },
+  { id: 'mareen', nom: 'Mareen BASTIEN', role: 'secretariat' }
 ];
 
 /*

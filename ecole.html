@@ -30,6 +30,24 @@
 
     <div class="grille-stats" id="grille-stats-ecole"></div>
 
+    <div class="carte">
+      <div class="barre-actions">
+        <h3 style="margin:0;">Structure pédagogique</h3>
+        <a class="btn btn-sm btn-secondaire no-print" id="lien-modifier-equipe" href="#">Modifier</a>
+      </div>
+      <p class="intro" id="info-psy" style="margin-bottom:10px;"></p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Niveau</th><th>Nom</th><th>Prénom</th><th>Statut</th><th>Référent / responsabilité</th></tr></thead>
+          <tbody id="corps-equipe"></tbody>
+        </table>
+      </div>
+      <p class="intro" id="msg-vide-equipe" style="display:none;margin-top:10px;">
+        Structure pédagogique pas encore renseignée pour cette école.
+        <a href="#" id="lien-modifier-equipe-2">La renseigner</a>.
+      </p>
+    </div>
+
     <div class="carte carte-graphique">
       <h3>Interventions par type — cette école</h3>
       <canvas id="graph-ecole" height="90"></canvas>
@@ -111,7 +129,27 @@ function rendreEntete() {
   document.getElementById('info-direction').textContent = ECOLE.direction || '—';
   document.getElementById('info-type').textContent = TYPES_ECOLE[ECOLE.type] || ECOLE.type;
   const cpc = INTERVENANTS.find(i => i.id === ECOLE.cpcReferent);
-  document.getElementById('info-cpc').textContent = cpc ? cpc.nom : '—';
+  document.getElementById('info-cpc').textContent = cpc ? cpc.nom : 'Non attribué';
+  document.getElementById('lien-modifier-equipe').href = 'equipe.html?id=' + ecoleId;
+}
+
+function rendreEquipe(equipe) {
+  document.getElementById('info-psy').innerHTML = equipe.psychologueScolaire
+    ? `<b>Psychologue scolaire référent :</b> ${equipe.psychologueScolaire}`
+    : '';
+  const corps = document.getElementById('corps-equipe');
+  const tri = [...equipe.enseignants].sort((a, b) => (a.niveau || '').localeCompare(b.niveau || ''));
+  corps.innerHTML = tri.map(t => `<tr>
+    <td>${t.niveau || '—'}</td>
+    <td>${t.nom || '—'}</td>
+    <td>${t.prenom || '—'}</td>
+    <td>${t.statut || '—'}</td>
+    <td>${t.referent || '—'}</td>
+  </tr>`).join('');
+  const vide = !equipe.enseignants.length;
+  document.getElementById('msg-vide-equipe').style.display = vide ? 'block' : 'none';
+  corps.closest('.table-wrap').style.display = vide ? 'none' : 'block';
+  document.getElementById('lien-modifier-equipe-2').href = 'equipe.html?id=' + ecoleId;
 }
 
 function rendreStats() {
@@ -253,10 +291,12 @@ async function init() {
     document.getElementById('zone-chargement').textContent = 'École introuvable.';
     return;
   }
-  [INTERVENANTS, TYPES] = await Promise.all([Store.chargerIntervenants(), Store.chargerTypes()]);
+  let equipe;
+  [INTERVENANTS, TYPES, equipe] = await Promise.all([Store.chargerIntervenants(), Store.chargerTypes(), Store.chargerEquipeEcole(ecoleId)]);
   INTERVENTIONS = (await Store.chargerInterventionsEcole(ecoleId)).interventions;
 
   rendreEntete();
+  rendreEquipe(equipe);
   rendreStats();
   rendreGraphique();
   rendreHistorique();
