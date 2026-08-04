@@ -81,6 +81,23 @@ const SEED_TYPES_INTERVENTION = [
   { id: 'demande-ien', label: "Intervention à la demande de l'IEN", categorie: 'sollicitation' }
 ];
 
+/*
+ * Périodes de l'année scolaire (entre les vacances), issues du calendrier officiel
+ * "Année scolaire 2026.docx" fourni par la circonscription :
+ * rentrée élèves 16/02, vacances 04-19/04, 06-21/06, 08-23/08, 10-25/10, été à partir du 19/12.
+ * À compléter pour les années suivantes dès que leur calendrier est connu (sinon repli automatique
+ * sur un découpage à peu près égal, voir bornesPeriode() dans js/stats.js).
+ */
+const PERIODES_SCOLAIRES = {
+  2026: [
+    { debut: '2026-02-16', fin: '2026-04-03' },
+    { debut: '2026-04-20', fin: '2026-06-05' },
+    { debut: '2026-06-22', fin: '2026-08-07' },
+    { debut: '2026-08-24', fin: '2026-10-09' },
+    { debut: '2026-10-26', fin: '2026-12-18' }
+  ]
+};
+
 const CATEGORIES_INTERVENTION = {
   'individuel': 'Accompagnement individuel',
   'instance': 'Instance',

@@ -177,6 +177,15 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--teal); outl
 .hero .periode-select label { color: #C6D4E0; margin: 0; }
 .hero .periode-select select { width: auto; min-width: 220px; }
 
+/* Sélecteur de période discret (au-dessus des tuiles de stats, pas dans le hero) */
+.barre-periode-discrete { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin: -6px 0 12px; flex-wrap: wrap; }
+.barre-periode-discrete label { margin: 0; font-size: 0.72rem; font-weight: 600; color: var(--texte-muted); text-transform: uppercase; letter-spacing: .03em; }
+.barre-periode-discrete select {
+  width: auto; padding: 3px 8px; font-size: 0.78rem; border-radius: 20px;
+  border: 1px solid var(--bordure); background: var(--surface); color: var(--texte-muted);
+}
+.barre-periode-discrete select:focus { outline: 1px solid var(--teal); }
+
 .grille-entree { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-bottom: 22px; }
 .carte-entree {
   background: white; border: 1px solid var(--bordure); border-radius: var(--radius);

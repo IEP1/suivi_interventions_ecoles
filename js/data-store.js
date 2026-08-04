@@ -103,3 +103,23 @@ function anneeScolaireCourante(date = new Date()) {
 function bornesAnneeScolaire(annee) {
   return { debut: `${annee}-02-01`, fin: `${annee}-12-31` };
 }
+
+/**
+ * Bornes [debut, fin] d'une période scolaire (1 à 5) pour une année donnée.
+ * Utilise le calendrier officiel s'il est renseigné dans PERIODES_SCOLAIRES (js/seed-data.js),
+ * sinon répartit l'année scolaire en 5 tranches à peu près égales.
+ */
+function bornesPeriode(annee, numeroPeriode) {
+  const officiel = PERIODES_SCOLAIRES[annee];
+  if (officiel && officiel[numeroPeriode - 1]) return officiel[numeroPeriode - 1];
+
+  const { debut, fin } = bornesAnneeScolaire(annee);
+  const msDebut = new Date(debut).getTime();
+  const msFin = new Date(fin).getTime();
+  const pas = (msFin - msDebut) / 5;
+  const iso = (ms) => new Date(ms).toISOString().slice(0, 10);
+  return {
+    debut: iso(msDebut + pas * (numeroPeriode - 1)),
+    fin: iso(msDebut + pas * numeroPeriode - 86400000)
+  };
+}

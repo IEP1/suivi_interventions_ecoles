@@ -14,15 +14,18 @@
   <div class="hero">
     <h2>Tableau de bord circonscription</h2>
     <p>Vue d'ensemble des interventions menées par les conseillers pédagogiques dans les 21 écoles d'IEP1.</p>
-    <div class="periode-select">
-      <label for="sel-periode">Période affichée</label>
-      <select id="sel-periode"></select>
-    </div>
   </div>
 
   <div id="zone-chargement" class="alerte alerte-info">Chargement des données…</div>
 
   <div id="zone-contenu" style="display:none;">
+    <div class="barre-periode-discrete">
+      <label for="sel-annee">Année</label>
+      <select id="sel-annee"></select>
+      <label for="sel-periode">Période</label>
+      <select id="sel-periode"></select>
+    </div>
+
     <div class="grille-stats" id="grille-stats"></div>
 
     <div class="carte" id="carte-alerte-couverture" style="display:none;">
@@ -69,12 +72,23 @@ injecterEntete('index.html');
 
 let graphTypes, graphCategories;
 
-function remplirSelecteurPeriode() {
-  const sel = document.getElementById('sel-periode');
+function remplirSelecteurs() {
+  const selAnnee = document.getElementById('sel-annee');
   const courante = anneeScolaireCourante();
   const options = [courante, courante - 1, courante - 2];
-  sel.innerHTML = options.map(a => `<option value="${a}">${formaterPeriodeLibelle(a)}</option>`).join('');
-  sel.value = courante;
+  selAnnee.innerHTML = options.map(a => `<option value="${a}">${a}</option>`).join('');
+  selAnnee.value = courante;
+
+  const selPeriode = document.getElementById('sel-periode');
+  selPeriode.innerHTML = `<option value="complete">Année complète</option>` +
+    [1, 2, 3, 4, 5].map(n => `<option value="${n}">Période ${n}</option>`).join('');
+  selPeriode.value = 'complete';
+}
+
+function bornesSelectionnees() {
+  const annee = document.getElementById('sel-annee').value;
+  const periode = document.getElementById('sel-periode').value;
+  return periode === 'complete' ? bornesAnneeScolaire(annee) : bornesPeriode(annee, Number(periode));
 }
 
 function rendreTuiles(stats) {
@@ -146,8 +160,7 @@ function rendreGraphiques(stats, types) {
 }
 
 async function chargerEtAfficher() {
-  const annee = document.getElementById('sel-periode').value;
-  const { debut, fin } = bornesAnneeScolaire(annee);
+  const { debut, fin } = bornesSelectionnees();
   const [ecoles, types] = await Promise.all([
     Store.chargerToutesLesEcolesAvecInterventions(),
     Store.chargerTypes()
@@ -160,12 +173,14 @@ async function chargerEtAfficher() {
   document.getElementById('zone-contenu').style.display = 'block';
 }
 
-remplirSelecteurPeriode();
-document.getElementById('sel-periode').addEventListener('change', () => {
+remplirSelecteurs();
+function surChangementPeriode() {
   document.getElementById('zone-contenu').style.display = 'none';
   document.getElementById('zone-chargement').style.display = 'block';
   chargerEtAfficher();
-});
+}
+document.getElementById('sel-annee').addEventListener('change', surChangementPeriode);
+document.getElementById('sel-periode').addEventListener('change', surChangementPeriode);
 chargerEtAfficher().catch(err => {
   document.getElementById('zone-chargement').className = 'alerte alerte-err';
   document.getElementById('zone-chargement').textContent = 'Erreur au chargement : ' + err.message;
