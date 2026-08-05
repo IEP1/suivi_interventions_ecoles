@@ -208,6 +208,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--teal); outl
 .tuile-stat .libelle { font-size: 0.8rem; color: var(--texte-muted); margin-top: 6px; }
 .tuile-stat .barre { height: 6px; border-radius: 4px; background: var(--bordure); margin-top: 10px; overflow: hidden; }
 .tuile-stat .barre > span { display: block; height: 100%; background: var(--teal); border-radius: 4px; }
+.barre-progression-generale { height: 8px; border-radius: 4px; background: var(--bordure); overflow: hidden; }
+.barre-progression-generale > span { display: block; height: 100%; background: var(--teal); border-radius: 4px; transition: width .15s; }
 .tuile-stat.accent-orange .valeur { color: var(--orange); }
 .tuile-stat.accent-orange .barre > span { background: var(--orange); }
 .tuile-stat.accent-vert .valeur { color: var(--vert); }
