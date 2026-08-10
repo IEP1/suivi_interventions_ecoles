@@ -58,20 +58,30 @@ a { color: var(--teal); }
   z-index: 20;
 }
 .entete img { height: 44px; width: 44px; border-radius: 50%; background: white; }
+.entete-logo { display: flex; align-items: center; gap: 14px; text-decoration: none; color: inherit; }
 .entete .titres { flex: 1; }
-.entete h1 { font-size: 1.05rem; margin: 0; font-weight: 600; }
+.entete h1 { font-size: 1.3rem; margin: 0; font-weight: 700; letter-spacing: .02em; }
 .entete .sous-titre { font-size: 0.8rem; color: #B9C7D4; margin: 0; }
-.entete nav { display: flex; gap: 6px; flex-wrap: wrap; }
-.entete nav a {
+
+.grands-onglets { display: flex; gap: 10px; flex: 1; justify-content: center; }
+.grand-onglet {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 26px;
+  border-radius: var(--radius);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.14);
   color: white;
   text-decoration: none;
-  font-size: 0.85rem;
-  padding: 7px 12px;
-  border-radius: var(--radius-sm);
-  background: rgba(255,255,255,0.08);
+  font-family: var(--font-titres);
+  font-weight: 700;
+  font-size: 0.98rem;
   transition: background .15s;
 }
-.entete nav a:hover, .entete nav a.actif { background: var(--teal); }
+.grand-onglet .icone { font-size: 1.25rem; }
+.grand-onglet:hover { background: rgba(255,255,255,0.16); }
+.grand-onglet.actif { background: var(--teal); border-color: var(--teal); }
 
 main { max-width: 1180px; margin: 0 auto; padding: 24px; }
 main.large { max-width: 1360px; }
@@ -269,6 +279,12 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--teal); outl
 .cat-instance { background: var(--or-light); color: #8A6412; }
 .cat-projet { background: var(--vert-light); color: #4C6329; }
 .cat-formation { background: #EFE6F7; color: #6B3FA0; }
+.cat-gt { background: var(--teal-light); color: #1D7A89; }
+.cat-formation-donnee { background: #EFE6F7; color: #6B3FA0; }
+.cat-formation-recue { background: #F3ECFA; color: #9B6FC9; }
+.cat-reunion { background: var(--bleu-light); color: #123C62; }
+.cat-administratif { background: #E7EBEE; color: #5B6B78; }
+.cat-examen { background: #FBE6EF; color: #C24B7C; }
 .cat-sollicitation { background: var(--corail-light); color: var(--corail); }
 .cat-autre { background: var(--bordure); color: var(--texte-muted); }
 
@@ -318,6 +334,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--teal); outl
 
 @media (max-width: 640px) {
   .entete { flex-wrap: wrap; }
-  .entete nav { order: 3; width: 100%; }
+  .grands-onglets { order: 3; width: 100%; }
+  .grand-onglet { flex: 1; justify-content: center; padding: 12px 10px; font-size: 0.86rem; }
   main { padding: 16px; }
 }

@@ -73,6 +73,42 @@ const Store = {
       interventions: (await this.chargerInterventionsEcole(e.id)).interventions
     })));
     return resultats;
+  },
+
+  /** Actions d'un intervenant non liées à une école (réunions, administratif, formation…). */
+  async chargerActionsGeneralesIntervenant(intervenantId) {
+    const { data } = await chargerJSON(`actions-generales/${intervenantId}.json`, { actions: [] });
+    return data;
+  },
+  async sauvegarderActionsGeneralesIntervenant(intervenantId, data, nomIntervenant) {
+    await sauvegarderJSON(`actions-generales/${intervenantId}.json`, data, `Mise à jour actions générales ${nomIntervenant || intervenantId}`);
+  },
+  async ajouterActionGenerale(intervenantId, action, nomIntervenant) {
+    const data = await this.chargerActionsGeneralesIntervenant(intervenantId);
+    data.actions.push(action);
+    await this.sauvegarderActionsGeneralesIntervenant(intervenantId, data, nomIntervenant);
+  },
+
+  /** Bilan d'un conseiller : ses interventions école + ses actions générales, à plat. */
+  async chargerToutesLesActionsIntervenant(intervenantId) {
+    const ecoles = await this.chargerToutesLesEcolesAvecInterventions();
+    const actions = [];
+    ecoles.forEach(e => e.interventions
+      .filter(iv => iv.intervenantId === intervenantId)
+      .forEach(iv => actions.push({ ...iv, ecoleId: e.id, ecoleNom: e.nom })));
+    const generales = await this.chargerActionsGeneralesIntervenant(intervenantId);
+    generales.actions.forEach(a => actions.push({ ...a, ecoleId: null, ecoleNom: null }));
+    return actions;
+  },
+
+  /** Bilan d'équipe : toutes les actions (école + générales), tous intervenants confondus. */
+  async chargerToutesLesActions() {
+    const [ecoles, intervenants] = await Promise.all([this.chargerToutesLesEcolesAvecInterventions(), this.chargerIntervenants()]);
+    const actions = [];
+    ecoles.forEach(e => e.interventions.forEach(iv => actions.push({ ...iv, ecoleId: e.id, ecoleNom: e.nom })));
+    const toutesGenerales = await Promise.all(intervenants.map(i => this.chargerActionsGeneralesIntervenant(i.id)));
+    toutesGenerales.forEach(g => g.actions.forEach(a => actions.push({ ...a, ecoleId: null, ecoleNom: null })));
+    return actions;
   }
 };
 

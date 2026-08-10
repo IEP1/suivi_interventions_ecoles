@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Espace conseiller — Suivi des interventions IEP1</title>
-<link rel="stylesheet" href="css/style.css?v=7">
+<link rel="stylesheet" href="css/style.css?v=10">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 <div id="entete-app"></div>
@@ -60,7 +62,7 @@
       </div>
     </div>
 
-    <div class="carte">
+    <div class="carte" id="carte-ecoles-concernees">
       <label>Écoles concernées</label>
       <div class="onglets">
         <button type="button" class="onglet actif" id="onglet-mode-referentes">Mes écoles de référence</button>
@@ -78,6 +80,33 @@
     </div>
 
     <div class="carte" style="margin-top:24px;">
+      <div class="barre-actions">
+        <h3 style="margin:0;">Bilan de l'année</h3>
+        <div>
+          <label for="sel-annee-bilan" style="display:inline;margin-right:6px;">Année</label>
+          <select id="sel-annee-bilan" style="width:auto;display:inline-block;"></select>
+        </div>
+      </div>
+      <p class="intro" id="msg-vide-bilan" style="display:none;">Aucune action enregistrée sur cette année pour l'instant.</p>
+      <div id="zone-bilan" style="display:none;">
+        <div class="grille-graphiques">
+          <div class="carte-graphique">
+            <canvas id="graph-bilan-categorie"></canvas>
+          </div>
+          <div>
+            <p class="intro" style="margin-bottom:8px;"><span id="bilan-total"></span> action(s) au total, dont <span id="bilan-repartition-ecole"></span>.</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Type</th><th>Nb</th><th>%</th></tr></thead>
+                <tbody id="corps-bilan-types"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="carte" style="margin-top:24px;">
       <h3 style="margin-top:0;">Dernières actions saisies par cet intervenant</h3>
       <div class="table-wrap">
         <table>
@@ -92,13 +121,14 @@
 
 <p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
 
-<script src="js/seed-data.js?v=7"></script>
+<script src="js/seed-data.js?v=10"></script>
 <script src="js/github-store.js?v=7"></script>
-<script src="js/data-store.js?v=7"></script>
-<script src="js/stats.js?v=7"></script>
+<script src="js/data-store.js?v=9"></script>
+<script src="js/stats.js?v=9"></script>
 <script src="js/type-selector.js?v=7"></script>
 <script src="js/school-picker.js?v=7"></script>
-<script src="js/layout.js?v=7"></script>
+<script src="js/google-calendar.js?v=10"></script>
+<script src="js/layout.js?v=10"></script>
 <script>
 injecterEntete('conseillers.html');
 
@@ -113,6 +143,19 @@ let selecteurType = null;
 let chipsReferentesPicker = null;
 let chipsActionPicker = null;
 let modeAction = 'referentes';
+let graphBilanCategorie = null;
+
+/** Une action personnalisée (texte libre) peut concerner une école : carte visible par défaut,
+ *  laissable vide. Un type prédéfini utilise son flag `ecole` pour décider automatiquement. */
+function actionConcerneEcole() {
+  if (document.getElementById('type-personnalise').value.trim()) return true;
+  const type = TYPES.find(t => t.id === selecteurType.typeSelectionneId());
+  return type ? type.ecole !== false : true;
+}
+
+function majVisibiliteEcoles() {
+  document.getElementById('carte-ecoles-concernees').style.display = actionConcerneEcole() ? 'block' : 'none';
+}
 
 function mesEcolesReferentes() {
   return ECOLES.filter(e => e.cpcReferent === intervenantId);
@@ -186,11 +229,11 @@ async function valider() {
   const date = document.getElementById('ci-date').value;
   const perso = document.getElementById('type-personnalise').value.trim();
   const typeChoisi = selecteurType.typeSelectionneId();
-  const ecolesChoisies = ecolesSelectionnees();
+  const carteEcolesVisible = document.getElementById('carte-ecoles-concernees').style.display !== 'none';
+  const ecolesChoisies = carteEcolesVisible ? ecolesSelectionnees() : [];
 
   if (!date) { msg.className = 'alerte alerte-warn'; msg.textContent = 'Merci de renseigner une date.'; msg.style.display = 'block'; return; }
   if (!typeChoisi && !perso) { msg.className = 'alerte alerte-warn'; msg.textContent = "Merci de choisir un type d'intervention ou de saisir une action personnalisée."; msg.style.display = 'block'; return; }
-  if (!ecolesChoisies.length) { msg.className = 'alerte alerte-warn'; msg.textContent = 'Merci de sélectionner au moins une école.'; msg.style.display = 'block'; return; }
 
   const btn = document.getElementById('btn-valider');
   btn.disabled = true;
@@ -202,31 +245,43 @@ async function valider() {
       TYPES = await Store.chargerTypes();
       selecteurType.majTypes(TYPES);
     }
-    const groupeId = 'grp-' + Date.now().toString(36);
-    for (let i = 0; i < ecolesChoisies.length; i++) {
-      const ecoleId = ecolesChoisies[i];
-      const ecole = ECOLES.find(e => e.id === ecoleId);
-      msg.className = 'alerte alerte-info';
-      msg.textContent = `Enregistrement… (${i + 1}/${ecolesChoisies.length} : ${ecole.nom})`;
-      msg.style.display = 'block';
-      const intervention = {
-        id: genererIdIntervention(),
-        groupeId,
-        date,
-        typeId,
-        intervenantId,
-        theme: document.getElementById('ci-theme').value.trim(),
-        notes: document.getElementById('ci-notes').value.trim(),
-        horodatage: horodatageMaintenant()
-      };
-      await Store.ajouterIntervention(ecoleId, intervention, ecole.nom);
+    const type = TYPES.find(t => t.id === typeId);
+    const theme = document.getElementById('ci-theme').value.trim();
+    const notes = document.getElementById('ci-notes').value.trim();
+
+    if (!ecolesChoisies.length) {
+      msg.className = 'alerte alerte-info'; msg.textContent = 'Enregistrement…'; msg.style.display = 'block';
+      const action = { id: genererIdIntervention(), date, typeId, intervenantId, theme, notes, horodatage: horodatageMaintenant() };
+      await Store.ajouterActionGenerale(intervenantId, action, INTERVENANT.nom);
+      if (gcalConfig.actif) {
+        gcalPousserIntervention({ typeLabel: type ? type.label : perso, theme, notes, date, categorie: type ? type.categorie : 'autre' })
+          .catch(e => console.warn('Google Agenda :', e.message));
+      }
+      msg.className = 'alerte alerte-ok';
+      msg.textContent = 'Action générale enregistrée.';
+    } else {
+      const groupeId = 'grp-' + Date.now().toString(36);
+      for (let i = 0; i < ecolesChoisies.length; i++) {
+        const ecoleId = ecolesChoisies[i];
+        const ecole = ECOLES.find(e => e.id === ecoleId);
+        msg.className = 'alerte alerte-info';
+        msg.textContent = `Enregistrement… (${i + 1}/${ecolesChoisies.length} : ${ecole.nom})`;
+        msg.style.display = 'block';
+        const intervention = { id: genererIdIntervention(), groupeId, date, typeId, intervenantId, theme, notes, horodatage: horodatageMaintenant() };
+        await Store.ajouterIntervention(ecoleId, intervention, ecole.nom);
+        if (gcalConfig.actif) {
+          gcalPousserIntervention({ ecoleNom: ecole.nom, typeLabel: type ? type.label : perso, theme, notes, date, categorie: type ? type.categorie : 'autre' })
+            .catch(e => console.warn('Google Agenda :', e.message));
+        }
+      }
+      msg.className = 'alerte alerte-ok';
+      msg.textContent = `Action enregistrée sur ${ecolesChoisies.length} école(s).`;
     }
-    msg.className = 'alerte alerte-ok';
-    msg.textContent = `Action enregistrée sur ${ecolesChoisies.length} école(s).`;
     document.getElementById('ci-theme').value = '';
     document.getElementById('ci-notes').value = '';
     selecteurType.reset();
     await chargerHistorique();
+    await rendreBilan();
   } catch (e) {
     msg.className = 'alerte alerte-err'; msg.textContent = e.message; msg.style.display = 'block';
   } finally {
@@ -235,23 +290,54 @@ async function valider() {
 }
 
 async function chargerHistorique() {
-  const ecolesAvecDonnees = await Store.chargerToutesLesEcolesAvecInterventions();
-  const mesActions = [];
-  ecolesAvecDonnees.forEach(e => {
-    e.interventions.filter(iv => iv.intervenantId === intervenantId).forEach(iv => mesActions.push({ ...iv, ecoleId: e.id, ecoleNom: e.nom }));
-  });
-  mesActions.sort((a, b) => b.date.localeCompare(a.date) || b.horodatage.localeCompare(a.horodatage));
+  const mesActions = (await Store.chargerToutesLesActionsIntervenant(intervenantId))
+    .sort((a, b) => b.date.localeCompare(a.date) || b.horodatage.localeCompare(a.horodatage));
   const corps = document.getElementById('corps-historique');
   corps.innerHTML = mesActions.slice(0, 30).map(iv => {
     const type = TYPES.find(t => t.id === iv.typeId);
     return `<tr>
       <td>${formaterDate(iv.date)}</td>
       <td>${type ? type.label : iv.typeId}</td>
-      <td><a href="ecole.html?id=${iv.ecoleId || ''}">${iv.ecoleNom}</a></td>
+      <td>${iv.ecoleId ? `<a href="ecole.html?id=${iv.ecoleId}">${iv.ecoleNom}</a>` : '—'}</td>
       <td>${iv.theme || '—'}</td>
     </tr>`;
   }).join('');
   document.getElementById('msg-vide-historique').style.display = mesActions.length ? 'none' : 'block';
+}
+
+function remplirSelecteurAnneeBilan() {
+  const sel = document.getElementById('sel-annee-bilan');
+  const courante = anneeScolaireCourante();
+  sel.innerHTML = [courante, courante - 1, courante - 2].map(a => `<option value="${a}">${a}</option>`).join('');
+  sel.value = courante;
+}
+
+async function rendreBilan() {
+  const annee = document.getElementById('sel-annee-bilan').value;
+  const { debut, fin } = bornesAnneeScolaire(annee);
+  const actions = await Store.chargerToutesLesActionsIntervenant(intervenantId);
+  const bilan = calculerBilanActions(actions, debut, fin, TYPES);
+
+  document.getElementById('msg-vide-bilan').style.display = bilan.total ? 'none' : 'block';
+  document.getElementById('zone-bilan').style.display = bilan.total ? 'block' : 'none';
+  if (!bilan.total) return;
+
+  document.getElementById('bilan-total').textContent = bilan.total;
+  document.getElementById('bilan-repartition-ecole').textContent = `${bilan.nbEcole} en école et ${bilan.nbGenerale} générale(s)`;
+
+  document.getElementById('corps-bilan-types').innerHTML = bilan.parType.map(t =>
+    `<tr><td>${t.label}</td><td>${t.n}</td><td>${t.pct}%</td></tr>`).join('');
+
+  const ctx = document.getElementById('graph-bilan-categorie').getContext('2d');
+  if (graphBilanCategorie) graphBilanCategorie.destroy();
+  graphBilanCategorie = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: bilan.parCategorie.map(c => c.label),
+      datasets: [{ data: bilan.parCategorie.map(c => c.n), backgroundColor: bilan.parCategorie.map(c => COULEURS_CATEGORIE[c.categorie]) }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+  });
 }
 
 async function init() {
@@ -270,7 +356,10 @@ async function init() {
   rendreVueReferentesLecture();
   rendreVueActionReferentes();
   chipsActionPicker = creerGrilleChipsEcoles(document.getElementById('chips-action-ecoles'), ECOLES, mesEcolesReferentes().map(e => e.id));
+  majVisibiliteEcoles();
   await chargerHistorique();
+  remplirSelecteurAnneeBilan();
+  await rendreBilan();
 
   document.getElementById('zone-chargement').style.display = 'none';
   document.getElementById('zone-contenu').style.display = 'block';
@@ -281,6 +370,9 @@ document.getElementById('btn-annuler-referentes').addEventListener('click', ferm
 document.getElementById('btn-enregistrer-referentes').addEventListener('click', enregistrerEcolesReferentes);
 document.getElementById('onglet-mode-referentes').addEventListener('click', () => basculerModeAction('referentes'));
 document.getElementById('onglet-mode-choisir').addEventListener('click', () => basculerModeAction('choisir'));
+document.getElementById('ci-type').addEventListener('change', majVisibiliteEcoles);
+document.getElementById('type-personnalise').addEventListener('input', majVisibiliteEcoles);
+document.getElementById('sel-annee-bilan').addEventListener('change', () => rendreBilan());
 document.getElementById('btn-valider').addEventListener('click', valider);
 
 if (!intervenantId) {

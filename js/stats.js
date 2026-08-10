@@ -54,6 +54,34 @@ function calculerStatsGlobales(ecolesAvecInterventions, debut, fin, types) {
   };
 }
 
+/**
+ * Bilan d'action (conseiller ou équipe) : répartition en % du total, pour un bilan de fin
+ * d'année — à la différence de calculerStatsGlobales (% d'écoles couvertes), ici le total de
+ * référence est le nombre d'actions, école ou non.
+ * actions : liste à plat (voir Store.chargerToutesLesActionsIntervenant / chargerToutesLesActions)
+ */
+function calculerBilanActions(actions, debut, fin, types) {
+  const periode = interventionsDansPeriode(actions, debut, fin);
+  const total = periode.length;
+
+  const parCategorie = Object.keys(CATEGORIES_INTERVENTION).map(cat => {
+    const n = periode.filter(a => {
+      const t = types.find(t => t.id === a.typeId);
+      return t && t.categorie === cat;
+    }).length;
+    return { categorie: cat, label: CATEGORIES_INTERVENTION[cat], n, pct: total ? Math.round((n / total) * 100) : 0 };
+  }).filter(c => c.n > 0).sort((a, b) => b.n - a.n);
+
+  const parType = types.map(t => {
+    const n = periode.filter(a => a.typeId === t.id).length;
+    return { typeId: t.id, label: t.label, categorie: t.categorie, n, pct: total ? Math.round((n / total) * 100) : 0 };
+  }).filter(t => t.n > 0).sort((a, b) => b.n - a.n);
+
+  const nbEcole = periode.filter(a => a.ecoleId).length;
+
+  return { total, nbEcole, nbGenerale: total - nbEcole, parCategorie, parType };
+}
+
 /** Fraîcheur du suivi d'une école : dernière intervention, en jours, et étiquette visuelle. */
 function calculerFraicheurEcole(interventions, aujourdHui = new Date()) {
   if (!interventions.length) return { derniereDate: null, jours: null, classe: 'pastille-jamais', libelle: 'Jamais suivie' };

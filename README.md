@@ -47,13 +47,18 @@ rien ne peut être enregistré durablement.
   libre).
 - **Conseillers** (`conseillers.html` → `conseiller.html`) : chaque intervenant (5 CPC,
   secrétariat, IEN) peut saisir une action et l'attribuer en une fois à une ou plusieurs écoles
-  (ses écoles référentes pré-cochées, ou sélection libre). Un même geste crée une entrée dans
-  l'historique de chaque école choisie. La page affiche aussi les dernières actions saisies par
-  cet intervenant, toutes écoles confondues.
-- **Types d'intervention** : liste de départ éditable (accompagnement titulaire/suppléant/T1-T3,
-  suivi de stagiaire, conseils des maîtres/d'école/de cycle, projet d'école, liaisons GS-CP et
-  CM2-6e, animations pédagogiques, interventions sur sollicitation…). Toute action personnalisée
-  saisie une fois vient enrichir la liste proposée aux suivantes.
+  (ses écoles référentes pré-cochées, ou sélection libre), **ou** basculer sur « Non, action
+  générale » pour loguer une action sans lien avec une école précise (réunion, administratif,
+  formation donnée/reçue, jury d'examen, groupe de travail…). Un même geste crée une entrée dans
+  l'historique de chaque école choisie (ou une action générale). La page affiche les dernières
+  actions saisies par cet intervenant, toutes écoles confondues, ainsi qu'un **Bilan de l'année**
+  (répartition en % par catégorie et par type, doughnut inclus) pour préparer le bilan d'action de
+  fin d'année. `conseillers.html` affiche le même bilan au niveau de l'équipe entière.
+- **Types d'intervention** : liste de départ éditable, répartie en catégories : école
+  (accompagnement titulaire/suppléant/T1-T3, suivi de stagiaire, conseils des maîtres/d'école/de
+  cycle, projet d'école, liaisons GS-CP et CM2-6e) et hors école (réunion, administratif/bureau,
+  formation donnée / formation reçue, groupe de travail, jury/examen, sollicitation…). Toute action
+  personnalisée saisie une fois vient enrichir la liste proposée aux suivantes.
 - **Intervenants** (`conseillers.html`) : ajout et suppression manuels d'intervenants (nom + rôle
   parmi conseiller pédagogique / secrétariat / IEN).
 - **Écoles de référence** (`conseiller.html`) : chaque intervenant peut cocher ses écoles de
@@ -76,6 +81,8 @@ historique de sauvegardes.
 - `types-intervention.json` — types d'intervention proposés (dont les types personnalisés créés
   en cours d'usage).
 - `interventions/<ecoleId>.json` — historique des interventions de cette école.
+- `actions-generales/<intervenantId>.json` — actions saisies par cet intervenant sans lien avec une
+  école précise (réunion, administratif, formation, examen…).
 - `equipes/<ecoleId>.json` — structure pédagogique de cette école (enseignants, psychologue
   référent).
 
@@ -95,6 +102,58 @@ l'importer dans le repo privé :
    classeur d'origine) : une correction automatique a été appliquée à l'extraction, mais
    relisez chaque école ensuite (bouton **Modifier** sur sa fiche) pour corriger d'éventuelles
    coquilles.
+
+## Google Agenda (optionnel)
+
+Pour éviter la double saisie (l'outil pour le suivi/le chef, Google Agenda pour la DRH), chaque
+intervention enregistrée dans l'appli (fiche école ou espace conseiller) peut être **automatiquement
+ajoutée à votre Google Agenda** en même temps. C'est une saisie à sens unique (outil → agenda) :
+l'appli n'importe jamais depuis l'agenda, elle ne fait qu'y écrire.
+
+Mise en service (une seule fois, par personne qui veut ce lien) :
+
+1. Sur [console.cloud.google.com](https://console.cloud.google.com), créer un projet (ou réutiliser
+   un projet existant).
+2. *APIs & Services* → *Bibliothèque* → activer **Google Calendar API**.
+3. *APIs & Services* → *Écran de consentement OAuth* → type **Externe**, renseigner un nom
+   d'application, puis dans l'onglet *Utilisateurs test*, ajouter votre propre adresse Google.
+   Rester en statut **Test** suffit pour un usage personnel (pas besoin de validation par Google).
+4. *APIs & Services* → *Identifiants* → *Créer des identifiants* → **ID client OAuth** → type
+   **Application Web**. Dans *Origines JavaScript autorisées*, ajouter l'URL de votre site
+   GitHub Pages (ex. `https://iep1.github.io`) et, pour les tests en local,
+   `http://localhost:8000` (ou le port utilisé). Copier le **Client ID** généré (pas de secret à
+   copier : ce type de client est public par construction, comme le token n'est jamais demandé
+   côté serveur).
+5. Dans l'appli, cliquer **📅 Agenda** en haut de page, coller le Client ID (l'identifiant du
+   calendrier peut rester `primary` pour votre agenda principal), puis **Connecter**. Google
+   affichera un écran « application non vérifiée » (normal pour un usage personnel en statut
+   Test) : cliquer *Paramètres avancés* puis *Accéder à [nom de l'app] (non sécurisé)*, puis
+   autoriser l'accès à l'agenda.
+6. Chaque intervention créée ensuite génère un événement Google Agenda sur toute la journée,
+   intitulé `École — Type : Thème` (ou juste `Type : Thème` pour une action générale sans école),
+   coloré selon sa catégorie. Le jeton de connexion n'est jamais stocké : il est redemandé
+   (silencieusement si possible) à chaque nouvelle session de navigateur.
+7. **Pour que "Utilisation du temps" (Réglages Google Agenda → Utilisation du temps → gérer les
+   libellés) régroupe automatiquement ces événements par catégorie**, associer une fois à chaque
+   couleur ci-dessous le libellé correspondant (les couleurs sont fixées par l'appli, voir
+   `COULEURS_GCAL_CATEGORIE` dans `js/seed-data.js` — seul le nom du libellé est à votre choix) :
+
+   | Catégorie | Couleur Google Agenda | Libellé suggéré |
+   |---|---|---|
+   | Accompagnement individuel | Peacock (bleu paon) | Visites |
+   | Instance (conseils) | Banana (jaune) | Ecole |
+   | Projet | Basil (vert) | Projets |
+   | Groupe de travail | Sage (vert clair) | GT |
+   | Formation donnée | Grape (violet) | Formation (formateur) |
+   | Formation reçue | Lavender (lavande) | Formation (auditeur) |
+   | Réunion | Blueberry (bleu marine) | Réunion |
+   | Administratif / bureau | Graphite (gris) | Bureau (admin+pédagogique) |
+   | Jury / examen | Flamingo (rose) | Examen (Jury, Correction) |
+   | Sur sollicitation | Tomato (rouge) | Sollicitation |
+
+   Ces couleurs sont modifiables par chacun depuis la section « Couleurs par catégorie » de la
+   modale 📅 Agenda (elles restent alors propres à votre navigateur, comme le reste de la
+   connexion) — utile si vous avez déjà vos propres couleurs/libellés dans Google Agenda.
 
 ## Cache navigateur (important pour les futures modifications)
 

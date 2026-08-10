@@ -10,6 +10,7 @@ desktop.ini
 # ne jamais publier, utilisé une seule fois en local pour peupler le repo privé de données.
 js/import-equipes.local.js
 js/import-calendrier.local.js
+js/import-visites-qualifiees.local.js
 import.html
 qualifier-visites.html
 
