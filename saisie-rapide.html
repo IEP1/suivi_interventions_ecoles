@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saisie rapide — IEP1</title>
+<link rel="stylesheet" href="css/style.css?v=10">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="IEP1 Saisie">
+<meta name="theme-color" content="#0F2942">
+<link rel="apple-touch-icon" href="assets/logo-iep1.png">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+<div id="entete-app"></div>
+
+<main style="max-width:520px;">
+  <div id="zone-chargement" class="alerte alerte-info">Chargement…</div>
+
+  <div class="carte" id="carte-qui" style="display:none;">
+    <label>Qui es-tu ?</label>
+    <div class="grille-chips-ecoles" id="chips-qui"></div>
+  </div>
+
+  <div id="zone-formulaire" style="display:none;">
+    <div class="carte">
+      <div class="barre-actions" style="margin-bottom:0;">
+        <span id="qui-affiche" style="font-weight:700;color:var(--navy);"></span>
+        <button class="btn btn-sm btn-secondaire" id="btn-changer-qui" type="button">Changer</button>
+      </div>
+    </div>
+
+    <div class="carte">
+      <label>Quoi ?</label>
+      <div id="chips-types"></div>
+      <div id="zone-perso" style="display:none;margin-top:10px;">
+        <input type="text" id="type-personnalise" placeholder="Préciser l'action…">
+      </div>
+    </div>
+
+    <div class="carte" id="carte-ecoles" style="display:none;">
+      <label>Où ?</label>
+      <div class="grille-chips-ecoles" id="chips-ecole-unique"></div>
+    </div>
+
+    <div class="carte">
+      <button type="button" class="btn btn-sm btn-secondaire" id="btn-toggle-details">+ Détails (thème, notes, date)</button>
+      <div id="zone-details" style="display:none;margin-top:12px;">
+        <div class="champ">
+          <label for="sr-theme">Thème / personne suivie</label>
+          <input type="text" id="sr-theme" placeholder="Facultatif">
+        </div>
+        <div class="champ">
+          <label for="sr-notes">Notes</label>
+          <textarea id="sr-notes" rows="2"></textarea>
+        </div>
+        <div class="champ" style="margin-bottom:0;">
+          <label for="sr-date">Date</label>
+          <input type="date" id="sr-date">
+        </div>
+      </div>
+    </div>
+
+    <p id="sr-message" class="alerte" style="display:none;"></p>
+    <button class="btn btn-primaire" id="btn-enregistrer" type="button" style="width:100%;padding:16px;font-size:1.05rem;">✓ Enregistrer</button>
+
+    <div class="carte" style="margin-top:24px;">
+      <h3 style="margin-top:0;">📱 Installer ce raccourci</h3>
+      <p class="intro" style="margin-bottom:0;">
+        <strong>iPhone (Safari)</strong> : bouton Partager <span aria-hidden="true">⬆</span> →
+        « Sur l'écran d'accueil ».<br>
+        <strong>Android (Chrome)</strong> : menu <span aria-hidden="true">⋮</span> →
+        « Ajouter à l'écran d'accueil ».<br>
+        Une fois installé, cette page s'ouvre en un tap, comme une appli.
+      </p>
+    </div>
+  </div>
+</main>
+
+<p class="pied">IEP1 — Saisie rapide</p>
+
+<script src="js/seed-data.js?v=10"></script>
+<script src="js/github-store.js?v=7"></script>
+<script src="js/data-store.js?v=9"></script>
+<script src="js/google-calendar.js?v=10"></script>
+<script src="js/layout.js?v=11"></script>
+<script>
+injecterEntete('');
+
+const STOCKAGE_QUI = 'sie_saisie_rapide_qui';
+
+let INTERVENANTS = [];
+let ECOLES = [];
+let TYPES = [];
+let quiId = null;
+let typeIdChoisi; // undefined = rien choisi, null = "autre" (personnalisé), sinon un id de type
+let ecoleIdChoisie = null;
+
+function rendreChipsQui() {
+  document.getElementById('chips-qui').innerHTML = INTERVENANTS.map(i =>
+    `<button type="button" class="chip-ecole" data-id="${i.id}">${i.nom}</button>`).join('');
+  document.getElementById('chips-qui').querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => choisirQui(btn.dataset.id));
+  });
+}
+
+function choisirQui(id) {
+  quiId = id;
+  localStorage.setItem(STOCKAGE_QUI, id);
+  const intervenant = INTERVENANTS.find(i => i.id === id);
+  document.getElementById('qui-affiche').textContent = intervenant ? intervenant.nom : '';
+  document.getElementById('carte-qui').style.display = 'none';
+  document.getElementById('zone-formulaire').style.display = 'block';
+  rendreChipsEcoleUnique();
+}
+
+function rendreChipsTypes() {
+  const categories = Object.keys(CATEGORIES_INTERVENTION).filter(c => c !== 'autre' && TYPES.some(t => t.categorie === c));
+  document.getElementById('chips-types').innerHTML = categories.map(c => `
+    <div class="groupe-ecoles-titre" style="margin-top:14px;">${CATEGORIES_INTERVENTION[c]}</div>
+    <div class="grille-types">
+      ${TYPES.filter(t => t.categorie === c).map(t => `<button type="button" class="chip-type" data-id="${t.id}">${t.label}</button>`).join('')}
+    </div>
+  `).join('') + `
+    <div class="groupe-ecoles-titre" style="margin-top:14px;">Autre</div>
+    <div class="grille-types">
+      <button type="button" class="chip-type" id="chip-autre">Action personnalisée…</button>
+    </div>
+  `;
+  document.getElementById('chips-types').querySelectorAll('.chip-type[data-id]').forEach(btn => {
+    btn.addEventListener('click', () => choisirType(btn.dataset.id));
+  });
+  document.getElementById('chip-autre').addEventListener('click', () => choisirType(null));
+}
+
+function typeActuel() {
+  return TYPES.find(t => t.id === typeIdChoisi);
+}
+
+function actionConcerneEcole() {
+  if (typeIdChoisi === null) return true; // personnalisé : visible par défaut, laissable vide
+  const t = typeActuel();
+  return t ? t.ecole !== false : true;
+}
+
+function majVisibiliteEcoleUnique() {
+  document.getElementById('carte-ecoles').style.display = actionConcerneEcole() ? 'block' : 'none';
+}
+
+function choisirType(id) {
+  typeIdChoisi = id;
+  document.getElementById('zone-perso').style.display = id === null ? 'block' : 'none';
+  document.getElementById('chips-types').querySelectorAll('.chip-type').forEach(btn => {
+    btn.classList.toggle('selectionne', id === null ? btn.id === 'chip-autre' : btn.dataset.id === id);
+  });
+  majVisibiliteEcoleUnique();
+}
+
+function mesEcolesReferentes() {
+  return ECOLES.filter(e => e.cpcReferent === quiId);
+}
+
+function rendreChipsEcoleUnique() {
+  const mine = mesEcolesReferentes();
+  const mineIds = new Set(mine.map(e => e.id));
+  const ordonnees = [...mine, ...ECOLES.filter(e => !mineIds.has(e.id))];
+  document.getElementById('chips-ecole-unique').innerHTML = ordonnees.map(e =>
+    `<button type="button" class="chip-ecole" data-id="${e.id}">${e.nom}</button>`).join('');
+  document.getElementById('chips-ecole-unique').querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      ecoleIdChoisie = ecoleIdChoisie === btn.dataset.id ? null : btn.dataset.id;
+      document.getElementById('chips-ecole-unique').querySelectorAll('button').forEach(b => b.classList.toggle('selectionne', b.dataset.id === ecoleIdChoisie));
+    });
+  });
+}
+
+function reinitialiserFormulaire() {
+  typeIdChoisi = undefined;
+  document.getElementById('chips-types').querySelectorAll('.chip-type').forEach(b => b.classList.remove('selectionne'));
+  document.getElementById('type-personnalise').value = '';
+  document.getElementById('zone-perso').style.display = 'none';
+  ecoleIdChoisie = null;
+  document.getElementById('chips-ecole-unique').querySelectorAll('.chip-ecole').forEach(b => b.classList.remove('selectionne'));
+  document.getElementById('carte-ecoles').style.display = 'none';
+  document.getElementById('sr-theme').value = '';
+  document.getElementById('sr-notes').value = '';
+  document.getElementById('sr-date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('zone-details').style.display = 'none';
+}
+
+async function enregistrer() {
+  const msg = document.getElementById('sr-message');
+  const perso = document.getElementById('type-personnalise').value.trim();
+  if (!typeIdChoisi && !perso) {
+    msg.className = 'alerte alerte-warn'; msg.textContent = "Choisis un type d'intervention."; msg.style.display = 'block'; return;
+  }
+  const btn = document.getElementById('btn-enregistrer');
+  btn.disabled = true;
+  msg.className = 'alerte alerte-info'; msg.textContent = 'Enregistrement…'; msg.style.display = 'block';
+  try {
+    let typeId = typeIdChoisi;
+    let typeLabel = perso;
+    if (typeIdChoisi === null) {
+      const type = await Store.ajouterTypePersonnalise(perso);
+      typeId = type.id;
+      TYPES = await Store.chargerTypes();
+    } else {
+      typeLabel = typeActuel().label;
+    }
+    const type = TYPES.find(t => t.id === typeId);
+    const date = document.getElementById('sr-date').value || new Date().toISOString().slice(0, 10);
+    const theme = document.getElementById('sr-theme').value.trim();
+    const notes = document.getElementById('sr-notes').value.trim();
+    const intervenant = INTERVENANTS.find(i => i.id === quiId);
+    const categorie = type ? type.categorie : 'autre';
+
+    if (ecoleIdChoisie) {
+      const ecole = ECOLES.find(e => e.id === ecoleIdChoisie);
+      const intervention = { id: genererIdIntervention(), date, typeId, intervenantId: quiId, theme, notes, horodatage: horodatageMaintenant() };
+      await Store.ajouterIntervention(ecoleIdChoisie, intervention, ecole.nom);
+      if (gcalConfig.actif) {
+        gcalPousserIntervention({ ecoleNom: ecole.nom, typeLabel, theme, notes, date, categorie })
+          .catch(e => console.warn('Google Agenda :', e.message));
+      }
+    } else {
+      const action = { id: genererIdIntervention(), date, typeId, intervenantId: quiId, theme, notes, horodatage: horodatageMaintenant() };
+      await Store.ajouterActionGenerale(quiId, action, intervenant ? intervenant.nom : quiId);
+      if (gcalConfig.actif) {
+        gcalPousserIntervention({ typeLabel, theme, notes, date, categorie })
+          .catch(e => console.warn('Google Agenda :', e.message));
+      }
+    }
+    reinitialiserFormulaire();
+    msg.className = 'alerte alerte-ok'; msg.textContent = 'Enregistré ✓'; msg.style.display = 'block';
+  } catch (e) {
+    msg.className = 'alerte alerte-err'; msg.textContent = e.message; msg.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('btn-changer-qui').addEventListener('click', () => {
+  document.getElementById('carte-qui').style.display = 'block';
+  document.getElementById('zone-formulaire').style.display = 'none';
+});
+document.getElementById('btn-toggle-details').addEventListener('click', () => {
+  const z = document.getElementById('zone-details');
+  z.style.display = z.style.display === 'none' ? 'block' : 'none';
+});
+document.getElementById('type-personnalise').addEventListener('input', majVisibiliteEcoleUnique);
+document.getElementById('btn-enregistrer').addEventListener('click', enregistrer);
+
+async function init() {
+  [INTERVENANTS, ECOLES, TYPES] = await Promise.all([Store.chargerIntervenants(), Store.chargerEcoles(), Store.chargerTypes()]);
+  rendreChipsQui();
+  rendreChipsTypes();
+  document.getElementById('sr-date').value = new Date().toISOString().slice(0, 10);
+
+  document.getElementById('zone-chargement').style.display = 'none';
+  document.getElementById('carte-qui').style.display = 'block';
+
+  const sauvegarde = localStorage.getItem(STOCKAGE_QUI);
+  if (sauvegarde && INTERVENANTS.some(i => i.id === sauvegarde)) {
+    choisirQui(sauvegarde);
+  }
+}
+
+init().catch(err => {
+  document.getElementById('zone-chargement').className = 'alerte alerte-err';
+  document.getElementById('zone-chargement').textContent = 'Erreur au chargement : ' + err.message;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "IEP1 — Saisie rapide",
+  "short_name": "IEP1 Saisie",
+  "description": "Saisie rapide d'une action (quoi, où) pour le suivi des interventions IEP1.",
+  "start_url": "saisie-rapide.html",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#F7F9FB",
+  "theme_color": "#0F2942",
+  "lang": "fr",
+  "icons": [
+    { "src": "assets/logo-iep1.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/logo-iep1.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

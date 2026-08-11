@@ -20,6 +20,7 @@ function injecterEntete(pageActive) {
           <span class="icone">🏫</span> Espace école
         </a>
       </nav>
+      <a href="saisie-rapide.html" class="btn btn-sm btn-orange" title="Formulaire minimal, pensé pour le téléphone">⚡ Saisie rapide</a>
       <button class="btn btn-sm btn-secondaire" id="btn-connexion-donnees" type="button" title="Connexion au stockage des données">⚙ Données</button>
       <button class="btn btn-sm btn-secondaire" id="btn-connexion-gcal" type="button" title="Connexion à Google Agenda">📅 Agenda</button>
     </header>

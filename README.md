@@ -103,6 +103,22 @@ l'importer dans le repo privé :
    relisez chaque école ensuite (bouton **Modifier** sur sa fiche) pour corriger d'éventuelles
    coquilles.
 
+## Saisie rapide (téléphone)
+
+Le site complet (tableau de bord, bilans, historiques) est pensé comme un outil de **vérification
+pour la hiérarchie**. Pour la saisie quotidienne sur le terrain, `saisie-rapide.html` est un
+formulaire minimal (qui / quoi / où, une école à la fois, tout le reste replié sous « + Détails »)
+qui écrit exactement dans les mêmes destinations que le reste de l'appli (repo privé + Google
+Agenda si connecté) — juste avec beaucoup moins de gestes.
+
+Pour l'installer comme un raccourci d'icône sur le téléphone (pas une vraie appli, pas de compte
+séparé — juste un signet plein écran) :
+- **iPhone (Safari)** : ouvrir `saisie-rapide.html`, bouton Partager ⬆ → « Sur l'écran d'accueil ».
+- **Android (Chrome)** : ouvrir la page, menu ⋮ → « Ajouter à l'écran d'accueil ».
+
+La personne (« Qui ») n'est demandée qu'une fois par téléphone (mémorisée dans le navigateur) —
+logique puisque chacun installe son propre raccourci sur son propre téléphone.
+
 ## Google Agenda (optionnel)
 
 Pour éviter la double saisie (l'outil pour le suivi/le chef, Google Agenda pour la DRH), chaque
