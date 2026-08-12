@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Espace conseiller — Suivi des interventions IEP1</title>
-<link rel="stylesheet" href="css/style.css?v=10">
+<link rel="stylesheet" href="css/style.css?v=11">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -46,14 +46,22 @@
         <label for="type-personnalise">…ou action personnalisée (libellé libre)</label>
         <input type="text" id="type-personnalise" placeholder="Ex : Médiation avec une famille">
       </div>
+      <div class="champ" id="bloc-profil" style="display:none;">
+        <label for="ci-profil">Profil / public</label>
+        <select id="ci-profil"></select>
+      </div>
       <div class="ligne-champs">
         <div class="champ">
           <label for="ci-date">Date</label>
           <input type="date" id="ci-date">
         </div>
+        <div class="champ">
+          <label for="ci-origine">Origine <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
+          <select id="ci-origine"></select>
+        </div>
       </div>
       <div class="champ">
-        <label for="ci-theme">Thème / personne suivie <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
+        <label for="ci-theme">Thème / détail <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
         <input type="text" id="ci-theme" placeholder="Ex : Journée de formation Narramus">
       </div>
       <div class="champ">
@@ -63,14 +71,19 @@
     </div>
 
     <div class="carte" id="carte-ecoles-concernees">
-      <label>Écoles concernées</label>
+      <label>Où ?</label>
       <div class="onglets">
         <button type="button" class="onglet actif" id="onglet-mode-referentes">Mes écoles de référence</button>
         <button type="button" class="onglet" id="onglet-mode-choisir">Choisir une/des écoles</button>
+        <button type="button" class="onglet" id="onglet-mode-autre">Autre / pas d'école</button>
       </div>
       <div id="vue-action-referentes"></div>
       <div id="vue-action-choisir" style="display:none;">
         <div class="grille-chips-ecoles" id="chips-action-ecoles"></div>
+      </div>
+      <div id="vue-action-autre" style="display:none;">
+        <input type="text" id="ci-lieu-libre" placeholder="Ex : DENC, domicile, Médipôle… (facultatif)">
+        <p class="intro" style="margin:8px 0 0;">Cette action n'est liée à aucune école : elle part vers Google Agenda mais ne compte dans aucune statistique.</p>
       </div>
     </div>
 
@@ -94,7 +107,7 @@
             <canvas id="graph-bilan-categorie"></canvas>
           </div>
           <div>
-            <p class="intro" style="margin-bottom:8px;"><span id="bilan-total"></span> action(s) au total, dont <span id="bilan-repartition-ecole"></span>.</p>
+            <p class="intro" style="margin-bottom:8px;"><span id="bilan-total"></span> action(s) en école prises en compte dans ce bilan (les actions hors école partent vers Google Agenda mais ne comptent pas ici).</p>
             <div class="table-wrap">
               <table>
                 <thead><tr><th>Type</th><th>Nb</th><th>%</th></tr></thead>
@@ -121,10 +134,10 @@
 
 <p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
 
-<script src="js/seed-data.js?v=10"></script>
+<script src="js/seed-data.js?v=12"></script>
 <script src="js/github-store.js?v=7"></script>
 <script src="js/data-store.js?v=9"></script>
-<script src="js/stats.js?v=9"></script>
+<script src="js/stats.js?v=11"></script>
 <script src="js/type-selector.js?v=7"></script>
 <script src="js/school-picker.js?v=7"></script>
 <script src="js/google-calendar.js?v=10"></script>
@@ -145,16 +158,18 @@ let chipsActionPicker = null;
 let modeAction = 'referentes';
 let graphBilanCategorie = null;
 
-/** Une action personnalisée (texte libre) peut concerner une école : carte visible par défaut,
- *  laissable vide. Un type prédéfini utilise son flag `ecole` pour décider automatiquement. */
-function actionConcerneEcole() {
-  if (document.getElementById('type-personnalise').value.trim()) return true;
-  const type = TYPES.find(t => t.id === selecteurType.typeSelectionneId());
-  return type ? type.ecole !== false : true;
+function majVisibiliteProfil() {
+  const options = PROFILS_PAR_TYPE[selecteurType.typeSelectionneId()];
+  const bloc = document.getElementById('bloc-profil');
+  bloc.style.display = options ? 'block' : 'none';
+  document.getElementById('ci-profil').innerHTML = options
+    ? '<option value="">—</option>' + options.map(o => `<option value="${o}">${o}</option>`).join('')
+    : '';
 }
 
-function majVisibiliteEcoles() {
-  document.getElementById('carte-ecoles-concernees').style.display = actionConcerneEcole() ? 'block' : 'none';
+function remplirSelectOrigine() {
+  document.getElementById('ci-origine').innerHTML = '<option value="">—</option>' +
+    ORIGINES_INTERVENTION.map(o => `<option value="${o}">${o}</option>`).join('');
 }
 
 function mesEcolesReferentes() {
@@ -216,11 +231,14 @@ function basculerModeAction(mode) {
   modeAction = mode;
   document.getElementById('onglet-mode-referentes').classList.toggle('actif', mode === 'referentes');
   document.getElementById('onglet-mode-choisir').classList.toggle('actif', mode === 'choisir');
+  document.getElementById('onglet-mode-autre').classList.toggle('actif', mode === 'autre');
   document.getElementById('vue-action-referentes').style.display = mode === 'referentes' ? 'block' : 'none';
   document.getElementById('vue-action-choisir').style.display = mode === 'choisir' ? 'block' : 'none';
+  document.getElementById('vue-action-autre').style.display = mode === 'autre' ? 'block' : 'none';
 }
 
 function ecolesSelectionnees() {
+  if (modeAction === 'autre') return [];
   return modeAction === 'referentes' ? mesEcolesReferentes().map(e => e.id) : chipsActionPicker.getSelection();
 }
 
@@ -229,8 +247,7 @@ async function valider() {
   const date = document.getElementById('ci-date').value;
   const perso = document.getElementById('type-personnalise').value.trim();
   const typeChoisi = selecteurType.typeSelectionneId();
-  const carteEcolesVisible = document.getElementById('carte-ecoles-concernees').style.display !== 'none';
-  const ecolesChoisies = carteEcolesVisible ? ecolesSelectionnees() : [];
+  const ecolesChoisies = ecolesSelectionnees();
 
   if (!date) { msg.className = 'alerte alerte-warn'; msg.textContent = 'Merci de renseigner une date.'; msg.style.display = 'block'; return; }
   if (!typeChoisi && !perso) { msg.className = 'alerte alerte-warn'; msg.textContent = "Merci de choisir un type d'intervention ou de saisir une action personnalisée."; msg.style.display = 'block'; return; }
@@ -248,13 +265,19 @@ async function valider() {
     const type = TYPES.find(t => t.id === typeId);
     const theme = document.getElementById('ci-theme').value.trim();
     const notes = document.getElementById('ci-notes').value.trim();
+    const profil = document.getElementById('ci-profil').value;
+    const origine = document.getElementById('ci-origine').value;
+    const categorie = type ? type.categorie : 'divers';
+    const typeLabel = type ? type.label : perso;
+    const gcalTypeLabel = profil ? `${typeLabel} (${profil})` : typeLabel;
 
     if (!ecolesChoisies.length) {
+      const lieuLibre = modeAction === 'autre' ? document.getElementById('ci-lieu-libre').value.trim() : '';
       msg.className = 'alerte alerte-info'; msg.textContent = 'Enregistrement…'; msg.style.display = 'block';
-      const action = { id: genererIdIntervention(), date, typeId, intervenantId, theme, notes, horodatage: horodatageMaintenant() };
+      const action = { id: genererIdIntervention(), date, typeId, intervenantId, theme, notes, profil, origine, lieuLibre, horodatage: horodatageMaintenant() };
       await Store.ajouterActionGenerale(intervenantId, action, INTERVENANT.nom);
       if (gcalConfig.actif) {
-        gcalPousserIntervention({ typeLabel: type ? type.label : perso, theme, notes, date, categorie: type ? type.categorie : 'autre' })
+        gcalPousserIntervention({ typeLabel: gcalTypeLabel, theme, notes: [notes, lieuLibre ? `Lieu : ${lieuLibre}` : ''].filter(Boolean).join('\n'), date, categorie })
           .catch(e => console.warn('Google Agenda :', e.message));
       }
       msg.className = 'alerte alerte-ok';
@@ -267,10 +290,10 @@ async function valider() {
         msg.className = 'alerte alerte-info';
         msg.textContent = `Enregistrement… (${i + 1}/${ecolesChoisies.length} : ${ecole.nom})`;
         msg.style.display = 'block';
-        const intervention = { id: genererIdIntervention(), groupeId, date, typeId, intervenantId, theme, notes, horodatage: horodatageMaintenant() };
+        const intervention = { id: genererIdIntervention(), groupeId, date, typeId, intervenantId, theme, notes, profil, origine, horodatage: horodatageMaintenant() };
         await Store.ajouterIntervention(ecoleId, intervention, ecole.nom);
         if (gcalConfig.actif) {
-          gcalPousserIntervention({ ecoleNom: ecole.nom, typeLabel: type ? type.label : perso, theme, notes, date, categorie: type ? type.categorie : 'autre' })
+          gcalPousserIntervention({ ecoleNom: ecole.nom, typeLabel: gcalTypeLabel, theme, notes, date, categorie })
             .catch(e => console.warn('Google Agenda :', e.message));
         }
       }
@@ -279,7 +302,9 @@ async function valider() {
     }
     document.getElementById('ci-theme').value = '';
     document.getElementById('ci-notes').value = '';
+    document.getElementById('ci-lieu-libre').value = '';
     selecteurType.reset();
+    majVisibiliteProfil();
     await chargerHistorique();
     await rendreBilan();
   } catch (e) {
@@ -294,10 +319,9 @@ async function chargerHistorique() {
     .sort((a, b) => b.date.localeCompare(a.date) || b.horodatage.localeCompare(a.horodatage));
   const corps = document.getElementById('corps-historique');
   corps.innerHTML = mesActions.slice(0, 30).map(iv => {
-    const type = TYPES.find(t => t.id === iv.typeId);
     return `<tr>
       <td>${formaterDate(iv.date)}</td>
-      <td>${type ? type.label : iv.typeId}</td>
+      <td>${libelleType(iv.typeId, TYPES)}</td>
       <td>${iv.ecoleId ? `<a href="ecole.html?id=${iv.ecoleId}">${iv.ecoleNom}</a>` : '—'}</td>
       <td>${iv.theme || '—'}</td>
     </tr>`;
@@ -323,7 +347,6 @@ async function rendreBilan() {
   if (!bilan.total) return;
 
   document.getElementById('bilan-total').textContent = bilan.total;
-  document.getElementById('bilan-repartition-ecole').textContent = `${bilan.nbEcole} en école et ${bilan.nbGenerale} générale(s)`;
 
   document.getElementById('corps-bilan-types').innerHTML = bilan.parType.map(t =>
     `<tr><td>${t.label}</td><td>${t.n}</td><td>${t.pct}%</td></tr>`).join('');
@@ -356,7 +379,8 @@ async function init() {
   rendreVueReferentesLecture();
   rendreVueActionReferentes();
   chipsActionPicker = creerGrilleChipsEcoles(document.getElementById('chips-action-ecoles'), ECOLES, mesEcolesReferentes().map(e => e.id));
-  majVisibiliteEcoles();
+  remplirSelectOrigine();
+  majVisibiliteProfil();
   await chargerHistorique();
   remplirSelecteurAnneeBilan();
   await rendreBilan();
@@ -370,8 +394,9 @@ document.getElementById('btn-annuler-referentes').addEventListener('click', ferm
 document.getElementById('btn-enregistrer-referentes').addEventListener('click', enregistrerEcolesReferentes);
 document.getElementById('onglet-mode-referentes').addEventListener('click', () => basculerModeAction('referentes'));
 document.getElementById('onglet-mode-choisir').addEventListener('click', () => basculerModeAction('choisir'));
-document.getElementById('ci-type').addEventListener('change', majVisibiliteEcoles);
-document.getElementById('type-personnalise').addEventListener('input', majVisibiliteEcoles);
+document.getElementById('onglet-mode-autre').addEventListener('click', () => basculerModeAction('autre'));
+document.getElementById('ci-type').addEventListener('change', majVisibiliteProfil);
+document.getElementById('type-personnalise').addEventListener('input', majVisibiliteProfil);
 document.getElementById('sel-annee-bilan').addEventListener('change', () => rendreBilan());
 document.getElementById('btn-valider').addEventListener('click', valider);
 

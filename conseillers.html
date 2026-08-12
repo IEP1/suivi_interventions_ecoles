@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Conseillers — Suivi des interventions IEP1</title>
-<link rel="stylesheet" href="css/style.css?v=10">
+<link rel="stylesheet" href="css/style.css?v=11">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -60,7 +60,7 @@
           <canvas id="graph-bilan-equipe-categorie"></canvas>
         </div>
         <div>
-          <p class="intro" style="margin-bottom:8px;"><span id="bilan-equipe-total"></span> action(s) au total, dont <span id="bilan-equipe-repartition-ecole"></span>.</p>
+          <p class="intro" style="margin-bottom:8px;"><span id="bilan-equipe-total"></span> action(s) en école prises en compte dans ce bilan (les actions hors école partent vers Google Agenda mais ne comptent pas ici).</p>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Type</th><th>Nb</th><th>%</th></tr></thead>
@@ -77,10 +77,10 @@
 
 <p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
 
-<script src="js/seed-data.js?v=10"></script>
+<script src="js/seed-data.js?v=12"></script>
 <script src="js/github-store.js?v=7"></script>
 <script src="js/data-store.js?v=9"></script>
-<script src="js/stats.js?v=9"></script>
+<script src="js/stats.js?v=11"></script>
 <script src="js/google-calendar.js?v=10"></script>
 <script src="js/layout.js?v=11"></script>
 <script>
@@ -111,7 +111,6 @@ async function rendreBilanEquipe() {
   if (!bilan.total) return;
 
   document.getElementById('bilan-equipe-total').textContent = bilan.total;
-  document.getElementById('bilan-equipe-repartition-ecole').textContent = `${bilan.nbEcole} en école et ${bilan.nbGenerale} générale(s)`;
 
   document.getElementById('corps-bilan-equipe-types').innerHTML = bilan.parType.map(t =>
     `<tr><td>${t.label}</td><td>${t.n}</td><td>${t.pct}%</td></tr>`).join('');

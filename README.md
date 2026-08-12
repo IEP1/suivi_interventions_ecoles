@@ -36,10 +36,12 @@ rien ne peut être enregistré durablement.
 
 ## Fonctionnement
 
-- **Accueil** (`index.html`) : tableau de bord circonscription — indicateurs de couverture
-  (% d'écoles avec accompagnement titulaire, suivi de suppléant, conseil des maîtres suivi,
-  accompagnement projet d'école…), écoles peu ou jamais suivies sur la période, graphiques
-  dynamiques par type et par catégorie, sélecteur d'année scolaire.
+- **Accueil** (`index.html`) : tableau de bord circonscription **100% école** — indicateurs de
+  couverture (% d'écoles avec accompagnement individuel, formation donnée, instance suivie,
+  projet d'école accompagné…), écoles peu ou jamais suivies sur la période, graphiques dynamiques
+  par type et par catégorie, sélecteur d'année scolaire. Les actions sans école n'y apparaissent
+  jamais (voir « Lieu » ci-dessous) : cette page reste un outil de vérification pour la hiérarchie,
+  focalisé sur les écoles.
 - **Écoles** (`ecoles.html` → `ecole.html`) : liste des 21 écoles groupées par type
   (maternelles / élémentaires / groupes scolaires / structures), avec une pastille indiquant la
   fraîcheur du dernier suivi. Chaque fiche école affiche ses statistiques, son historique complet
@@ -47,18 +49,26 @@ rien ne peut être enregistré durablement.
   libre).
 - **Conseillers** (`conseillers.html` → `conseiller.html`) : chaque intervenant (5 CPC,
   secrétariat, IEN) peut saisir une action et l'attribuer en une fois à une ou plusieurs écoles
-  (ses écoles référentes pré-cochées, ou sélection libre), **ou** basculer sur « Non, action
-  générale » pour loguer une action sans lien avec une école précise (réunion, administratif,
-  formation donnée/reçue, jury d'examen, groupe de travail…). Un même geste crée une entrée dans
-  l'historique de chaque école choisie (ou une action générale). La page affiche les dernières
-  actions saisies par cet intervenant, toutes écoles confondues, ainsi qu'un **Bilan de l'année**
-  (répartition en % par catégorie et par type, doughnut inclus) pour préparer le bilan d'action de
-  fin d'année. `conseillers.html` affiche le même bilan au niveau de l'équipe entière.
-- **Types d'intervention** : liste de départ éditable, répartie en catégories : école
-  (accompagnement titulaire/suppléant/T1-T3, suivi de stagiaire, conseils des maîtres/d'école/de
-  cycle, projet d'école, liaisons GS-CP et CM2-6e) et hors école (réunion, administratif/bureau,
-  formation donnée / formation reçue, groupe de travail, jury/examen, sollicitation…). Toute action
-  personnalisée saisie une fois vient enrichir la liste proposée aux suivantes.
+  (ses écoles référentes pré-cochées, sélection libre, ou onglet « Autre / pas d'école » pour une
+  action sans lien avec une école précise). Un même geste crée une entrée dans l'historique de
+  chaque école choisie (ou une action générale, envoyée à Google Agenda mais jamais comptée dans
+  les statistiques). La page affiche les dernières actions saisies par cet intervenant, toutes
+  écoles confondues, ainsi qu'un **Bilan de l'année** (répartition en % par catégorie et par type,
+  école uniquement, doughnut inclus) pour préparer le bilan d'action de fin d'année.
+  `conseillers.html` affiche le même bilan au niveau de l'équipe entière.
+- **Lieu, au cas par cas** : le lieu n'est jamais déduit du type d'action — à chaque saisie, on
+  choisit une école dans la liste, « Autre » (texte libre : DENC, domicile…) ou rien. Seules les
+  actions liées à une école comptent dans les statistiques (accueil, bilans) ; les autres partent
+  quand même vers Google Agenda pour garder une trace personnelle.
+- **Types d'intervention** : typologie officielle à 16 valeurs, réparties en 6 catégories
+  (Accompagnement, Formation, Projets et actions, Circonscription et institution, Missions
+  réglementaires, Divers) — voir `js/seed-data.js`. Deux axes complémentaires, facultatifs et
+  toujours saisis à côté du type : **Profil/public** (T0-T3, titulaire, remplaçant, stagiaire,
+  direction — uniquement pour Accompagnement individuel/d'équipe et Inspection/EAE) et
+  **Origine** (mon initiative, demande équipe/direction/IEN, commande DENC, obligation
+  réglementaire — pour tous les types). Toute action personnalisée saisie une fois vient enrichir
+  la liste proposée aux suivantes. Les anciens types (avant cette typologie) restent lisibles dans
+  l'historique via `TYPES_HERITES`, sans être proposés à la nouvelle saisie.
 - **Intervenants** (`conseillers.html`) : ajout et suppression manuels d'intervenants (nom + rôle
   parmi conseiller pédagogique / secrétariat / IEN).
 - **Écoles de référence** (`conseiller.html`) : chaque intervenant peut cocher ses écoles de
@@ -156,16 +166,12 @@ Mise en service (une seule fois, par personne qui veut ce lien) :
 
    | Catégorie | Couleur Google Agenda | Libellé suggéré |
    |---|---|---|
-   | Accompagnement individuel | Peacock (bleu paon) | Visites |
-   | Instance (conseils) | Banana (jaune) | Ecole |
-   | Projet | Basil (vert) | Projets |
-   | Groupe de travail | Sage (vert clair) | GT |
-   | Formation donnée | Grape (violet) | Formation (formateur) |
-   | Formation reçue | Lavender (lavande) | Formation (auditeur) |
-   | Réunion | Blueberry (bleu marine) | Réunion |
-   | Administratif / bureau | Graphite (gris) | Bureau (admin+pédagogique) |
-   | Jury / examen | Flamingo (rose) | Examen (Jury, Correction) |
-   | Sur sollicitation | Tomato (rouge) | Sollicitation |
+   | Accompagnement | Peacock (bleu paon) | Accompagnement |
+   | Formation | Grape (violet) | Formation |
+   | Projets et actions | Basil (vert) | Projets |
+   | Circonscription et institution | Blueberry (bleu marine) | Circonscription |
+   | Missions réglementaires | Flamingo (rose) | Réglementaire |
+   | Divers | Graphite (gris) | Divers |
 
    Ces couleurs sont modifiables par chacun depuis la section « Couleurs par catégorie » de la
    modale 📅 Agenda (elles restent alors propres à votre navigateur, comme le reste de la

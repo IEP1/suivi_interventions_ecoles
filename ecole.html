@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fiche école — Suivi des interventions IEP1</title>
-<link rel="stylesheet" href="css/style.css?v=10">
+<link rel="stylesheet" href="css/style.css?v=11">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -81,6 +81,10 @@
       <label for="type-personnalise">…ou action personnalisée (libellé libre)</label>
       <input type="text" id="type-personnalise" placeholder="Ex : Médiation avec une famille">
     </div>
+    <div class="champ" id="bloc-profil" style="display:none;">
+      <label for="mi-profil">Profil / public</label>
+      <select id="mi-profil"></select>
+    </div>
     <div class="ligne-champs">
       <div class="champ">
         <label for="mi-date">Date</label>
@@ -92,7 +96,11 @@
       </div>
     </div>
     <div class="champ">
-      <label for="mi-theme">Thème / personne suivie <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
+      <label for="mi-origine">Origine <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
+      <select id="mi-origine"></select>
+    </div>
+    <div class="champ">
+      <label for="mi-theme">Thème / détail <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
       <input type="text" id="mi-theme" placeholder="Ex : GURRERA Alexia — différenciation en maths">
     </div>
     <div class="champ">
@@ -109,10 +117,10 @@
 
 <p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
 
-<script src="js/seed-data.js?v=10"></script>
+<script src="js/seed-data.js?v=12"></script>
 <script src="js/github-store.js?v=7"></script>
 <script src="js/data-store.js?v=9"></script>
-<script src="js/stats.js?v=9"></script>
+<script src="js/stats.js?v=11"></script>
 <script src="js/type-selector.js?v=7"></script>
 <script src="js/google-calendar.js?v=10"></script>
 <script src="js/layout.js?v=11"></script>
@@ -162,7 +170,7 @@ function rendreStats() {
   INTERVENTIONS.forEach(iv => { parType[iv.typeId] = (parType[iv.typeId] || 0) + 1; });
   const fraicheur = calculerFraicheurEcole(INTERVENTIONS);
 
-  const tuilesCles = ['accompagnement-titulaire', 'accompagnement-suppleant', 'conseil-maitres', 'projet-ecole'];
+  const tuilesCles = ['accompagnement-individuel', 'formation-donnee', 'instance-ecole', 'projet-ecole'];
   const grille = document.getElementById('grille-stats-ecole');
   grille.innerHTML = `
     <div class="tuile-stat">
@@ -188,7 +196,7 @@ function rendreGraphique() {
   const parType = {};
   INTERVENTIONS.forEach(iv => { parType[iv.typeId] = (parType[iv.typeId] || 0) + 1; });
   const entrees = Object.entries(parType).sort((a, b) => b[1] - a[1]);
-  const labels = entrees.map(([id]) => (TYPES.find(t => t.id === id) || { label: id }).label);
+  const labels = entrees.map(([id]) => libelleType(id, TYPES));
   const valeurs = entrees.map(([, n]) => n);
 
   const ctx = document.getElementById('graph-ecole').getContext('2d');
@@ -208,13 +216,22 @@ function rendreHistorique() {
     const intervenant = INTERVENANTS.find(i => i.id === iv.intervenantId);
     return `<tr>
       <td>${formaterDate(iv.date)}</td>
-      <td>${type ? type.label : iv.typeId}<br><span class="categorie-badge cat-${type ? type.categorie : 'autre'}">${CATEGORIES_INTERVENTION[type ? type.categorie : 'autre']}</span></td>
+      <td>${libelleType(iv.typeId, TYPES)}${iv.profil ? ' (' + iv.profil + ')' : ''}<br><span class="categorie-badge cat-${type ? type.categorie : 'divers'}">${CATEGORIES_INTERVENTION[type ? type.categorie : 'divers']}</span></td>
       <td>${intervenant ? intervenant.nom : iv.intervenantId}</td>
       <td>${iv.theme || '—'}</td>
       <td>${iv.notes || '—'}</td>
     </tr>`;
   }).join('');
   document.getElementById('msg-vide').style.display = tri.length ? 'none' : 'block';
+}
+
+function majVisibiliteProfil() {
+  const options = PROFILS_PAR_TYPE[selecteurType.typeSelectionneId()];
+  const bloc = document.getElementById('bloc-profil');
+  bloc.style.display = options ? 'block' : 'none';
+  document.getElementById('mi-profil').innerHTML = options
+    ? '<option value="">—</option>' + options.map(o => `<option value="${o}">${o}</option>`).join('')
+    : '';
 }
 
 function ouvrirModale() {
@@ -224,6 +241,9 @@ function ouvrirModale() {
   document.getElementById('mi-notes').value = '';
   document.getElementById('mi-message').style.display = 'none';
   document.getElementById('mi-intervenant').innerHTML = INTERVENANTS.map(i => `<option value="${i.id}" ${i.id === ECOLE.cpcReferent ? 'selected' : ''}>${i.nom}</option>`).join('');
+  document.getElementById('mi-origine').innerHTML = '<option value="">—</option>' +
+    ORIGINES_INTERVENTION.map(o => `<option value="${o}">${o}</option>`).join('');
+  majVisibiliteProfil();
   document.getElementById('modale-ajout').classList.add('ouverte');
 }
 function fermerModale() {
@@ -256,6 +276,8 @@ async function validerIntervention() {
       intervenantId: document.getElementById('mi-intervenant').value,
       theme: document.getElementById('mi-theme').value.trim(),
       notes: document.getElementById('mi-notes').value.trim(),
+      profil: document.getElementById('mi-profil').value,
+      origine: document.getElementById('mi-origine').value,
       horodatage: horodatageMaintenant()
     };
     await Store.ajouterIntervention(ecoleId, intervention, ECOLE.nom);
@@ -266,7 +288,8 @@ async function validerIntervention() {
     fermerModale();
     if (gcalConfig.actif) {
       const type = TYPES.find(t => t.id === typeId);
-      gcalPousserIntervention({ ecoleNom: ECOLE.nom, typeLabel: type ? type.label : perso, theme: intervention.theme, notes: intervention.notes, date: intervention.date, categorie: type ? type.categorie : 'autre' })
+      const typeLabel = type ? type.label : perso;
+      gcalPousserIntervention({ ecoleNom: ECOLE.nom, typeLabel: intervention.profil ? `${typeLabel} (${intervention.profil})` : typeLabel, theme: intervention.theme, notes: intervention.notes, date: intervention.date, categorie: type ? type.categorie : 'divers' })
         .catch(e => console.warn('Google Agenda :', e.message));
     }
   } catch (e) {
@@ -303,6 +326,8 @@ async function init() {
 document.getElementById('btn-ouvrir-modale').addEventListener('click', ouvrirModale);
 document.getElementById('btn-fermer-modale').addEventListener('click', fermerModale);
 document.getElementById('btn-valider-intervention').addEventListener('click', validerIntervention);
+document.getElementById('mi-type').addEventListener('change', majVisibiliteProfil);
+document.getElementById('type-personnalise').addEventListener('input', majVisibiliteProfil);
 
 if (!ecoleId) {
   document.getElementById('zone-chargement').className = 'alerte alerte-err';

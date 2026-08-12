@@ -56,12 +56,13 @@ function calculerStatsGlobales(ecolesAvecInterventions, debut, fin, types) {
 
 /**
  * Bilan d'action (conseiller ou équipe) : répartition en % du total, pour un bilan de fin
- * d'année — à la différence de calculerStatsGlobales (% d'écoles couvertes), ici le total de
- * référence est le nombre d'actions, école ou non.
+ * d'année. Ne compte que les actions liées à une école (ecoleId défini) — une action sans école
+ * part vers Google Agenda mais n'entre dans aucune statistique, seulement dans l'historique brut.
  * actions : liste à plat (voir Store.chargerToutesLesActionsIntervenant / chargerToutesLesActions)
  */
 function calculerBilanActions(actions, debut, fin, types) {
-  const periode = interventionsDansPeriode(actions, debut, fin);
+  const actionsEcole = actions.filter(a => a.ecoleId);
+  const periode = interventionsDansPeriode(actionsEcole, debut, fin);
   const total = periode.length;
 
   const parCategorie = Object.keys(CATEGORIES_INTERVENTION).map(cat => {
@@ -77,9 +78,7 @@ function calculerBilanActions(actions, debut, fin, types) {
     return { typeId: t.id, label: t.label, categorie: t.categorie, n, pct: total ? Math.round((n / total) * 100) : 0 };
   }).filter(t => t.n > 0).sort((a, b) => b.n - a.n);
 
-  const nbEcole = periode.filter(a => a.ecoleId).length;
-
-  return { total, nbEcole, nbGenerale: total - nbEcole, parCategorie, parType };
+  return { total, parCategorie, parType };
 }
 
 /** Fraîcheur du suivi d'une école : dernière intervention, en jours, et étiquette visuelle. */

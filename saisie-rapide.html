@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Saisie rapide — IEP1</title>
-<link rel="stylesheet" href="css/style.css?v=10">
+<link rel="stylesheet" href="css/style.css?v=11">
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="IEP1 Saisie">
@@ -31,24 +31,49 @@
       </div>
     </div>
 
+    <div class="carte" id="carte-agenda-rappel" style="display:none;">
+      <p class="intro" style="margin-bottom:10px;">
+        <b>📅 Pense à connecter ton Google Agenda</b> — chaque action saisie ici sera aussi ajoutée
+        à ton agenda, automatiquement. Ça reste propre à toi : tu te connectes avec ton propre
+        compte Google, jamais avec celui de quelqu'un d'autre — sans risque de partager le lien de
+        cette page.
+      </p>
+      <button class="btn btn-sm btn-primaire" id="btn-connecter-agenda-rappel" type="button">Connecter maintenant</button>
+    </div>
+    <p class="intro" id="agenda-confirme" style="display:none;color:#4C6329;font-weight:600;">
+      ✅ Google Agenda connecté sur cet appareil.
+    </p>
+
     <div class="carte">
       <label>Quoi ?</label>
       <div id="chips-types"></div>
       <div id="zone-perso" style="display:none;margin-top:10px;">
         <input type="text" id="type-personnalise" placeholder="Préciser l'action…">
       </div>
+      <div class="champ" id="bloc-profil" style="display:none;margin-top:10px;margin-bottom:0;">
+        <label for="sr-profil">Profil / public</label>
+        <select id="sr-profil"></select>
+      </div>
     </div>
 
-    <div class="carte" id="carte-ecoles" style="display:none;">
+    <div class="carte" id="carte-ecoles">
       <label>Où ?</label>
       <div class="grille-chips-ecoles" id="chips-ecole-unique"></div>
+      <div id="zone-lieu-libre" style="display:none;margin-top:10px;">
+        <input type="text" id="sr-lieu-libre" placeholder="Ex : DENC, domicile, Médipôle… (facultatif)">
+        <p class="intro" style="margin:8px 0 0;">Cette action n'est liée à aucune école : elle part vers Google Agenda mais ne compte dans aucune statistique.</p>
+      </div>
     </div>
 
     <div class="carte">
-      <button type="button" class="btn btn-sm btn-secondaire" id="btn-toggle-details">+ Détails (thème, notes, date)</button>
+      <button type="button" class="btn btn-sm btn-secondaire" id="btn-toggle-details">+ Détails (origine, thème, notes, date)</button>
       <div id="zone-details" style="display:none;margin-top:12px;">
         <div class="champ">
-          <label for="sr-theme">Thème / personne suivie</label>
+          <label for="sr-origine">Origine</label>
+          <select id="sr-origine"></select>
+        </div>
+        <div class="champ">
+          <label for="sr-theme">Thème / détail</label>
           <input type="text" id="sr-theme" placeholder="Facultatif">
         </div>
         <div class="champ">
@@ -80,7 +105,7 @@
 
 <p class="pied">IEP1 — Saisie rapide</p>
 
-<script src="js/seed-data.js?v=10"></script>
+<script src="js/seed-data.js?v=12"></script>
 <script src="js/github-store.js?v=7"></script>
 <script src="js/data-store.js?v=9"></script>
 <script src="js/google-calendar.js?v=10"></script>
@@ -113,6 +138,13 @@ function choisirQui(id) {
   document.getElementById('carte-qui').style.display = 'none';
   document.getElementById('zone-formulaire').style.display = 'block';
   rendreChipsEcoleUnique();
+  rendreRecapAgenda();
+}
+
+function rendreRecapAgenda() {
+  const connecte = gcalConfig.isConfigured() && gcalConfig.actif;
+  document.getElementById('carte-agenda-rappel').style.display = connecte ? 'none' : 'block';
+  document.getElementById('agenda-confirme').style.display = connecte ? 'block' : 'none';
 }
 
 function rendreChipsTypes() {
@@ -138,14 +170,17 @@ function typeActuel() {
   return TYPES.find(t => t.id === typeIdChoisi);
 }
 
-function actionConcerneEcole() {
-  if (typeIdChoisi === null) return true; // personnalisé : visible par défaut, laissable vide
-  const t = typeActuel();
-  return t ? t.ecole !== false : true;
+function majVisibiliteProfil() {
+  const options = PROFILS_PAR_TYPE[typeIdChoisi];
+  document.getElementById('bloc-profil').style.display = options ? 'block' : 'none';
+  document.getElementById('sr-profil').innerHTML = options
+    ? '<option value="">—</option>' + options.map(o => `<option value="${o}">${o}</option>`).join('')
+    : '';
 }
 
-function majVisibiliteEcoleUnique() {
-  document.getElementById('carte-ecoles').style.display = actionConcerneEcole() ? 'block' : 'none';
+function remplirSelectOrigine() {
+  document.getElementById('sr-origine').innerHTML = '<option value="">—</option>' +
+    ORIGINES_INTERVENTION.map(o => `<option value="${o}">${o}</option>`).join('');
 }
 
 function choisirType(id) {
@@ -154,7 +189,7 @@ function choisirType(id) {
   document.getElementById('chips-types').querySelectorAll('.chip-type').forEach(btn => {
     btn.classList.toggle('selectionne', id === null ? btn.id === 'chip-autre' : btn.dataset.id === id);
   });
-  majVisibiliteEcoleUnique();
+  majVisibiliteProfil();
 }
 
 function mesEcolesReferentes() {
@@ -166,11 +201,13 @@ function rendreChipsEcoleUnique() {
   const mineIds = new Set(mine.map(e => e.id));
   const ordonnees = [...mine, ...ECOLES.filter(e => !mineIds.has(e.id))];
   document.getElementById('chips-ecole-unique').innerHTML = ordonnees.map(e =>
-    `<button type="button" class="chip-ecole" data-id="${e.id}">${e.nom}</button>`).join('');
+    `<button type="button" class="chip-ecole" data-id="${e.id}">${e.nom}</button>`).join('') +
+    `<button type="button" class="chip-ecole" data-id="__autre__">Autre</button>`;
   document.getElementById('chips-ecole-unique').querySelectorAll('button').forEach(btn => {
     btn.addEventListener('click', () => {
       ecoleIdChoisie = ecoleIdChoisie === btn.dataset.id ? null : btn.dataset.id;
       document.getElementById('chips-ecole-unique').querySelectorAll('button').forEach(b => b.classList.toggle('selectionne', b.dataset.id === ecoleIdChoisie));
+      document.getElementById('zone-lieu-libre').style.display = ecoleIdChoisie === '__autre__' ? 'block' : 'none';
     });
   });
 }
@@ -180,9 +217,12 @@ function reinitialiserFormulaire() {
   document.getElementById('chips-types').querySelectorAll('.chip-type').forEach(b => b.classList.remove('selectionne'));
   document.getElementById('type-personnalise').value = '';
   document.getElementById('zone-perso').style.display = 'none';
+  majVisibiliteProfil();
   ecoleIdChoisie = null;
   document.getElementById('chips-ecole-unique').querySelectorAll('.chip-ecole').forEach(b => b.classList.remove('selectionne'));
-  document.getElementById('carte-ecoles').style.display = 'none';
+  document.getElementById('zone-lieu-libre').style.display = 'none';
+  document.getElementById('sr-lieu-libre').value = '';
+  document.getElementById('sr-origine').value = '';
   document.getElementById('sr-theme').value = '';
   document.getElementById('sr-notes').value = '';
   document.getElementById('sr-date').value = new Date().toISOString().slice(0, 10);
@@ -212,22 +252,27 @@ async function enregistrer() {
     const date = document.getElementById('sr-date').value || new Date().toISOString().slice(0, 10);
     const theme = document.getElementById('sr-theme').value.trim();
     const notes = document.getElementById('sr-notes').value.trim();
+    const profil = document.getElementById('sr-profil').value;
+    const origine = document.getElementById('sr-origine').value;
     const intervenant = INTERVENANTS.find(i => i.id === quiId);
-    const categorie = type ? type.categorie : 'autre';
+    const categorie = type ? type.categorie : 'divers';
+    const gcalTypeLabel = profil ? `${typeLabel} (${profil})` : typeLabel;
+    const uneEcole = ecoleIdChoisie && ecoleIdChoisie !== '__autre__';
 
-    if (ecoleIdChoisie) {
+    if (uneEcole) {
       const ecole = ECOLES.find(e => e.id === ecoleIdChoisie);
-      const intervention = { id: genererIdIntervention(), date, typeId, intervenantId: quiId, theme, notes, horodatage: horodatageMaintenant() };
+      const intervention = { id: genererIdIntervention(), date, typeId, intervenantId: quiId, theme, notes, profil, origine, horodatage: horodatageMaintenant() };
       await Store.ajouterIntervention(ecoleIdChoisie, intervention, ecole.nom);
       if (gcalConfig.actif) {
-        gcalPousserIntervention({ ecoleNom: ecole.nom, typeLabel, theme, notes, date, categorie })
+        gcalPousserIntervention({ ecoleNom: ecole.nom, typeLabel: gcalTypeLabel, theme, notes, date, categorie })
           .catch(e => console.warn('Google Agenda :', e.message));
       }
     } else {
-      const action = { id: genererIdIntervention(), date, typeId, intervenantId: quiId, theme, notes, horodatage: horodatageMaintenant() };
+      const lieuLibre = ecoleIdChoisie === '__autre__' ? document.getElementById('sr-lieu-libre').value.trim() : '';
+      const action = { id: genererIdIntervention(), date, typeId, intervenantId: quiId, theme, notes, profil, origine, lieuLibre, horodatage: horodatageMaintenant() };
       await Store.ajouterActionGenerale(quiId, action, intervenant ? intervenant.nom : quiId);
       if (gcalConfig.actif) {
-        gcalPousserIntervention({ typeLabel, theme, notes, date, categorie })
+        gcalPousserIntervention({ typeLabel: gcalTypeLabel, theme, notes: [notes, lieuLibre ? `Lieu : ${lieuLibre}` : ''].filter(Boolean).join('\n'), date, categorie })
           .catch(e => console.warn('Google Agenda :', e.message));
       }
     }
@@ -244,17 +289,20 @@ document.getElementById('btn-changer-qui').addEventListener('click', () => {
   document.getElementById('carte-qui').style.display = 'block';
   document.getElementById('zone-formulaire').style.display = 'none';
 });
+document.getElementById('btn-connecter-agenda-rappel').addEventListener('click', ouvrirModaleGcal);
+window.addEventListener('focus', rendreRecapAgenda);
 document.getElementById('btn-toggle-details').addEventListener('click', () => {
   const z = document.getElementById('zone-details');
   z.style.display = z.style.display === 'none' ? 'block' : 'none';
 });
-document.getElementById('type-personnalise').addEventListener('input', majVisibiliteEcoleUnique);
+document.getElementById('type-personnalise').addEventListener('input', majVisibiliteProfil);
 document.getElementById('btn-enregistrer').addEventListener('click', enregistrer);
 
 async function init() {
   [INTERVENANTS, ECOLES, TYPES] = await Promise.all([Store.chargerIntervenants(), Store.chargerEcoles(), Store.chargerTypes()]);
   rendreChipsQui();
   rendreChipsTypes();
+  remplirSelectOrigine();
   document.getElementById('sr-date').value = new Date().toISOString().slice(0, 10);
 
   document.getElementById('zone-chargement').style.display = 'none';

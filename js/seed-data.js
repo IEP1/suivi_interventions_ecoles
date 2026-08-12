@@ -57,37 +57,95 @@ const SEED_INTERVENANTS = [
 ];
 
 /*
- * Types d'intervention proposés au clic (liste de démarrage, éditable et
- * complétable depuis l'appli — toute action personnalisée créée par un
- * conseiller vient s'ajouter ici pour être réutilisée ensuite).
- */
-/*
- * `ecole: true` = ce type est par nature lié à une école (l'appli affiche automatiquement la
- * sélection d'écoles) ; `false` = action générale, sans lien avec une école précise.
+ * Types d'intervention proposés au clic (typologie officielle à 16 valeurs, éditable et
+ * complétable depuis l'appli — toute action personnalisée créée par un conseiller vient s'ajouter
+ * ici pour être réutilisée ensuite). Le lieu (école ou pas) n'est plus porté par le type : il se
+ * choisit au cas par cas à la saisie (champ "Où ?"), car un même type peut avoir lieu à l'école ou
+ * pas selon les circonstances.
  */
 const SEED_TYPES_INTERVENTION = [
-  { id: 'accompagnement-titulaire', label: 'Accompagnement enseignant titulaire', categorie: 'individuel', ecole: true },
-  { id: 'accompagnement-suppleant', label: 'Accompagnement enseignant suppléant', categorie: 'individuel', ecole: true },
-  { id: 'accompagnement-t1t2t3', label: 'Accompagnement T0 / T1 / T2 / T3', categorie: 'individuel', ecole: true },
-  { id: 'suivi-stagiaire', label: 'Suivi de stagiaire (instituts)', categorie: 'individuel', ecole: true },
-  { id: 'accompagnement-direction', label: "Accompagnement direction d'école", categorie: 'individuel', ecole: true },
-  { id: 'conseil-maitres', label: 'Conseil des maîtres', categorie: 'instance', ecole: true },
-  { id: 'conseil-cycle', label: 'Conseil de cycle', categorie: 'instance', ecole: true },
-  { id: 'conseil-ecole', label: "Conseil d'école", categorie: 'instance', ecole: true },
-  { id: 'projet-ecole', label: "Accompagnement projet d'école", categorie: 'projet', ecole: true },
-  { id: 'liaison-gs-cp', label: 'Liaison GS / CP', categorie: 'projet', ecole: true },
-  { id: 'liaison-cm2-6e', label: 'Liaison CM2 / 6e', categorie: 'projet', ecole: true },
-  { id: 'projet-pedagogique', label: 'Projet pédagogique spécifique', categorie: 'projet', ecole: true },
-  { id: 'animation-pedagogique', label: 'Animation pédagogique / formation', categorie: 'formation-donnee', ecole: true },
-  { id: 'groupe-travail', label: 'Groupe de travail circonscription / DENC', categorie: 'gt', ecole: false },
-  { id: 'formation-recue', label: 'Formation reçue (stage, séminaire…)', categorie: 'formation-recue', ecole: false },
-  { id: 'reunion', label: 'Réunion', categorie: 'reunion', ecole: false },
-  { id: 'administratif', label: 'Tâche administrative / bureau', categorie: 'administratif', ecole: false },
-  { id: 'examen', label: "Jury / correction d'examen", categorie: 'examen', ecole: false },
-  { id: 'demande-equipe', label: "Intervention à la demande de l'équipe", categorie: 'sollicitation', ecole: true },
-  { id: 'demande-direction', label: 'Intervention à la demande de la direction', categorie: 'sollicitation', ecole: true },
-  { id: 'demande-ien', label: "Intervention à la demande de l'IEN", categorie: 'sollicitation', ecole: true }
+  { id: 'accompagnement-individuel', label: 'Accompagnement individuel', categorie: 'accompagnement' },
+  { id: 'accompagnement-equipe', label: "Accompagnement d'équipe", categorie: 'accompagnement' },
+  { id: 'instance-ecole', label: "Instance d'école", categorie: 'accompagnement' },
+  { id: 'formation-donnee', label: 'Formation donnée', categorie: 'formation' },
+  { id: 'formation-recue', label: 'Formation reçue', categorie: 'formation' },
+  { id: 'projet-ecole', label: "Projet d'école", categorie: 'projets' },
+  { id: 'liaison-intercycles', label: 'Liaison inter-cycles', categorie: 'projets' },
+  { id: 'action-projet-pedagogique', label: 'Action / projet pédagogique', categorie: 'projets' },
+  { id: 'groupe-travail-referent', label: 'Groupe de travail / mission référent', categorie: 'circonscription' },
+  { id: 'reunion-circonscription', label: 'Réunion de circonscription / DENC', categorie: 'circonscription' },
+  { id: 'inspection-eae', label: 'Inspection / EAE', categorie: 'circonscription' },
+  { id: 'instruction-domicile', label: 'Instruction à domicile', categorie: 'reglementaire' },
+  { id: 'agrement', label: 'Agrément', categorie: 'reglementaire' },
+  { id: 'jury-correction', label: 'Jury / correction', categorie: 'reglementaire' },
+  { id: 'situation-particuliere', label: 'Situation particulière', categorie: 'divers' },
+  { id: 'tache-administrative', label: 'Tâche administrative', categorie: 'divers' }
 ];
+
+/*
+ * Profils/publics proposés uniquement pour les types où la distinction est utile pour les
+ * statistiques (accompagnement individuel/d'équipe, inspection/EAE) — masqué pour tous les autres.
+ */
+const PROFILS_PAR_TYPE = {
+  'accompagnement-individuel': ['T0', 'T1', 'T2', 'T3', 'Titulaire', 'Remplaçant', 'Stagiaire', 'Direction'],
+  'inspection-eae': ['T0', 'T1', 'T2', 'T3', 'Titulaire', 'Remplaçant', 'Stagiaire', 'Direction'],
+  'accompagnement-equipe': ['Équipe complète', 'Équipe de cycle', 'Groupe']
+};
+
+/* Origine de l'action : proposée pour tous les types, toujours facultative. */
+const ORIGINES_INTERVENTION = [
+  'Mon initiative',
+  "Demande équipe",
+  'Demande direction',
+  "Demande IEN",
+  'Commande DENC',
+  'Obligation réglementaire'
+];
+
+/*
+ * Anciens types (34 valeurs, avant le passage à la typologie à 16 ci-dessus), conservés
+ * uniquement comme repli d'affichage pour les interventions déjà saisies sous ces id — jamais
+ * proposés à la saisie. Les id repris à l'identique dans la nouvelle liste (projet-ecole,
+ * agrement, instruction-domicile, formation-recue) n'ont pas besoin d'entrée ici.
+ */
+const TYPES_HERITES = {
+  'accompagnement-titulaire': 'Accompagnement enseignant titulaire',
+  'accompagnement-suppleant': 'Accompagnement enseignant remplaçant',
+  'accompagnement-t1t2t3': 'Accompagnement T0 / T1 / T2 / T3',
+  'accompagnement-sortant': 'Accompagnement enseignant sortant',
+  'suivi-stagiaire': 'Suivi de stagiaire (IFMNC / INSPE)',
+  'accompagnement-direction': "Accompagnement direction d'école",
+  'conseil-maitres': 'Conseil des maîtres',
+  'conseil-cycle': 'Conseil de cycle',
+  'conseil-ecole': "Conseil d'école",
+  'liaison-gs-cp': 'Liaison GS / CP',
+  'liaison-cm2-6e': 'Liaison CM2 / 6e',
+  'projet-pedagogique': 'Projet pédagogique spécifique',
+  'defis-concours-ecole': 'Défi / concours école',
+  'evenement-rencontre': 'Évènement / rencontre (carrefour des pratiques…)',
+  'animation-pedagogique': 'Animation pédagogique / formation',
+  'groupe-travail': 'Groupe de travail circonscription / DENC',
+  'dossier-referent': 'Suivi de dossier référent',
+  'reunion': 'Réunion',
+  'college-inspecteurs': "Collège / conseil d'inspecteurs",
+  'seminaire': 'Séminaire (DENC ou autre)',
+  'administratif': 'Tâche administrative / bureau',
+  'inspection': 'Inspection (enseignant titulaire)',
+  'eae-entretien': 'EAE / entretien (cadrage, recrutement)',
+  'logistique-vehicule': 'Logistique (véhicule de service)',
+  'continuite-pedagogique': 'Continuité pédagogique / gestion de crise',
+  'examen': 'Jury / correction (concours, CAFIPEMF, CAPPEI…)',
+  'demande-equipe': "Intervention à la demande de l'équipe",
+  'demande-direction': 'Intervention à la demande de la direction',
+  'demande-ien': "Intervention à la demande de l'IEN",
+  'relation-famille-equipe': 'Relation direction / équipe / famille (entretien, visite de rentrée)'
+};
+
+/** Libellé d'affichage d'un typeId, y compris pour les anciens id retirés de la liste active. */
+function libelleType(typeId, types) {
+  const t = (types || SEED_TYPES_INTERVENTION).find(t => t.id === typeId);
+  return t ? t.label : (TYPES_HERITES[typeId] || typeId);
+}
 
 /*
  * Périodes de l'année scolaire (entre les vacances), issues du calendrier officiel
@@ -107,17 +165,12 @@ const PERIODES_SCOLAIRES = {
 };
 
 const CATEGORIES_INTERVENTION = {
-  'individuel': 'Accompagnement individuel',
-  'instance': 'Instance',
-  'projet': 'Projet',
-  'gt': 'Groupe de travail',
-  'formation-donnee': 'Formation donnée',
-  'formation-recue': 'Formation reçue',
-  'reunion': 'Réunion',
-  'administratif': 'Administratif / bureau',
-  'examen': 'Jury / examen',
-  'sollicitation': 'Sur sollicitation',
-  'autre': 'Autre'
+  'accompagnement': 'Accompagnement',
+  'formation': 'Formation',
+  'projets': 'Projets et actions',
+  'circonscription': 'Circonscription et institution',
+  'reglementaire': 'Missions réglementaires',
+  'divers': 'Divers'
 };
 
 /*
@@ -126,29 +179,19 @@ const CATEGORIES_INTERVENTION = {
  * correspondance à configurer une fois côté Google Agenda ("Utilisation du temps" > libellés).
  */
 const COULEURS_CATEGORIE = {
-  'individuel': '#005E86',
-  'instance': '#E3A429',
-  'projet': '#7C9947',
-  'gt': '#39B2C5',
-  'formation-donnee': '#6B3FA0',
-  'formation-recue': '#9B6FC9',
-  'reunion': '#123C62',
-  'administratif': '#5B6B78',
-  'examen': '#C24B7C',
-  'sollicitation': '#DC472F',
-  'autre': '#8A97A3'
+  'accompagnement': '#005E86',
+  'formation': '#6B3FA0',
+  'projets': '#7C9947',
+  'circonscription': '#123C62',
+  'reglementaire': '#C24B7C',
+  'divers': '#8A97A3'
 };
 
 const COULEURS_GCAL_CATEGORIE = {
-  'individuel': '7',        // Peacock
-  'instance': '5',          // Banana
-  'projet': '10',           // Basil
-  'gt': '2',                // Sage
-  'formation-donnee': '3',  // Grape
-  'formation-recue': '1',   // Lavender
-  'reunion': '9',           // Blueberry
-  'administratif': '8',     // Graphite
-  'examen': '4',            // Flamingo
-  'sollicitation': '11',    // Tomato
-  'autre': '8'              // Graphite
+  'accompagnement': '7',   // Peacock
+  'formation': '3',        // Grape
+  'projets': '10',         // Basil
+  'circonscription': '9',  // Blueberry
+  'reglementaire': '4',    // Flamingo
+  'divers': '8'            // Graphite
 };

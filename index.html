@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Suivi des interventions — IEP1</title>
-<link rel="stylesheet" href="css/style.css?v=10">
+<link rel="stylesheet" href="css/style.css?v=11">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -44,29 +44,15 @@
         <canvas id="graph-categories"></canvas>
       </div>
     </div>
-
-    <h3 style="margin-top:26px;">Par où entrer ?</h3>
-    <div class="grille-entree">
-      <a class="carte-entree" href="ecoles.html">
-        <span class="icone">🏫</span>
-        <h3>Entrer par école</h3>
-        <p>Choisir une école dans la liste pour consulter ses statistiques et ajouter une intervention.</p>
-      </a>
-      <a class="carte-entree" href="conseillers.html">
-        <span class="icone">🧑‍🏫</span>
-        <h3>Entrer par conseiller</h3>
-        <p>Se placer en tant que conseiller pédagogique pour saisir une action et l'attribuer à une ou plusieurs écoles.</p>
-      </a>
-    </div>
   </div>
 </main>
 
 <p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
 
-<script src="js/seed-data.js?v=10"></script>
+<script src="js/seed-data.js?v=12"></script>
 <script src="js/github-store.js?v=7"></script>
 <script src="js/data-store.js?v=9"></script>
-<script src="js/stats.js?v=9"></script>
+<script src="js/stats.js?v=11"></script>
 <script src="js/google-calendar.js?v=10"></script>
 <script src="js/layout.js?v=11"></script>
 <script>
@@ -96,10 +82,10 @@ function bornesSelectionnees() {
 function rendreTuiles(stats) {
   const cle = (typeId) => stats.parType.find(t => t.typeId === typeId);
   const tuilesCles = [
-    { typeId: 'accompagnement-titulaire', accent: 'accent-bleu', libelle: 'écoles avec accompagnement titulaire' },
-    { typeId: 'accompagnement-suppleant', accent: 'accent-orange', libelle: 'écoles avec suivi de suppléant' },
-    { typeId: 'conseil-maitres', accent: 'accent-or', libelle: 'écoles avec conseil des maîtres suivi' },
-    { typeId: 'projet-ecole', accent: 'accent-vert', libelle: "écoles avec accompagnement projet d'école" }
+    { typeId: 'accompagnement-individuel', accent: 'accent-bleu', libelle: 'écoles avec accompagnement individuel' },
+    { typeId: 'formation-donnee', accent: 'accent-orange', libelle: 'écoles avec formation donnée' },
+    { typeId: 'instance-ecole', accent: 'accent-or', libelle: 'écoles avec instance suivie' },
+    { typeId: 'projet-ecole', accent: 'accent-vert', libelle: "écoles avec projet d'école accompagné" }
   ];
   const grille = document.getElementById('grille-stats');
   grille.innerHTML = `
