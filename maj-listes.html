@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mettre à jour les listes — IEP1</title>
+<link rel="stylesheet" href="css/style.css?v=12">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+<div id="entete-app"></div>
+<main>
+  <div class="carte">
+    <h2>Mettre à jour écoles, intervenants et types</h2>
+    <p class="intro">
+      À utiliser après une mise à jour du site qui change la liste des écoles, des intervenants ou
+      des types d'intervention (le code source, <code>js/seed-data.js</code>) — sinon le repo privé
+      de données reste sur l'ancienne liste et les nouveautés n'apparaissent pas dans les menus.
+      Connectez d'abord le repo via <strong>⚙ Données</strong> ci-dessus si ce n'est pas déjà fait.
+    </p>
+    <p class="alerte alerte-warn">
+      Écoles et intervenants sont <strong>remplacés</strong> par la version actuelle du code : tout
+      ajout ou changement fait uniquement depuis l'application (écoles de référence, nouvel
+      intervenant...) sera perdu. Les <strong>types d'intervention</strong>, eux, sont
+      <strong>fusionnés</strong> sans rien supprimer : les types déjà utilisés et les types
+      personnalisés créés en cours d'usage sont conservés.
+    </p>
+    <div id="alerte-zone"></div>
+    <div class="groupe-btns">
+      <button class="btn btn-primaire" id="btn-maj">Mettre à jour écoles + intervenants + types</button>
+    </div>
+    <pre id="journal" style="margin-top:16px;white-space:pre-wrap;font-size:0.82rem;"></pre>
+  </div>
+</main>
+
+<p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
+
+<script src="js/seed-data.js?v=13"></script>
+<script src="js/github-store.js?v=7"></script>
+<script src="js/data-store.js?v=9"></script>
+<script src="js/google-calendar.js?v=11"></script>
+<script src="js/layout.js?v=12"></script>
+<script>
+injecterEntete('');
+
+function log(msg) { document.getElementById('journal').textContent += msg + '\n'; }
+function afficherAlerte(msg, classe) { document.getElementById('alerte-zone').innerHTML = `<div class="alerte ${classe}">${msg}</div>`; }
+
+document.getElementById('btn-maj').addEventListener('click', async () => {
+  if (!confirm("Écraser la liste des écoles et des intervenants sur GitHub avec la version actuelle du code (js/seed-data.js) ? Tout ajout/suppression déjà fait depuis l'application sera perdu. Les types d'intervention, eux, seront fusionnés (les types personnalisés déjà créés sont conservés).")) return;
+  if (!ghConfig.isConfigured()) { afficherAlerte("Connectez d'abord le repo de données via ⚙ Données.", 'alerte-err'); return; }
+  document.getElementById('journal').textContent = '';
+  try {
+    await Store.sauvegarderEcoles(SEED_ECOLES);
+    log('✓ Liste des écoles mise à jour.');
+  } catch (e) { log('✗ Écoles : ' + e.message); }
+  try {
+    await Store.sauvegarderIntervenants(SEED_INTERVENANTS);
+    log('✓ Liste des intervenants mise à jour.');
+  } catch (e) { log('✗ Intervenants : ' + e.message); }
+  try {
+    const typesActuels = await Store.chargerTypes();
+    const parId = new Map(typesActuels.map(t => [t.id, t]));
+    SEED_TYPES_INTERVENTION.forEach(t => parId.set(t.id, t));
+    await Store.sauvegarderTypes(Array.from(parId.values()));
+    log('✓ Types et catégories d\'intervention mis à jour (types personnalisés conservés).');
+  } catch (e) { log('✗ Types : ' + e.message); }
+  afficherAlerte('Mise à jour terminée.', 'alerte-ok');
+});
+</script>
+</body>
+</html>
