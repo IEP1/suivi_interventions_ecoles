@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Conseillers — Suivi des interventions IEP1</title>
-<link rel="stylesheet" href="css/style.css?v=11">
+<link rel="stylesheet" href="css/style.css?v=12">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -45,9 +45,11 @@
 
   <div id="zone-chargement" class="alerte alerte-info">Chargement…</div>
 
-  <div class="carte" id="carte-bilan-equipe" style="display:none;">
+  <div class="grille-entree grille-entree-compacte" id="grille-intervenants" style="display:none;"></div>
+
+  <div class="carte" id="carte-bilan-equipe" style="display:none;margin-top:8px;">
     <div class="barre-actions">
-      <h3 style="margin:0;">Bilan d'équipe</h3>
+      <h3 style="margin:0;">Bilan d'équipe (moyenne)</h3>
       <div>
         <label for="sel-annee-bilan-equipe" style="display:inline;margin-right:6px;">Année</label>
         <select id="sel-annee-bilan-equipe" style="width:auto;display:inline-block;"></select>
@@ -71,18 +73,16 @@
       </div>
     </div>
   </div>
-
-  <div class="grille-entree" id="grille-intervenants" style="display:none;"></div>
 </main>
 
 <p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
 
-<script src="js/seed-data.js?v=12"></script>
+<script src="js/seed-data.js?v=13"></script>
 <script src="js/github-store.js?v=7"></script>
 <script src="js/data-store.js?v=9"></script>
-<script src="js/stats.js?v=11"></script>
-<script src="js/google-calendar.js?v=10"></script>
-<script src="js/layout.js?v=11"></script>
+<script src="js/stats.js?v=12"></script>
+<script src="js/google-calendar.js?v=11"></script>
+<script src="js/layout.js?v=12"></script>
 <script>
 injecterEntete('conseillers.html');
 

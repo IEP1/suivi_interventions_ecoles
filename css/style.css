@@ -208,6 +208,13 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--teal); outl
 .carte-entree h3 { margin: 4px 0 0; }
 .carte-entree p { color: var(--texte-muted); font-size: 0.86rem; margin: 0; }
 
+/* Variante compacte (ex. grille des conseillers) : cartes plus petites, plus par ligne. */
+.grille-entree-compacte { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.grille-entree-compacte .carte-entree { padding: 12px 14px; gap: 2px; }
+.grille-entree-compacte .carte-entree .icone { font-size: 1.3rem; }
+.grille-entree-compacte .carte-entree h3 { margin: 2px 0 0; font-size: 0.95rem; }
+.grille-entree-compacte .carte-entree p { font-size: 0.76rem; }
+
 /* ===== Tuiles de stats ===== */
 .grille-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 18px; }
 .tuile-stat {

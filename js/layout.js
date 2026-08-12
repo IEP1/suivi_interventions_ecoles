@@ -137,22 +137,37 @@ function injecterModaleGcal() {
   div.className = 'no-print';
   div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(14,33,56,.5);z-index:100;align-items:flex-start;justify-content:center;overflow-y:auto;padding:32px 16px;';
   const couleursActuelles = gcalConfig.couleurs;
-  const optionsCouleurs = GCAL_COULEURS_REF.map(c => `<option value="${c.id}">${c.id} — ${c.nom}</option>`).join('');
+  const hexDe = (id) => (GCAL_COULEURS_REF.find(c => c.id === id) || {}).hex || '#8A97A3';
   const lignesCouleurs = Object.keys(CATEGORIES_INTERVENTION).map(cat => {
     const valeur = couleursActuelles[cat] || COULEURS_GCAL_CATEGORIE[cat] || '8';
+    const swatches = GCAL_COULEURS_REF.map(c => `
+      <button type="button" class="gc-swatch" data-id="${c.id}" title="${c.nom}"
+        style="width:20px;height:20px;border-radius:50%;border:2px solid ${c.id === valeur ? '#0F2942' : 'transparent'};background:${c.hex};cursor:pointer;padding:0;flex-shrink:0;"></button>`).join('');
     return `
-      <div class="ligne-champs" style="align-items:center;margin-bottom:6px;">
+      <div class="gc-ligne-couleur" data-categorie="${cat}" data-selected="${valeur}" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span class="gc-apercu" style="width:22px;height:22px;border-radius:50%;flex-shrink:0;border:1px solid var(--bordure);background:${hexDe(valeur)};"></span>
         <span style="flex:1;font-size:0.85rem;">${CATEGORIES_INTERVENTION[cat]}</span>
-        <select class="gc-couleur-cat" data-categorie="${cat}" style="width:auto;max-width:150px;">${optionsCouleurs}</select>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;max-width:200px;">${swatches}</div>
       </div>`;
   }).join('');
   div.innerHTML = `
     <div class="carte" style="max-width:460px;width:92%;">
-      <h3 style="margin-top:0;">Connexion à Google Agenda</h3>
+      <div class="barre-actions" style="margin-bottom:6px;">
+        <h3 style="margin:0;">Connexion à Google Agenda</h3>
+        <button type="button" class="btn btn-sm btn-secondaire" id="gc-aide" title="Comment se connecter ?">?</button>
+      </div>
+      <div id="gc-tuto" style="display:none;background:var(--bg);border:1px solid var(--bordure);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px;font-size:0.85rem;">
+        <b>Comment se connecter :</b>
+        <ol style="margin:8px 0 0;padding-left:20px;">
+          <li>Demander le <b>Client ID</b> à la personne référente du site (le même pour tout le monde).</li>
+          <li>Le coller ci-dessous dans « Client ID OAuth Google ».</li>
+          <li>Cliquer <b>Connecter</b>, puis se connecter avec son <b>propre compte Google</b> (jamais celui de quelqu'un d'autre).</li>
+          <li>Google affiche un écran « application non vérifiée » : cliquer <i>Paramètres avancés</i> puis <i>Accéder à… (non sécurisé)</i> — normal pour un usage interne.</li>
+        </ol>
+      </div>
       <p class="intro" style="margin-bottom:14px;">
         Facultatif : chaque intervention enregistrée dans l'appli est aussi ajoutée automatiquement
-        à votre Google Agenda (un seul geste de saisie pour le suivi et pour la DRH). Nécessite un
-        Client ID OAuth Google (voir README, section Google Agenda), à créer une seule fois.
+        à votre Google Agenda (un seul geste de saisie pour le suivi et pour la DRH).
       </p>
       <div class="champ">
         <label for="gc-client-id">Client ID OAuth Google</label>
@@ -186,14 +201,28 @@ function injecterModaleGcal() {
 
   document.getElementById('gc-client-id').value = gcalConfig.clientId;
   document.getElementById('gc-calendar-id').value = gcalConfig.calendarId;
-  div.querySelectorAll('.gc-couleur-cat').forEach(sel => {
-    const valeur = couleursActuelles[sel.dataset.categorie] || COULEURS_GCAL_CATEGORIE[sel.dataset.categorie] || '8';
-    sel.value = valeur;
+
+  document.getElementById('gc-aide').addEventListener('click', () => {
+    const tuto = document.getElementById('gc-tuto');
+    tuto.style.display = tuto.style.display === 'none' ? 'block' : 'none';
+  });
+
+  function selectionnerCouleur(ligne, id) {
+    ligne.dataset.selected = id;
+    ligne.querySelector('.gc-apercu').style.background = hexDe(id);
+    ligne.querySelectorAll('.gc-swatch').forEach(b => {
+      b.style.borderColor = b.dataset.id === id ? '#0F2942' : 'transparent';
+    });
+  }
+  div.querySelectorAll('.gc-ligne-couleur').forEach(ligne => {
+    ligne.querySelectorAll('.gc-swatch').forEach(btn => {
+      btn.addEventListener('click', () => selectionnerCouleur(ligne, btn.dataset.id));
+    });
   });
 
   document.getElementById('gc-enregistrer-couleurs').addEventListener('click', () => {
     const map = {};
-    div.querySelectorAll('.gc-couleur-cat').forEach(sel => { map[sel.dataset.categorie] = sel.value; });
+    div.querySelectorAll('.gc-ligne-couleur').forEach(ligne => { map[ligne.dataset.categorie] = ligne.dataset.selected; });
     gcalConfig.setCouleurs(map);
     const msg = document.getElementById('gc-couleurs-message');
     msg.className = 'alerte alerte-ok'; msg.textContent = 'Couleurs enregistrées.'; msg.style.display = 'block';
@@ -205,7 +234,9 @@ function injecterModaleGcal() {
     gcalConfig.clear();
     document.getElementById('gc-client-id').value = '';
     document.getElementById('gc-calendar-id').value = '';
-    div.querySelectorAll('.gc-couleur-cat').forEach(sel => { sel.value = COULEURS_GCAL_CATEGORIE[sel.dataset.categorie] || '8'; });
+    div.querySelectorAll('.gc-ligne-couleur').forEach(ligne => {
+      selectionnerCouleur(ligne, COULEURS_GCAL_CATEGORIE[ligne.dataset.categorie] || '8');
+    });
     majPastilleGcal();
     afficherMessageModaleGcal('Déconnecté. Les interventions ne seront plus ajoutées à Google Agenda.', 'alerte-info');
   });

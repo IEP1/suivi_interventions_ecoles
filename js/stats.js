@@ -35,7 +35,7 @@ function calculerStatsGlobales(ecolesAvecInterventions, debut, fin, types) {
   Object.keys(CATEGORIES_INTERVENTION).forEach(cat => {
     parCategorie[cat] = toutesInterventions.filter(iv => {
       const t = types.find(t => t.id === iv.typeId);
-      return t && t.categorie === cat;
+      return categorieResolue(t ? t.categorie : null) === cat;
     }).length;
   });
 
@@ -68,14 +68,14 @@ function calculerBilanActions(actions, debut, fin, types) {
   const parCategorie = Object.keys(CATEGORIES_INTERVENTION).map(cat => {
     const n = periode.filter(a => {
       const t = types.find(t => t.id === a.typeId);
-      return t && t.categorie === cat;
+      return categorieResolue(t ? t.categorie : null) === cat;
     }).length;
     return { categorie: cat, label: CATEGORIES_INTERVENTION[cat], n, pct: total ? Math.round((n / total) * 100) : 0 };
   }).filter(c => c.n > 0).sort((a, b) => b.n - a.n);
 
   const parType = types.map(t => {
     const n = periode.filter(a => a.typeId === t.id).length;
-    return { typeId: t.id, label: t.label, categorie: t.categorie, n, pct: total ? Math.round((n / total) * 100) : 0 };
+    return { typeId: t.id, label: t.label, categorie: categorieResolue(t.categorie), n, pct: total ? Math.round((n / total) * 100) : 0 };
   }).filter(t => t.n > 0).sort((a, b) => b.n - a.n);
 
   return { total, parCategorie, parType };

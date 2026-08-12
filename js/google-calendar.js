@@ -133,7 +133,8 @@ async function gcalPousserIntervention({ ecoleNom, typeLabel, theme, notes, date
   if (!gcalConfig.actif || !gcalConfig.isConfigured()) return;
   const titre = `${ecoleNom ? ecoleNom + ' — ' : ''}${typeLabel}${theme ? ' : ' + theme : ''}`;
   const description = [notes, 'Ajouté automatiquement depuis Suivi des interventions IEP1.'].filter(Boolean).join('\n\n');
-  const colorId = gcalConfig.couleurs[categorie] || COULEURS_GCAL_CATEGORIE[categorie] || COULEURS_GCAL_CATEGORIE.autre;
+  const cat = categorieResolue(categorie);
+  const colorId = gcalConfig.couleurs[cat] || COULEURS_GCAL_CATEGORIE[cat] || COULEURS_GCAL_CATEGORIE.divers;
   try {
     await gcalCreerEvenement({ titre, description, date, colorId });
   } catch (e) {

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fiche école — Suivi des interventions IEP1</title>
-<link rel="stylesheet" href="css/style.css?v=11">
+<link rel="stylesheet" href="css/style.css?v=12">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -117,13 +117,13 @@
 
 <p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
 
-<script src="js/seed-data.js?v=12"></script>
+<script src="js/seed-data.js?v=13"></script>
 <script src="js/github-store.js?v=7"></script>
 <script src="js/data-store.js?v=9"></script>
-<script src="js/stats.js?v=11"></script>
+<script src="js/stats.js?v=12"></script>
 <script src="js/type-selector.js?v=7"></script>
-<script src="js/google-calendar.js?v=10"></script>
-<script src="js/layout.js?v=11"></script>
+<script src="js/google-calendar.js?v=11"></script>
+<script src="js/layout.js?v=12"></script>
 <script>
 injecterEntete('ecoles.html');
 
@@ -216,7 +216,7 @@ function rendreHistorique() {
     const intervenant = INTERVENANTS.find(i => i.id === iv.intervenantId);
     return `<tr>
       <td>${formaterDate(iv.date)}</td>
-      <td>${libelleType(iv.typeId, TYPES)}${iv.profil ? ' (' + iv.profil + ')' : ''}<br><span class="categorie-badge cat-${type ? type.categorie : 'divers'}">${CATEGORIES_INTERVENTION[type ? type.categorie : 'divers']}</span></td>
+      <td>${libelleType(iv.typeId, TYPES)}${iv.profil ? ' (' + iv.profil + ')' : ''}<br><span class="categorie-badge cat-${categorieResolue(type ? type.categorie : null)}">${CATEGORIES_INTERVENTION[categorieResolue(type ? type.categorie : null)]}</span></td>
       <td>${intervenant ? intervenant.nom : iv.intervenantId}</td>
       <td>${iv.theme || '—'}</td>
       <td>${iv.notes || '—'}</td>
@@ -289,7 +289,7 @@ async function validerIntervention() {
     if (gcalConfig.actif) {
       const type = TYPES.find(t => t.id === typeId);
       const typeLabel = type ? type.label : perso;
-      gcalPousserIntervention({ ecoleNom: ECOLE.nom, typeLabel: intervention.profil ? `${typeLabel} (${intervention.profil})` : typeLabel, theme: intervention.theme, notes: intervention.notes, date: intervention.date, categorie: type ? type.categorie : 'divers' })
+      gcalPousserIntervention({ ecoleNom: ECOLE.nom, typeLabel: intervention.profil ? `${typeLabel} (${intervention.profil})` : typeLabel, theme: intervention.theme, notes: intervention.notes, date: intervention.date, categorie: categorieResolue(type ? type.categorie : null) })
         .catch(e => console.warn('Google Agenda :', e.message));
     }
   } catch (e) {

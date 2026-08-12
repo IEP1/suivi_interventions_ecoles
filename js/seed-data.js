@@ -174,6 +174,32 @@ const CATEGORIES_INTERVENTION = {
 };
 
 /*
+ * Anciennes catégories (avant le passage à la typologie à 16 types), reprises ici uniquement pour
+ * que les interventions déjà stockées avec ces id (types-intervention.json pas encore mis à jour
+ * côté repo privé, ou anciens types conservés via TYPES_HERITES) affichent la bonne couleur/le bon
+ * libellé au lieu de tomber dans une couleur par défaut du navigateur/graphique.
+ */
+const CATEGORIES_HERITEES = {
+  'individuel': 'accompagnement',
+  'instance': 'accompagnement',
+  'projet': 'projets',
+  'gt': 'circonscription',
+  'formation-donnee': 'formation',
+  'formation-recue': 'formation',
+  'reunion': 'circonscription',
+  'administratif': 'divers',
+  'examen': 'reglementaire',
+  'sollicitation': 'accompagnement',
+  'autre': 'divers'
+};
+
+/** Ramène n'importe quelle catégorie (actuelle ou héritée, ou vide/inconnue) vers un id valide. */
+function categorieResolue(cat) {
+  if (cat && CATEGORIES_INTERVENTION[cat]) return cat;
+  return (cat && CATEGORIES_HERITEES[cat]) || 'divers';
+}
+
+/*
  * Palette partagée par catégorie, utilisée par les graphiques (Chart.js, couleurs hex) et par le
  * connecteur Google Agenda (colorId officiel Google Calendar, 1 à 11) — voir README pour la
  * correspondance à configurer une fois côté Google Agenda ("Utilisation du temps" > libellés).
