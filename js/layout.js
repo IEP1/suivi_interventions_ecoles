@@ -140,14 +140,11 @@ function injecterModaleGcal() {
   const hexDe = (id) => (GCAL_COULEURS_REF.find(c => c.id === id) || {}).hex || '#8A97A3';
   const lignesCouleurs = Object.keys(CATEGORIES_INTERVENTION).map(cat => {
     const valeur = couleursActuelles[cat] || COULEURS_GCAL_CATEGORIE[cat] || '8';
-    const swatches = GCAL_COULEURS_REF.map(c => `
-      <button type="button" class="gc-swatch" data-id="${c.id}" title="${c.nom}"
-        style="width:20px;height:20px;border-radius:50%;border:2px solid ${c.id === valeur ? '#0F2942' : 'transparent'};background:${c.hex};cursor:pointer;padding:0;flex-shrink:0;"></button>`).join('');
     return `
-      <div class="gc-ligne-couleur" data-categorie="${cat}" data-selected="${valeur}" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-        <span class="gc-apercu" style="width:22px;height:22px;border-radius:50%;flex-shrink:0;border:1px solid var(--bordure);background:${hexDe(valeur)};"></span>
+      <div class="gc-ligne-couleur" data-categorie="${cat}" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <select class="gc-couleur-select" data-categorie="${cat}" data-selected="${valeur}" title="${CATEGORIES_INTERVENTION[cat]}"
+          style="width:28px;height:28px;border-radius:50%;border:2px solid var(--bordure);background:${hexDe(valeur)};color:transparent;text-indent:-9999px;padding:0;flex-shrink:0;appearance:none;-webkit-appearance:none;-moz-appearance:none;cursor:pointer;"></select>
         <span style="flex:1;font-size:0.85rem;">${CATEGORIES_INTERVENTION[cat]}</span>
-        <div style="display:flex;gap:4px;flex-wrap:wrap;max-width:200px;">${swatches}</div>
       </div>`;
   }).join('');
   div.innerHTML = `
@@ -207,22 +204,30 @@ function injecterModaleGcal() {
     tuto.style.display = tuto.style.display === 'none' ? 'block' : 'none';
   });
 
-  function selectionnerCouleur(ligne, id) {
-    ligne.dataset.selected = id;
-    ligne.querySelector('.gc-apercu').style.background = hexDe(id);
-    ligne.querySelectorAll('.gc-swatch').forEach(b => {
-      b.style.borderColor = b.dataset.id === id ? '#0F2942' : 'transparent';
+  /** Une couleur déjà prise par une autre catégorie n'est plus proposée dans les autres listes. */
+  function rafraichirOptionsCouleurs() {
+    const selects = Array.from(div.querySelectorAll('.gc-couleur-select'));
+    const prises = new Set(selects.map(s => s.dataset.selected));
+    selects.forEach(sel => {
+      const propre = sel.dataset.selected;
+      sel.innerHTML = GCAL_COULEURS_REF
+        .filter(c => c.id === propre || !prises.has(c.id))
+        .map(c => `<option value="${c.id}" ${c.id === propre ? 'selected' : ''} style="background:${c.hex};">${c.nom}</option>`)
+        .join('');
+      sel.style.background = hexDe(propre);
     });
   }
-  div.querySelectorAll('.gc-ligne-couleur').forEach(ligne => {
-    ligne.querySelectorAll('.gc-swatch').forEach(btn => {
-      btn.addEventListener('click', () => selectionnerCouleur(ligne, btn.dataset.id));
+  div.querySelectorAll('.gc-couleur-select').forEach(sel => {
+    sel.addEventListener('change', () => {
+      sel.dataset.selected = sel.value;
+      rafraichirOptionsCouleurs();
     });
   });
+  rafraichirOptionsCouleurs();
 
   document.getElementById('gc-enregistrer-couleurs').addEventListener('click', () => {
     const map = {};
-    div.querySelectorAll('.gc-ligne-couleur').forEach(ligne => { map[ligne.dataset.categorie] = ligne.dataset.selected; });
+    div.querySelectorAll('.gc-couleur-select').forEach(sel => { map[sel.dataset.categorie] = sel.dataset.selected; });
     gcalConfig.setCouleurs(map);
     const msg = document.getElementById('gc-couleurs-message');
     msg.className = 'alerte alerte-ok'; msg.textContent = 'Couleurs enregistrées.'; msg.style.display = 'block';
@@ -234,9 +239,10 @@ function injecterModaleGcal() {
     gcalConfig.clear();
     document.getElementById('gc-client-id').value = '';
     document.getElementById('gc-calendar-id').value = '';
-    div.querySelectorAll('.gc-ligne-couleur').forEach(ligne => {
-      selectionnerCouleur(ligne, COULEURS_GCAL_CATEGORIE[ligne.dataset.categorie] || '8');
+    div.querySelectorAll('.gc-couleur-select').forEach(sel => {
+      sel.dataset.selected = COULEURS_GCAL_CATEGORIE[sel.dataset.categorie] || '8';
     });
+    rafraichirOptionsCouleurs();
     majPastilleGcal();
     afficherMessageModaleGcal('Déconnecté. Les interventions ne seront plus ajoutées à Google Agenda.', 'alerte-info');
   });

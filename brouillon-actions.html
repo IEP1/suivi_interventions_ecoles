@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brouillon — liste des actions</title>
+<link rel="stylesheet" href="css/style.css?v=13">
+</head>
+<body>
+<div id="entete-app"></div>
+<main style="max-width:640px;">
+  <div class="carte">
+    <h2 style="margin-top:0;">Brouillon : la liste des actions, seule</h2>
+    <p class="intro" style="margin-bottom:0;">
+      Page de travail, sans repo GitHub ni Google Agenda — elle lit uniquement
+      <code>js/seed-data.js</code> tel qu'il est là, maintenant, dans le code. Rien ne s'enregistre
+      nulle part : chaque choix affiche juste, en bas, ce qui serait sauvegardé. Une fois que la
+      liste te convient ici, on la reporte sur le vrai site.
+    </p>
+  </div>
+
+  <div class="carte">
+    <p class="intro" style="margin:0;"><b id="nb-types"></b> types actifs, en <b id="nb-categories"></b> catégories.</p>
+  </div>
+
+  <div class="carte">
+    <label>Quoi ?</label>
+    <div id="chips-types"></div>
+  </div>
+
+  <div class="carte" id="bloc-profil" style="display:none;">
+    <label for="profil">Profil / public</label>
+    <select id="profil"></select>
+  </div>
+
+  <div class="carte">
+    <label for="origine">Origine</label>
+    <select id="origine"></select>
+  </div>
+
+  <div class="carte">
+    <h3 style="margin-top:0;">Ce qui serait enregistré</h3>
+    <pre id="apercu" style="background:var(--bg);border:1px solid var(--bordure);border-radius:var(--radius-sm);padding:10px 12px;font-size:0.82rem;white-space:pre-wrap;">Choisis un type ci-dessus.</pre>
+  </div>
+</main>
+
+<p class="pied">IEP1 — Brouillon de travail, non lié au site</p>
+
+<script src="js/seed-data.js?v=15"></script>
+<script>
+document.getElementById('entete-app').innerHTML = `
+  <header class="entete no-print">
+    <div class="titres">
+      <h1>IEP1 — Brouillon</h1>
+      <p class="sous-titre">Liste des actions, à l'écart du site pendant qu'on l'ajuste</p>
+    </div>
+  </header>`;
+
+let typeIdChoisi = null;
+
+function remplirEnTete() {
+  document.getElementById('nb-types').textContent = SEED_TYPES_INTERVENTION.length;
+  document.getElementById('nb-categories').textContent = Object.keys(CATEGORIES_INTERVENTION).length;
+}
+
+function remplirChipsTypes() {
+  const categories = Object.keys(CATEGORIES_INTERVENTION).filter(c => SEED_TYPES_INTERVENTION.some(t => t.categorie === c));
+  document.getElementById('chips-types').innerHTML = categories.map(c => `
+    <div class="groupe-ecoles-titre" style="margin-top:14px;">${CATEGORIES_INTERVENTION[c]}</div>
+    <div class="grille-types">
+      ${SEED_TYPES_INTERVENTION.filter(t => t.categorie === c).map(t => `<button type="button" class="chip-type" data-id="${t.id}">${t.label}</button>`).join('')}
+    </div>
+  `).join('');
+  document.getElementById('chips-types').querySelectorAll('.chip-type').forEach(btn => {
+    btn.addEventListener('click', () => choisirType(btn.dataset.id));
+  });
+}
+
+function remplirOrigine() {
+  document.getElementById('origine').innerHTML = '<option value="">—</option>' +
+    ORIGINES_INTERVENTION.map(o => `<option value="${o}">${o}</option>`).join('');
+}
+
+function majProfil() {
+  const options = PROFILS_PAR_TYPE[typeIdChoisi];
+  document.getElementById('bloc-profil').style.display = options ? 'block' : 'none';
+  document.getElementById('profil').innerHTML = options
+    ? '<option value="">—</option>' + options.map(o => `<option value="${o}">${o}</option>`).join('')
+    : '';
+}
+
+function majApercu() {
+  const type = SEED_TYPES_INTERVENTION.find(t => t.id === typeIdChoisi);
+  if (!type) { document.getElementById('apercu').textContent = 'Choisis un type ci-dessus.'; return; }
+  document.getElementById('apercu').textContent = JSON.stringify({
+    typeId: type.id,
+    label: type.label,
+    categorie: type.categorie,
+    profil: document.getElementById('profil').value || null,
+    origine: document.getElementById('origine').value || null
+  }, null, 2);
+}
+
+function choisirType(id) {
+  typeIdChoisi = id;
+  document.getElementById('chips-types').querySelectorAll('.chip-type').forEach(b => b.classList.toggle('selectionne', b.dataset.id === id));
+  majProfil();
+  majApercu();
+}
+
+document.getElementById('profil').addEventListener('change', majApercu);
+document.getElementById('origine').addEventListener('change', majApercu);
+
+remplirEnTete();
+remplirChipsTypes();
+remplirOrigine();
+</script>
+</body>
+</html>

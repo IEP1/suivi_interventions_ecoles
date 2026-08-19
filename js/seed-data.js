@@ -62,35 +62,47 @@ const SEED_INTERVENANTS = [
  * ici pour être réutilisée ensuite). Le lieu (école ou pas) n'est plus porté par le type : il se
  * choisit au cas par cas à la saisie (champ "Où ?"), car un même type peut avoir lieu à l'école ou
  * pas selon les circonstances.
+ *
+ * enEcole : true pour les types qui ont un sens depuis la fiche d'une école précise (ecole.html) —
+ * sert uniquement à alléger la liste proposée là-bas, pas une contrainte de données (un type non
+ * listé ici reste choisissable ailleurs, ex. saisie rapide ou espace conseiller).
  */
 const SEED_TYPES_INTERVENTION = [
-  { id: 'accompagnement-individuel', label: 'Accompagnement individuel', categorie: 'accompagnement' },
-  { id: 'accompagnement-equipe', label: "Accompagnement d'équipe", categorie: 'accompagnement' },
-  { id: 'instance-ecole', label: "Instance d'école", categorie: 'accompagnement' },
-  { id: 'formation-donnee', label: 'Formation donnée', categorie: 'formation' },
-  { id: 'formation-recue', label: 'Formation reçue', categorie: 'formation' },
-  { id: 'projet-ecole', label: "Projet d'école", categorie: 'projets' },
-  { id: 'liaison-intercycles', label: 'Liaison inter-cycles', categorie: 'projets' },
-  { id: 'action-projet-pedagogique', label: 'Action / projet pédagogique', categorie: 'projets' },
-  { id: 'groupe-travail-referent', label: 'Groupe de travail / mission référent', categorie: 'circonscription' },
-  { id: 'reunion-circonscription', label: 'Réunion de circonscription / DENC', categorie: 'circonscription' },
-  { id: 'inspection-eae', label: 'Inspection / EAE', categorie: 'circonscription' },
-  { id: 'instruction-domicile', label: 'Instruction à domicile', categorie: 'reglementaire' },
-  { id: 'agrement', label: 'Agrément', categorie: 'reglementaire' },
-  { id: 'jury-correction', label: 'Jury / correction', categorie: 'reglementaire' },
-  { id: 'situation-particuliere', label: 'Situation particulière', categorie: 'divers' },
-  { id: 'tache-administrative', label: 'Tâche administrative', categorie: 'divers' }
+  { id: 'accompagnement-individuel', label: 'Accompagnement individuel', categorie: 'accompagnement', enEcole: true },
+  { id: 'accompagnement-equipe', label: "Accompagnement d'équipe", categorie: 'accompagnement', enEcole: true },
+  { id: 'instance-ecole', label: "Instance d'école", categorie: 'accompagnement', enEcole: true },
+  { id: 'formation-donnee', label: 'Formation donnée', categorie: 'formation', enEcole: true },
+  { id: 'formation-recue', label: 'Formation reçue', categorie: 'formation', enEcole: false },
+  { id: 'projet-ecole', label: "Projet d'école", categorie: 'projets', enEcole: true },
+  { id: 'liaison-intercycles', label: 'Liaison inter-cycles', categorie: 'projets', enEcole: true },
+  { id: 'action-projet-pedagogique', label: 'Projet pédagogique', categorie: 'projets', enEcole: true },
+  { id: 'groupe-travail-referent', label: 'Mission référent', categorie: 'circonscription', enEcole: false },
+  { id: 'reunion-circonscription', label: 'Réunion de circonscription', categorie: 'circonscription', enEcole: false },
+  { id: 'inspection-eae', label: 'Inspection / EAE', categorie: 'circonscription', enEcole: true },
+  { id: 'jury-correction', label: 'Jury / correction', categorie: 'reglementaire', enEcole: false },
+  { id: 'redaction-sujets', label: 'Rédaction de sujets', categorie: 'reglementaire', enEcole: false },
+  { id: 'situation-particuliere', label: 'Situation particulière', categorie: 'divers', enEcole: true },
+  { id: 'tache-administrative', label: 'Tâche administrative', categorie: 'divers', enEcole: false }
 ];
 
 /*
  * Profils/publics proposés uniquement pour les types où la distinction est utile pour les
- * statistiques (accompagnement individuel/d'équipe, inspection/EAE) — masqué pour tous les autres.
+ * statistiques (accompagnement individuel/d'équipe, inspection/EAE, instance d'école) — masqué
+ * pour tous les autres.
  */
 const PROFILS_PAR_TYPE = {
   'accompagnement-individuel': ['T0', 'T1', 'T2', 'T3', 'Titulaire', 'Remplaçant', 'Stagiaire', 'Direction'],
   'inspection-eae': ['T0', 'T1', 'T2', 'T3', 'Titulaire', 'Remplaçant', 'Stagiaire', 'Direction'],
-  'accompagnement-equipe': ['Équipe complète', 'Équipe de cycle', 'Groupe']
+  'accompagnement-equipe': ['Équipe complète', 'Équipe de cycle', 'Groupe'],
+  'instance-ecole': ['Conseil de cycle', 'Conseil des maîtres', "Conseil d'école"]
 };
+
+/*
+ * Types dont le champ "Thème / détail" est particulièrement utile (formation : quel sujet ; mission
+ * référent : laquelle) — sert à déplier automatiquement les détails en saisie rapide pour ne pas
+ * les faire chercher un onglet en plus.
+ */
+const TYPES_THEME_SUGGERE = ['formation-donnee', 'formation-recue', 'groupe-travail-referent'];
 
 /* Origine de l'action : proposée pour tous les types, toujours facultative. */
 const ORIGINES_INTERVENTION = [
@@ -103,12 +115,14 @@ const ORIGINES_INTERVENTION = [
 ];
 
 /*
- * Anciens types (34 valeurs, avant le passage à la typologie à 16 ci-dessus), conservés
- * uniquement comme repli d'affichage pour les interventions déjà saisies sous ces id — jamais
- * proposés à la saisie. Les id repris à l'identique dans la nouvelle liste (projet-ecole,
- * agrement, instruction-domicile, formation-recue) n'ont pas besoin d'entrée ici.
+ * Anciens types (34 valeurs, avant le passage à la typologie à 16 ci-dessus, puis types retirés
+ * ensuite), conservés uniquement comme repli d'affichage pour les interventions déjà saisies sous
+ * ces id — jamais proposés à la saisie. Les id repris à l'identique dans la liste active
+ * (projet-ecole, formation-recue) n'ont pas besoin d'entrée ici.
  */
 const TYPES_HERITES = {
+  'instruction-domicile': 'Instruction à domicile',
+  'agrement': 'Agrément',
   'accompagnement-titulaire': 'Accompagnement enseignant titulaire',
   'accompagnement-suppleant': 'Accompagnement enseignant remplaçant',
   'accompagnement-t1t2t3': 'Accompagnement T0 / T1 / T2 / T3',

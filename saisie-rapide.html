@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Saisie rapide — IEP1</title>
-<link rel="stylesheet" href="css/style.css?v=12">
+<link rel="stylesheet" href="css/style.css?v=13">
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="IEP1 Saisie">
@@ -87,9 +87,6 @@
       </div>
     </div>
 
-    <p id="sr-message" class="alerte" style="display:none;"></p>
-    <button class="btn btn-primaire" id="btn-enregistrer" type="button" style="width:100%;padding:16px;font-size:1.05rem;">✓ Enregistrer</button>
-
     <div class="carte" style="margin-top:24px;">
       <h3 style="margin-top:0;">📱 Installer ce raccourci</h3>
       <p class="intro" style="margin-bottom:0;">
@@ -100,16 +97,25 @@
         Une fois installé, cette page s'ouvre en un tap, comme une appli.
       </p>
     </div>
+
+    <div style="height:76px;" aria-hidden="true"></div>
   </div>
 </main>
 
+<div class="barre-validation-fixe no-print" id="barre-validation" style="display:none;">
+  <div>
+    <p id="sr-message" class="alerte" style="display:none;margin-bottom:8px;"></p>
+    <button class="btn btn-primaire" id="btn-enregistrer" type="button" style="width:100%;padding:16px;font-size:1.05rem;">✓ Enregistrer</button>
+  </div>
+</div>
+
 <p class="pied">IEP1 — Saisie rapide</p>
 
-<script src="js/seed-data.js?v=13"></script>
+<script src="js/seed-data.js?v=15"></script>
 <script src="js/github-store.js?v=7"></script>
 <script src="js/data-store.js?v=9"></script>
 <script src="js/google-calendar.js?v=11"></script>
-<script src="js/layout.js?v=12"></script>
+<script src="js/layout.js?v=13"></script>
 <script>
 injecterEntete('');
 
@@ -137,6 +143,8 @@ function choisirQui(id) {
   document.getElementById('qui-affiche').textContent = intervenant ? intervenant.nom : '';
   document.getElementById('carte-qui').style.display = 'none';
   document.getElementById('zone-formulaire').style.display = 'block';
+  document.getElementById('barre-validation').style.display = 'block';
+  rendreChipsTypes();
   rendreChipsEcoleUnique();
   rendreRecapAgenda();
 }
@@ -147,17 +155,59 @@ function rendreRecapAgenda() {
   document.getElementById('agenda-confirme').style.display = connecte ? 'block' : 'none';
 }
 
+/* Fréquence d'usage des types par personne (propre à cet appareil), pour faire remonter en tête
+   les actions habituelles au lieu de faire chercher dans les 6 catégories à chaque fois. */
+function cleFrequenceTypes(id) { return 'sie_saisie_rapide_freq_' + id; }
+function chargerFrequenceTypes(id) {
+  try { return JSON.parse(localStorage.getItem(cleFrequenceTypes(id)) || '{}'); } catch (e) { return {}; }
+}
+function incrementerFrequenceType(id, typeId) {
+  const freq = chargerFrequenceTypes(id);
+  freq[typeId] = (freq[typeId] || 0) + 1;
+  localStorage.setItem(cleFrequenceTypes(id), JSON.stringify(freq));
+}
+function typesFrequents(id, limite = 6) {
+  const freq = chargerFrequenceTypes(id);
+  return Object.entries(freq)
+    .filter(([, n]) => n >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limite)
+    .map(([typeId]) => TYPES.find(t => t.id === typeId))
+    .filter(Boolean);
+}
+
 function rendreChipsTypes() {
+  const frequents = typesFrequents(quiId);
   const categories = Object.keys(CATEGORIES_INTERVENTION).filter(c => c !== 'autre' && TYPES.some(t => t.categorie === c));
-  document.getElementById('chips-types').innerHTML = categories.map(c => `
+  // Types personnalisés déjà créés par quelqu'un (categorie 'autre') : sans ce groupe ils
+  // n'étaient jamais réaffichés et il fallait retaper le même libellé à chaque fois.
+  const personnalises = TYPES.filter(t => !CATEGORIES_INTERVENTION[t.categorie] || t.categorie === 'autre');
+
+  const chip = t => `<button type="button" class="chip-type" data-id="${t.id}">${t.label}</button>`;
+
+  const blocFrequents = frequents.length ? `
+    <div class="groupe-ecoles-titre" style="margin-top:0;">⭐ Vos actions fréquentes</div>
+    <div class="grille-types">
+      ${frequents.map(t => `<button type="button" class="chip-type frequent" data-id="${t.id}">${t.label}</button>`).join('')}
+    </div>
+  ` : '';
+
+  const blocCategories = categories.map(c => `
     <div class="groupe-ecoles-titre" style="margin-top:14px;">${CATEGORIES_INTERVENTION[c]}</div>
     <div class="grille-types">
-      ${TYPES.filter(t => t.categorie === c).map(t => `<button type="button" class="chip-type" data-id="${t.id}">${t.label}</button>`).join('')}
+      ${TYPES.filter(t => t.categorie === c).map(chip).join('')}
     </div>
-  `).join('') + `
+  `).join('');
+
+  const blocPersonnalises = personnalises.length ? `
+    <div class="groupe-ecoles-titre" style="margin-top:14px;">Actions personnalisées déjà utilisées</div>
+    <div class="grille-types">${personnalises.map(chip).join('')}</div>
+  ` : '';
+
+  document.getElementById('chips-types').innerHTML = blocFrequents + blocCategories + blocPersonnalises + `
     <div class="groupe-ecoles-titre" style="margin-top:14px;">Autre</div>
     <div class="grille-types">
-      <button type="button" class="chip-type" id="chip-autre">Action personnalisée…</button>
+      <button type="button" class="chip-type" id="chip-autre">Nouvelle action personnalisée…</button>
     </div>
   `;
   document.getElementById('chips-types').querySelectorAll('.chip-type[data-id]').forEach(btn => {
@@ -190,6 +240,9 @@ function choisirType(id) {
     btn.classList.toggle('selectionne', id === null ? btn.id === 'chip-autre' : btn.dataset.id === id);
   });
   majVisibiliteProfil();
+  if (id && TYPES_THEME_SUGGERE.includes(id)) {
+    document.getElementById('zone-details').style.display = 'block';
+  }
 }
 
 function mesEcolesReferentes() {
@@ -276,8 +329,12 @@ async function enregistrer() {
           .catch(e => console.warn('Google Agenda :', e.message));
       }
     }
+    incrementerFrequenceType(quiId, typeId);
     reinitialiserFormulaire();
+    rendreChipsTypes();
     msg.className = 'alerte alerte-ok'; msg.textContent = 'Enregistré ✓'; msg.style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (navigator.vibrate) { try { navigator.vibrate(30); } catch (e) { /* pas de vibreur, tant pis */ } }
   } catch (e) {
     msg.className = 'alerte alerte-err'; msg.textContent = e.message; msg.style.display = 'block';
   } finally {
@@ -288,6 +345,7 @@ async function enregistrer() {
 document.getElementById('btn-changer-qui').addEventListener('click', () => {
   document.getElementById('carte-qui').style.display = 'block';
   document.getElementById('zone-formulaire').style.display = 'none';
+  document.getElementById('barre-validation').style.display = 'none';
 });
 document.getElementById('btn-connecter-agenda-rappel').addEventListener('click', ouvrirModaleGcal);
 window.addEventListener('focus', rendreRecapAgenda);
@@ -301,7 +359,6 @@ document.getElementById('btn-enregistrer').addEventListener('click', enregistrer
 async function init() {
   [INTERVENANTS, ECOLES, TYPES] = await Promise.all([Store.chargerIntervenants(), Store.chargerEcoles(), Store.chargerTypes()]);
   rendreChipsQui();
-  rendreChipsTypes();
   remplirSelectOrigine();
   document.getElementById('sr-date').value = new Date().toISOString().slice(0, 10);
 
