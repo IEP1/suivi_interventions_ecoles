@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bilan de fin d'année — Suivi des interventions IEP1</title>
+<link rel="stylesheet" href="css/style.css?v=14">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+<div id="entete-app"></div>
+
+<main>
+  <div class="barre-actions no-print">
+    <div>
+      <h2>Bilan de fin d'année</h2>
+      <p class="intro" style="margin-bottom:0;">Réservé à l'IAP — synthèse quantitative et qualitative de l'année scolaire, à éditer en fin d'année. Cette page n'est pas reliée au menu.</p>
+    </div>
+    <div class="groupe-btns">
+      <label for="sel-annee-bilan" style="display:inline;margin-right:6px;">Année</label>
+      <select id="sel-annee-bilan" style="width:auto;display:inline-block;"></select>
+      <button class="btn btn-sm btn-secondaire" id="btn-imprimer" type="button">🖨 Imprimer</button>
+    </div>
+  </div>
+
+  <div id="zone-chargement" class="alerte alerte-info">Chargement des données…</div>
+
+  <div id="zone-contenu" style="display:none;">
+    <h3>Bilan quantitatif</h3>
+    <div class="grille-stats" id="grille-stats"></div>
+
+    <div class="grille-graphiques">
+      <div class="carte carte-graphique">
+        <h3>Interventions par type</h3>
+        <canvas id="graph-types"></canvas>
+      </div>
+      <div class="carte carte-graphique">
+        <h3>Répartition par catégorie</h3>
+        <canvas id="graph-categories"></canvas>
+      </div>
+    </div>
+
+    <div class="carte">
+      <h3 style="margin-top:0;">Interventions par formateur</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Formateur</th><th>Nb d'interventions</th></tr></thead>
+          <tbody id="corps-par-intervenant"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <h3>Bilan qualitatif</h3>
+    <div class="carte">
+      <p id="msg-bilan-qualitatif" class="alerte" style="display:none;"></p>
+      <div class="champ">
+        <label for="bq-axes">Axes forts de l'année</label>
+        <textarea id="bq-axes" rows="5" placeholder="Ce qui a bien fonctionné, les réussites marquantes…"></textarea>
+      </div>
+      <div class="champ">
+        <label for="bq-vigilance">Points de vigilance</label>
+        <textarea id="bq-vigilance" rows="5" placeholder="Difficultés rencontrées, écoles ou domaines à renforcer…"></textarea>
+      </div>
+      <div class="champ">
+        <label for="bq-perspectives">Perspectives pour l'année suivante</label>
+        <textarea id="bq-perspectives" rows="5" placeholder="Priorités, axes de travail à venir…"></textarea>
+      </div>
+      <p class="intro no-print" id="bq-derniere-maj" style="margin-bottom:10px;"></p>
+      <div class="groupe-btns no-print" style="justify-content:flex-end;">
+        <button class="btn btn-primaire" id="btn-enregistrer-qualitatif" type="button">Enregistrer le bilan qualitatif</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<p class="pied no-print">IEP1 — Suivi des interventions dans les écoles</p>
+
+<script src="js/seed-data.js?v=16"></script>
+<script src="js/github-store.js?v=7"></script>
+<script src="js/data-store.js?v=10"></script>
+<script src="js/stats.js?v=12"></script>
+<script src="js/google-calendar.js?v=11"></script>
+<script src="js/layout.js?v=14"></script>
+<script>
+injecterEntete('bilan-annuel.html');
+
+let graphTypes, graphCategories;
+
+function remplirSelecteurAnnee() {
+  const sel = document.getElementById('sel-annee-bilan');
+  const courante = anneeScolaireCourante();
+  sel.innerHTML = [courante, courante - 1, courante - 2].map(a => `<option value="${a}">${a}</option>`).join('');
+  sel.value = courante;
+}
+
+function rendreTuiles(stats) {
+  const cle = (typeId) => stats.parType.find(t => t.typeId === typeId);
+  const tuilesCles = [
+    { typeId: 'accompagnement-individuel', accent: 'accent-bleu', libelle: 'écoles avec accompagnement individuel' },
+    { typeId: 'formation-donnee', accent: 'accent-orange', libelle: 'écoles avec formation donnée' },
+    { typeId: 'instance-ecole', accent: 'accent-or', libelle: 'écoles avec instance suivie' },
+    { typeId: 'projet-ecole', accent: 'accent-vert', libelle: "écoles avec projet d'école accompagné" }
+  ];
+  const grille = document.getElementById('grille-stats');
+  grille.innerHTML = `
+    <div class="tuile-stat">
+      <div class="valeur">${stats.totalInterventions}</div>
+      <div class="libelle">interventions sur l'année, dans ${stats.nbEcoles} écoles</div>
+    </div>
+  ` + tuilesCles.map(tc => {
+    const t = cle(tc.typeId);
+    const pct = t ? t.pctEcoles : 0;
+    return `
+      <div class="tuile-stat ${tc.accent}">
+        <div class="valeur">${pct}%</div>
+        <div class="libelle">${tc.libelle}</div>
+        <div class="barre"><span style="width:${pct}%"></span></div>
+      </div>`;
+  }).join('');
+}
+
+function rendreGraphiques(stats, types) {
+  const topTypes = stats.parType.filter(t => t.nbInterventions > 0).slice(0, 8);
+  const ctxT = document.getElementById('graph-types').getContext('2d');
+  if (graphTypes) graphTypes.destroy();
+  graphTypes = new Chart(ctxT, {
+    type: 'bar',
+    data: {
+      labels: topTypes.map(t => t.label),
+      datasets: [{ label: "Nombre d'interventions", data: topTypes.map(t => t.nbInterventions), backgroundColor: '#39B2C5' }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { x: { ticks: { precision: 0 } } }
+    }
+  });
+
+  const catLabels = Object.keys(CATEGORIES_INTERVENTION).filter(c => stats.parCategorie[c] > 0);
+  const ctxC = document.getElementById('graph-categories').getContext('2d');
+  if (graphCategories) graphCategories.destroy();
+  graphCategories = new Chart(ctxC, {
+    type: 'doughnut',
+    data: {
+      labels: catLabels.map(c => CATEGORIES_INTERVENTION[c]),
+      datasets: [{ data: catLabels.map(c => stats.parCategorie[c]), backgroundColor: catLabels.map(c => COULEURS_CATEGORIE[c]) }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+  });
+}
+
+function rendreParIntervenant(stats, intervenants) {
+  const lignes = Object.entries(stats.parIntervenant)
+    .map(([id, n]) => ({ nom: (intervenants.find(i => i.id === id) || {}).nom || id, n }))
+    .sort((a, b) => b.n - a.n);
+  document.getElementById('corps-par-intervenant').innerHTML = lignes.length
+    ? lignes.map(l => `<tr><td>${l.nom}</td><td>${l.n}</td></tr>`).join('')
+    : '<tr><td colspan="2">Aucune intervention sur cette année.</td></tr>';
+}
+
+async function chargerBilanQualitatif(annee) {
+  const bilan = await Store.chargerBilanAnnuel(annee);
+  document.getElementById('bq-axes').value = bilan.axesForts || '';
+  document.getElementById('bq-vigilance').value = bilan.pointsVigilance || '';
+  document.getElementById('bq-perspectives').value = bilan.perspectives || '';
+  const maj = document.getElementById('bq-derniere-maj');
+  maj.textContent = bilan.modifieLe ? `Dernière mise à jour : ${new Date(bilan.modifieLe).toLocaleString('fr-FR')}` : 'Pas encore enregistré pour cette année.';
+}
+
+document.getElementById('btn-enregistrer-qualitatif').addEventListener('click', async () => {
+  const annee = document.getElementById('sel-annee-bilan').value;
+  const msg = document.getElementById('msg-bilan-qualitatif');
+  try {
+    await Store.sauvegarderBilanAnnuel(annee, {
+      axesForts: document.getElementById('bq-axes').value.trim(),
+      pointsVigilance: document.getElementById('bq-vigilance').value.trim(),
+      perspectives: document.getElementById('bq-perspectives').value.trim()
+    });
+    msg.className = 'alerte alerte-ok'; msg.textContent = 'Bilan qualitatif enregistré.'; msg.style.display = 'block';
+    await chargerBilanQualitatif(annee);
+  } catch (e) {
+    msg.className = 'alerte alerte-err'; msg.textContent = e.message; msg.style.display = 'block';
+  }
+});
+
+document.getElementById('btn-imprimer').addEventListener('click', () => window.print());
+
+async function chargerEtAfficher() {
+  const annee = document.getElementById('sel-annee-bilan').value;
+  const { debut, fin } = bornesAnneeScolaire(annee);
+  const [ecoles, types, intervenants] = await Promise.all([
+    Store.chargerToutesLesEcolesAvecInterventions(),
+    Store.chargerTypes(),
+    Store.chargerIntervenants()
+  ]);
+  const stats = calculerStatsGlobales(ecoles, debut, fin, types);
+  rendreTuiles(stats);
+  rendreGraphiques(stats, types);
+  rendreParIntervenant(stats, intervenants);
+  await chargerBilanQualitatif(annee);
+  document.getElementById('zone-chargement').style.display = 'none';
+  document.getElementById('zone-contenu').style.display = 'block';
+}
+
+remplirSelecteurAnnee();
+document.getElementById('sel-annee-bilan').addEventListener('change', () => {
+  document.getElementById('zone-contenu').style.display = 'none';
+  document.getElementById('zone-chargement').style.display = 'block';
+  chargerEtAfficher().catch(err => {
+    document.getElementById('zone-chargement').className = 'alerte alerte-err';
+    document.getElementById('zone-chargement').textContent = 'Erreur au chargement : ' + err.message;
+  });
+});
+chargerEtAfficher().catch(err => {
+  document.getElementById('zone-chargement').className = 'alerte alerte-err';
+  document.getElementById('zone-chargement').textContent = 'Erreur au chargement : ' + err.message;
+});
+</script>
+</body>
+</html>

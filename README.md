@@ -1,8 +1,8 @@
 # Suivi des interventions — IEP1
 
-Tableau de bord et suivi des interventions menées par les conseillers pédagogiques (CPC) dans
-les écoles de la circonscription : accompagnement individuel, conseils des maîtres, projets
-d'école, liaisons, animations, etc.
+Mémoire et suivi des interventions menées par les formateurs (CPC, PEMF, IAP) dans les écoles de
+la circonscription : accompagnement individuel ou d'équipe, visites d'accompagnement, résidences
+pédagogiques, conseils des maîtres, projets d'école, liaisons, animations, etc.
 
 Site 100% statique (HTML/CSS/JS, aucune installation). Les données (écoles, intervenants, types
 d'intervention, historique) sont stockées dans un **second repo GitHub privé**, distinct de
@@ -20,8 +20,8 @@ celui-ci, pour ne jamais exposer de données publiquement.
    - *Repository access* : seulement le repo de données créé à l'étape 1.
    - *Permissions* → *Contents* : **Read and write**.
    - Copier le token généré (il ne sera plus jamais affiché).
-   - Un seul token peut être partagé entre les 5 conseillers, le secrétariat et l'IEN, ou chacun
-     peut créer le sien avec les mêmes droits — au choix.
+   - Un seul token peut être partagé entre les formateurs (CPC, PEMF), le secrétariat et l'IAP,
+     ou chacun peut créer le sien avec les mêmes droits — au choix.
 
 3. **Activer GitHub Pages** sur *ce* repo (le code) : *Settings* → *Pages* → *Deploy from a
    branch* → branche `main`, dossier `/ (root)`.
@@ -36,19 +36,26 @@ rien ne peut être enregistré durablement.
 
 ## Fonctionnement
 
-- **Accueil** (`index.html`) : tableau de bord circonscription **100% école** — indicateurs de
-  couverture (% d'écoles avec accompagnement individuel, formation donnée, instance suivie,
-  projet d'école accompagné…), écoles peu ou jamais suivies sur la période, graphiques dynamiques
-  par type et par catégorie, sélecteur d'année scolaire. Les actions sans école n'y apparaissent
-  jamais (voir « Lieu » ci-dessous) : cette page reste un outil de vérification pour la hiérarchie,
-  focalisé sur les écoles.
+- **Accueil** (`index.html`) : page d'entrée neutre, avec les deux accès (Espace école, Espace
+  formateurs). Le tableau de bord statistique de la circonscription a été volontairement retiré du
+  menu pour l'instant (voir « Bilan de fin d'année » ci-dessous).
+- **Bilan de fin d'année** (`bilan-annuel.html`) : page **non reliée au menu** — accessible
+  uniquement par son URL directe, réservée à l'IAP. Reprend les indicateurs de couverture (% d'écoles
+  avec accompagnement individuel, formation donnée, instance suivie, projet d'école accompagné…),
+  les graphiques par type/catégorie et la répartition par formateur (bilan quantitatif), et ajoute un
+  **bilan qualitatif** éditable (axes forts, points de vigilance, perspectives), à rédiger en fin
+  d'année scolaire et enregistré dans `bilans/<année>.json`. Il n'existe pas de système de comptes
+  sur ce site (accès par simple lien) : cette page n'est donc pas protégée techniquement, seulement
+  tenue à l'écart de la navigation courante pour éviter les interprétations en cours d'année au sein
+  de l'équipe de circonscription.
 - **Écoles** (`ecoles.html` → `ecole.html`) : liste des 21 écoles groupées par type
   (maternelles / élémentaires / groupes scolaires / structures), avec une pastille indiquant la
   fraîcheur du dernier suivi. Chaque fiche école affiche ses statistiques, son historique complet
   et permet d'ajouter une intervention (type prédéfini en un clic, ou action personnalisée
   libre).
-- **Conseillers** (`conseillers.html` → `conseiller.html`) : chaque intervenant (5 CPC,
-  secrétariat, IEN) peut saisir une action et l'attribuer en une fois à une ou plusieurs écoles
+- **Espace formateurs** (`conseillers.html` → `conseiller.html`) : chaque intervenant (CPC, PEMF,
+  secrétariat, IAP — CPC/PEMF/IAP sont tous des formateurs) peut saisir une action et l'attribuer
+  en une fois à une ou plusieurs écoles
   (ses écoles référentes pré-cochées, sélection libre, ou onglet « Autre / pas d'école » pour une
   action sans lien avec une école précise). Un même geste crée une entrée dans l'historique de
   chaque école choisie (ou une action générale, envoyée à Google Agenda mais jamais comptée dans
@@ -65,12 +72,14 @@ rien ne peut être enregistré durablement.
   réglementaires, Divers) — voir `js/seed-data.js`. Deux axes complémentaires, facultatifs et
   toujours saisis à côté du type : **Profil/public** (T0-T3, titulaire, remplaçant, stagiaire,
   direction — uniquement pour Accompagnement individuel/d'équipe et Inspection/EAE) et
-  **Origine** (mon initiative, demande équipe/direction/IEN, commande DENC, obligation
+  **Origine** (mon initiative, demande équipe/direction/IAP, commande DENC, obligation
   réglementaire — pour tous les types). Toute action personnalisée saisie une fois vient enrichir
   la liste proposée aux suivantes. Les anciens types (avant cette typologie) restent lisibles dans
-  l'historique via `TYPES_HERITES`, sans être proposés à la nouvelle saisie.
+  l'historique via `TYPES_HERITES`, sans être proposés à la nouvelle saisie. La précision d'« Instance
+  d'école » inclut aussi la visite d'accompagnement (VA) et la résidence pédagogique, aux côtés des
+  conseils de cycle/maîtres/école.
 - **Intervenants** (`conseillers.html`) : ajout et suppression manuels d'intervenants (nom + rôle
-  parmi conseiller pédagogique / secrétariat / IEN).
+  parmi conseiller pédagogique / PEMF / secrétariat / IAP).
 - **Écoles de référence** (`conseiller.html`) : chaque intervenant peut cocher ses écoles de
   référence depuis sa propre page, pour y accéder plus vite et pré-remplir automatiquement la
   liste lors de la saisie d'une action groupée.
@@ -87,7 +96,7 @@ historique de sauvegardes.
 ## Fichiers du repo de données
 
 - `ecoles.json` — liste des écoles (nom, type, direction, CPC référent).
-- `intervenants.json` — conseillers pédagogiques, secrétariat, IEN.
+- `intervenants.json` — formateurs (CPC, PEMF), secrétariat, IAP.
 - `types-intervention.json` — types d'intervention proposés (dont les types personnalisés créés
   en cours d'usage).
 - `interventions/<ecoleId>.json` — historique des interventions de cette école.
@@ -95,6 +104,8 @@ historique de sauvegardes.
   école précise (réunion, administratif, formation, examen…).
 - `equipes/<ecoleId>.json` — structure pédagogique de cette école (enseignants, psychologue
   référent).
+- `bilans/<année>.json` — bilan qualitatif de fin d'année (axes forts, points de vigilance,
+  perspectives), saisi depuis `bilan-annuel.html`.
 
 ## Pré-remplir la structure pédagogique (une seule fois)
 
@@ -132,7 +143,7 @@ logique puisque chacun installe son propre raccourci sur son propre téléphone.
 ## Google Agenda (optionnel)
 
 Pour éviter la double saisie (l'outil pour le suivi/le chef, Google Agenda pour la DRH), chaque
-intervention enregistrée dans l'appli (fiche école ou espace conseiller) peut être **automatiquement
+intervention enregistrée dans l'appli (fiche école ou espace formateurs) peut être **automatiquement
 ajoutée à votre Google Agenda** en même temps. C'est une saisie à sens unique (outil → agenda) :
 l'appli n'importe jamais depuis l'agenda, elle ne fait qu'y écrire.
 
@@ -189,3 +200,5 @@ le numéro `?v=` dans tous les fichiers HTML qui le chargent.**
 
 - Synthèse automatique du projet d'école par établissement (axes prioritaires, actions
   correspondantes), une fois le suivi des interventions bien installé.
+- Suivi des enseignants suppléants, école par école : tableau séparé (pas mêlé à l'historique
+  d'interventions ni aux statistiques) à concevoir et intégrer ultérieurement.

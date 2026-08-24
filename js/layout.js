@@ -14,7 +14,7 @@ function injecterEntete(pageActive) {
       </a>
       <nav class="grands-onglets">
         <a href="conseillers.html" class="grand-onglet ${pageActive === 'conseillers.html' ? 'actif' : ''}">
-          <span class="icone">🧑‍🏫</span> Espace conseiller
+          <span class="icone">🧑‍🏫</span> Espace formateurs
         </a>
         <a href="ecoles.html" class="grand-onglet ${pageActive === 'ecoles.html' ? 'actif' : ''}">
           <span class="icone">🏫</span> Espace école

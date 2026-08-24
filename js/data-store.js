@@ -109,6 +109,15 @@ const Store = {
     const toutesGenerales = await Promise.all(intervenants.map(i => this.chargerActionsGeneralesIntervenant(i.id)));
     toutesGenerales.forEach(g => g.actions.forEach(a => actions.push({ ...a, ecoleId: null, ecoleNom: null })));
     return actions;
+  },
+
+  /** Texte qualitatif du bilan de fin d'année (rédigé par l'IAP), un fichier par année scolaire. */
+  async chargerBilanAnnuel(annee) {
+    const { data } = await chargerJSON(`bilans/${annee}.json`, { axesForts: '', pointsVigilance: '', perspectives: '', modifieLe: null });
+    return data;
+  },
+  async sauvegarderBilanAnnuel(annee, texte) {
+    await sauvegarderJSON(`bilans/${annee}.json`, { ...texte, modifieLe: horodatageMaintenant() }, `Bilan de fin d'année ${annee}`);
   }
 };
 

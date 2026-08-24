@@ -42,11 +42,11 @@ const TYPES_ECOLE = {
 /*
  * Intervenants pouvant saisir des interventions : les 5 conseillers
  * pédagogiques (CPC) référents des écoles ci-dessus, plus le secrétariat et
- * l'IEN (qui saisissent occasionnellement pour leur propre compte ou pour le
- * compte d'un CPC).
+ * l'IAP (qui saisissent occasionnellement pour leur propre compte ou pour le
+ * compte d'un CPC). CPC, PEMF et IAP sont tous des formateurs.
  */
 const SEED_INTERVENANTS = [
-  { id: 'cyrille', nom: 'Cyrille PHILIPPE', role: 'ien' },
+  { id: 'cyrille', nom: 'Cyrille PHILIPPE', role: 'iap' },
   { id: 'nadia', nom: 'Nadia CAFFA', role: 'cpc' },
   { id: 'nadege', nom: 'Nadège REDON', role: 'cpc' },
   { id: 'vaea', nom: 'Vaéa DOUARCHE', role: 'cpc' },
@@ -94,7 +94,7 @@ const PROFILS_PAR_TYPE = {
   'accompagnement-individuel': ['T0', 'T1', 'T2', 'T3', 'Titulaire', 'Remplaçant', 'Stagiaire', 'Direction'],
   'inspection-eae': ['T0', 'T1', 'T2', 'T3', 'Titulaire', 'Remplaçant', 'Stagiaire', 'Direction'],
   'accompagnement-equipe': ['Équipe complète', 'Équipe de cycle', 'Groupe'],
-  'instance-ecole': ['Conseil de cycle', 'Conseil des maîtres', "Conseil d'école"]
+  'instance-ecole': ['Conseil de cycle', 'Conseil des maîtres', "Conseil d'école", 'Visite d\'accompagnement (VA)', 'Résidence pédagogique']
 };
 
 /*
@@ -109,7 +109,7 @@ const ORIGINES_INTERVENTION = [
   'Mon initiative',
   "Demande équipe",
   'Demande direction',
-  "Demande IEN",
+  "Demande IAP",
   'Commande DENC',
   'Obligation réglementaire'
 ];

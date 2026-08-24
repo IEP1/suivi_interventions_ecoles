@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Suivi des interventions — IEP1</title>
 <link rel="stylesheet" href="css/style.css?v=14">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -13,165 +12,34 @@
 
 <main>
   <div class="hero">
-    <h2>Tableau de bord circonscription</h2>
-    <p>Vue d'ensemble des interventions menées par les conseillers pédagogiques dans les 21 écoles d'IEP1.</p>
+    <h2>Suivi des interventions</h2>
+    <p>Mémoire de l'accompagnement et du suivi menés dans les 21 écoles d'IEP1 : accompagnement individuel ou d'équipe, visites, résidences pédagogiques, projets, formations…</p>
   </div>
 
-  <div id="zone-chargement" class="alerte alerte-info">Chargement des données…</div>
-
-  <div id="zone-contenu" style="display:none;">
-    <div class="barre-periode-discrete">
-      <label for="sel-annee">Année</label>
-      <select id="sel-annee"></select>
-      <label for="sel-periode">Période</label>
-      <select id="sel-periode"></select>
-    </div>
-
-    <div class="grille-stats" id="grille-stats"></div>
-
-    <div class="carte" id="carte-alerte-couverture" style="display:none;">
-      <h3 style="margin-top:0;">📌 Écoles peu suivies</h3>
-      <p class="intro" id="texte-alerte-couverture" style="margin-bottom:0;"></p>
-    </div>
-
-    <div class="grille-graphiques">
-      <div class="carte carte-graphique">
-        <h3>Interventions par type</h3>
-        <canvas id="graph-types"></canvas>
-      </div>
-      <div class="carte carte-graphique">
-        <h3>Répartition par catégorie</h3>
-        <canvas id="graph-categories"></canvas>
-      </div>
-    </div>
+  <div class="grille-entree" style="margin-top:10px;">
+    <a class="carte-entree" href="ecoles.html">
+      <span class="icone">🏫</span>
+      <h3>Espace école</h3>
+      <p>Consulter une école : historique, statistiques et ajout d'une intervention.</p>
+    </a>
+    <a class="carte-entree" href="conseillers.html">
+      <span class="icone">🧑‍🏫</span>
+      <h3>Espace formateurs</h3>
+      <p>Choisir qui saisit une action (CPC, PEMF, IAP, secrétariat) et l'attribuer à une ou plusieurs écoles.</p>
+    </a>
   </div>
 </main>
 
 <p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
 
-<script src="js/seed-data.js?v=15"></script>
+<script src="js/seed-data.js?v=16"></script>
 <script src="js/github-store.js?v=7"></script>
-<script src="js/data-store.js?v=9"></script>
+<script src="js/data-store.js?v=10"></script>
 <script src="js/stats.js?v=12"></script>
 <script src="js/google-calendar.js?v=11"></script>
-<script src="js/layout.js?v=13"></script>
+<script src="js/layout.js?v=14"></script>
 <script>
 injecterEntete('index.html');
-
-let graphTypes, graphCategories;
-
-function remplirSelecteurs() {
-  const selAnnee = document.getElementById('sel-annee');
-  const courante = anneeScolaireCourante();
-  const options = [courante, courante - 1, courante - 2];
-  selAnnee.innerHTML = options.map(a => `<option value="${a}">${a}</option>`).join('');
-  selAnnee.value = courante;
-
-  const selPeriode = document.getElementById('sel-periode');
-  selPeriode.innerHTML = `<option value="complete">Année complète</option>` +
-    [1, 2, 3, 4, 5].map(n => `<option value="${n}">Période ${n}</option>`).join('');
-  selPeriode.value = 'complete';
-}
-
-function bornesSelectionnees() {
-  const annee = document.getElementById('sel-annee').value;
-  const periode = document.getElementById('sel-periode').value;
-  return periode === 'complete' ? bornesAnneeScolaire(annee) : bornesPeriode(annee, Number(periode));
-}
-
-function rendreTuiles(stats) {
-  const cle = (typeId) => stats.parType.find(t => t.typeId === typeId);
-  const tuilesCles = [
-    { typeId: 'accompagnement-individuel', accent: 'accent-bleu', libelle: 'écoles avec accompagnement individuel' },
-    { typeId: 'formation-donnee', accent: 'accent-orange', libelle: 'écoles avec formation donnée' },
-    { typeId: 'instance-ecole', accent: 'accent-or', libelle: 'écoles avec instance suivie' },
-    { typeId: 'projet-ecole', accent: 'accent-vert', libelle: "écoles avec projet d'école accompagné" }
-  ];
-  const grille = document.getElementById('grille-stats');
-  grille.innerHTML = `
-    <div class="tuile-stat">
-      <div class="valeur">${stats.totalInterventions}</div>
-      <div class="libelle">interventions sur la période, dans ${stats.nbEcoles} écoles</div>
-    </div>
-  ` + tuilesCles.map(tc => {
-    const t = cle(tc.typeId);
-    const pct = t ? t.pctEcoles : 0;
-    return `
-      <div class="tuile-stat ${tc.accent}">
-        <div class="valeur">${pct}%</div>
-        <div class="libelle">${tc.libelle}</div>
-        <div class="barre"><span style="width:${pct}%"></span></div>
-      </div>`;
-  }).join('');
-}
-
-function rendreAlerteCouverture(stats) {
-  const jamais = stats.parEcole.filter(e => e.interventionsPeriode.length === 0);
-  const carte = document.getElementById('carte-alerte-couverture');
-  if (!jamais.length) { carte.style.display = 'none'; return; }
-  carte.style.display = 'block';
-  document.getElementById('texte-alerte-couverture').innerHTML =
-    `${jamais.length} école(s) sans aucune intervention enregistrée sur la période : ` +
-    jamais.map(e => `<a href="ecole.html?id=${e.id}">${e.nom}</a>`).join(', ') + '.';
-}
-
-function rendreGraphiques(stats, types) {
-  const topTypes = stats.parType.filter(t => t.nbInterventions > 0).slice(0, 8);
-  const ctxT = document.getElementById('graph-types').getContext('2d');
-  if (graphTypes) graphTypes.destroy();
-  graphTypes = new Chart(ctxT, {
-    type: 'bar',
-    data: {
-      labels: topTypes.map(t => t.label),
-      datasets: [{ label: "Nombre d'interventions", data: topTypes.map(t => t.nbInterventions), backgroundColor: '#39B2C5' }]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      plugins: { legend: { display: false } },
-      scales: { x: { ticks: { precision: 0 } } }
-    }
-  });
-
-  const catLabels = Object.keys(CATEGORIES_INTERVENTION).filter(c => stats.parCategorie[c] > 0);
-  const ctxC = document.getElementById('graph-categories').getContext('2d');
-  if (graphCategories) graphCategories.destroy();
-  graphCategories = new Chart(ctxC, {
-    type: 'doughnut',
-    data: {
-      labels: catLabels.map(c => CATEGORIES_INTERVENTION[c]),
-      datasets: [{ data: catLabels.map(c => stats.parCategorie[c]), backgroundColor: catLabels.map(c => COULEURS_CATEGORIE[c]) }]
-    },
-    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-  });
-}
-
-async function chargerEtAfficher() {
-  const { debut, fin } = bornesSelectionnees();
-  const [ecoles, types] = await Promise.all([
-    Store.chargerToutesLesEcolesAvecInterventions(),
-    Store.chargerTypes()
-  ]);
-  const stats = calculerStatsGlobales(ecoles, debut, fin, types);
-  rendreTuiles(stats);
-  rendreAlerteCouverture(stats);
-  rendreGraphiques(stats, types);
-  document.getElementById('zone-chargement').style.display = 'none';
-  document.getElementById('zone-contenu').style.display = 'block';
-}
-
-remplirSelecteurs();
-function surChangementPeriode() {
-  document.getElementById('zone-contenu').style.display = 'none';
-  document.getElementById('zone-chargement').style.display = 'block';
-  chargerEtAfficher();
-}
-document.getElementById('sel-annee').addEventListener('change', surChangementPeriode);
-document.getElementById('sel-periode').addEventListener('change', surChangementPeriode);
-chargerEtAfficher().catch(err => {
-  document.getElementById('zone-chargement').className = 'alerte alerte-err';
-  document.getElementById('zone-chargement').textContent = 'Erreur au chargement : ' + err.message;
-});
 </script>
 </body>
 </html>

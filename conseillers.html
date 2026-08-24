@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Conseillers — Suivi des interventions IEP1</title>
+<title>Formateurs — Suivi des interventions IEP1</title>
 <link rel="stylesheet" href="css/style.css?v=14">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -14,7 +14,7 @@
 <main>
   <div class="barre-actions">
     <div>
-      <h2>Espace conseiller</h2>
+      <h2>Espace formateurs</h2>
       <p class="intro" style="margin-bottom:0;">Choisissez qui saisit une action, pour l'attribuer directement à une ou plusieurs écoles.</p>
     </div>
     <div class="groupe-btns">
@@ -34,8 +34,9 @@
         <label for="nv-role">Rôle</label>
         <select id="nv-role">
           <option value="cpc">Conseiller / conseillère pédagogique</option>
+          <option value="pemf">PEMF (Professeur des écoles maître formateur)</option>
           <option value="secretariat">Secrétariat</option>
-          <option value="ien">IEN (Inspecteur)</option>
+          <option value="iap">IAP (Inspecteur)</option>
         </select>
       </div>
     </div>
@@ -80,17 +81,17 @@
 
 <p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
 
-<script src="js/seed-data.js?v=15"></script>
+<script src="js/seed-data.js?v=16"></script>
 <script src="js/github-store.js?v=7"></script>
-<script src="js/data-store.js?v=9"></script>
+<script src="js/data-store.js?v=10"></script>
 <script src="js/stats.js?v=12"></script>
 <script src="js/google-calendar.js?v=11"></script>
-<script src="js/layout.js?v=13"></script>
+<script src="js/layout.js?v=14"></script>
 <script>
 injecterEntete('conseillers.html');
 
-const ICONES_ROLE = { cpc: '🧑‍🏫', secretariat: '🗂️', ien: '🎓' };
-const LIBELLES_ROLE = { cpc: 'Conseiller pédagogique', secretariat: 'Secrétariat', ien: "Inspecteur de l'Éducation nationale" };
+const ICONES_ROLE = { cpc: '🧑‍🏫', pemf: '📗', secretariat: '🗂️', iap: '🎓' };
+const LIBELLES_ROLE = { cpc: 'Conseiller pédagogique', pemf: 'PEMF', secretariat: 'Secrétariat', iap: 'IAP (Inspecteur)' };
 
 let INTERVENANTS = [];
 let graphBilanEquipeCategorie = null;
