@@ -79,7 +79,13 @@ rien ne peut être enregistré durablement.
   toujours saisis à côté du type : **Profil/public** (T0-T3, titulaire, remplaçant, stagiaire,
   direction — uniquement pour Accompagnement individuel/d'équipe et Inspection/EAE) et
   **Origine** (mon initiative, demande équipe/direction/IAP, commande DENC, obligation
-  réglementaire — pour tous les types). Toute action personnalisée saisie une fois vient enrichir
+  réglementaire — pour tous les types). Pour l'Accompagnement d'équipe, choisir le profil
+  « Équipe de cycle » propose ensuite de cocher un ou plusieurs cycles concernés (Cycle 1/2/3,
+  `CYCLES_ECOLE`), et choisir « Groupe » propose de cocher les enseignants concernés dans la
+  structure pédagogique de l'école (repli sans cette liste si l'école n'a pas encore de structure
+  renseignée, ou si plusieurs écoles sont visées à la fois). Le résultat est recopié directement
+  dans le champ Profil (ex. `Groupe (Julie MARTIN, Marc DUPONT)`) — voir `rendrePrecisionEquipe()`
+  et `valeurProfilAvecPrecision()` dans `js/type-selector.js`. Toute action personnalisée saisie une fois vient enrichir
   la liste proposée aux suivantes. Les anciens types (avant cette typologie) restent lisibles dans
   l'historique via `TYPES_HERITES`, sans être proposés à la nouvelle saisie. La précision d'« Instance
   d'école » inclut aussi la visite d'accompagnement (VA) et la résidence pédagogique, aux côtés des

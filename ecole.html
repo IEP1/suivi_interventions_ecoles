@@ -108,6 +108,7 @@
       <div class="champ" id="bloc-profil" style="display:none;margin-bottom:0;">
         <label for="mi-profil">Profil / public</label>
         <select id="mi-profil"></select>
+        <div id="mi-precision-equipe" style="display:none;"></div>
       </div>
     </div>
 
@@ -147,11 +148,11 @@
 
 <p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
 
-<script src="js/seed-data.js?v=18"></script>
+<script src="js/seed-data.js?v=19"></script>
 <script src="js/github-store.js?v=7"></script>
 <script src="js/data-store.js?v=10"></script>
 <script src="js/stats.js?v=12"></script>
-<script src="js/type-selector.js?v=9"></script>
+<script src="js/type-selector.js?v=10"></script>
 <script src="js/assistant-etapes.js?v=5"></script>
 <script src="js/google-calendar.js?v=11"></script>
 <script src="js/layout.js?v=14"></script>
@@ -277,7 +278,7 @@ function construireRecapIntervention() {
   const intervenant = INTERVENANTS.find(i => i.id === document.getElementById('mi-intervenant').value);
   const perso = document.getElementById('type-personnalise').value.trim();
   const type = TYPES.find(t => t.id === selecteurType.typeSelectionneId());
-  const profil = document.getElementById('mi-profil').value;
+  const profil = valeurProfilAvecPrecision('mi-precision-equipe', document.getElementById('mi-profil').value);
   const lignes = [
     ['Qui', intervenant ? intervenant.nom : '—'],
     ['Quoi', (perso || (type ? type.label : '—')) + (profil ? ` (${profil})` : '')],
@@ -299,6 +300,7 @@ function ouvrirModale() {
   document.getElementById('mi-date').value = new Date().toISOString().slice(0, 10);
   document.getElementById('mi-theme').value = '';
   document.getElementById('mi-notes').value = '';
+  document.getElementById('mi-precision-equipe').style.display = 'none';
   document.getElementById('mi-intervenant').innerHTML = INTERVENANTS.map(i => `<option value="${i.id}" ${i.id === ECOLE.cpcReferent ? 'selected' : ''}>${i.nom}</option>`).join('');
   document.getElementById('mi-origine').innerHTML = '<option value="">—</option>' +
     ORIGINES_INTERVENTION.map(o => `<option value="${o}">${o}</option>`).join('');
@@ -329,7 +331,7 @@ async function validerIntervention() {
       intervenantId: document.getElementById('mi-intervenant').value,
       theme: document.getElementById('mi-theme').value.trim(),
       notes: document.getElementById('mi-notes').value.trim(),
-      profil: document.getElementById('mi-profil').value,
+      profil: valeurProfilAvecPrecision('mi-precision-equipe', document.getElementById('mi-profil').value),
       origine: document.getElementById('mi-origine').value,
       horodatage: horodatageMaintenant()
     };
@@ -366,7 +368,10 @@ async function init() {
           const perso = document.getElementById('type-personnalise').value.trim();
           return (selecteurType.typeSelectionneId() || perso) ? true : "Merci de choisir un type d'intervention ou de saisir une action personnalisée.";
         } },
-      { id: 'details', titre: 'Détails', onEntree: () => remplirPersonneSuivie('mi-personne-suivie', 'mi-theme', selecteurType.typeSelectionneId(), EQUIPE), valider: () => document.getElementById('mi-date').value ? true : 'Merci de renseigner une date.' }
+      { id: 'details', titre: 'Détails', onEntree: () => {
+          remplirPersonneSuivie('mi-personne-suivie', 'mi-theme', selecteurType.typeSelectionneId(), EQUIPE);
+          rendrePrecisionEquipe('mi-precision-equipe', document.getElementById('mi-profil').value, EQUIPE);
+        }, valider: () => document.getElementById('mi-date').value ? true : 'Merci de renseigner une date.' }
     ],
     construireRecap: construireRecapIntervention,
     onValider: validerIntervention,

@@ -117,6 +117,12 @@ const TYPES_THEME_SUGGERE = ['formation-donnee', 'formation-recue', 'groupe-trav
  */
 const TYPES_PERSONNE_SUIVIE = ['accompagnement-individuel', 'inspection-eae'];
 
+/*
+ * Cycles proposés en précision de « Équipe de cycle » (profil de l'accompagnement d'équipe) —
+ * plusieurs cycles peuvent être cochés à la fois (ex. accompagnement transversal cycle 2 + 3).
+ */
+const CYCLES_ECOLE = ['Cycle 1', 'Cycle 2', 'Cycle 3'];
+
 /* Origine de l'action : proposée pour tous les types, toujours facultative. */
 const ORIGINES_INTERVENTION = [
   'Mon initiative',

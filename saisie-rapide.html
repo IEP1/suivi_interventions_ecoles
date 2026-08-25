@@ -53,6 +53,7 @@
         <div class="champ" id="bloc-profil" style="display:none;margin-top:10px;margin-bottom:0;">
           <label for="sr-profil">Profil / public</label>
           <select id="sr-profil"></select>
+          <div id="sr-precision-equipe" style="display:none;"></div>
         </div>
       </div>
 
@@ -118,11 +119,11 @@
 
 <p class="pied">IEP1 — Saisie rapide</p>
 
-<script src="js/seed-data.js?v=18"></script>
+<script src="js/seed-data.js?v=19"></script>
 <script src="js/github-store.js?v=7"></script>
 <script src="js/data-store.js?v=10"></script>
 <script src="js/stats.js?v=12"></script>
-<script src="js/type-selector.js?v=9"></script>
+<script src="js/type-selector.js?v=10"></script>
 <script src="js/assistant-etapes.js?v=5"></script>
 <script src="js/google-calendar.js?v=11"></script>
 <script src="js/layout.js?v=14"></script>
@@ -268,11 +269,13 @@ function rendreChipsEcoleUnique() {
   document.getElementById('zone-lieu-libre').style.display = ecoleIdChoisie === '__autre__' ? 'block' : 'none';
 }
 
-/* Le menu « personne suivie » n'apparaît que pour une école précise (pas « Autre » / pas d'école). */
+/* Le menu « personne suivie » et la liste d'enseignants du « Groupe » n'apparaissent que pour une
+   école précise (pas « Autre » / pas d'école). */
 async function rendrePersonneSuivieRapide() {
   const uneEcole = ecoleIdChoisie && ecoleIdChoisie !== '__autre__';
   const equipe = uneEcole ? await Store.chargerEquipeEcole(ecoleIdChoisie) : null;
   remplirPersonneSuivie('sr-personne-suivie', 'sr-theme', typeIdChoisi, equipe);
+  rendrePrecisionEquipe('sr-precision-equipe', document.getElementById('sr-profil').value, equipe);
 }
 
 function reinitialiserFormulaire() {
@@ -286,6 +289,7 @@ function reinitialiserFormulaire() {
   document.getElementById('sr-theme').value = '';
   document.getElementById('sr-notes').value = '';
   document.getElementById('sr-personne-suivie').style.display = 'none';
+  document.getElementById('sr-precision-equipe').style.display = 'none';
   document.getElementById('sr-date').value = new Date().toISOString().slice(0, 10);
 }
 
@@ -293,7 +297,7 @@ function construireRecapSaisieRapide() {
   const intervenant = INTERVENANTS.find(i => i.id === quiId);
   const perso = document.getElementById('type-personnalise').value.trim();
   const type = typeActuel();
-  const profil = document.getElementById('sr-profil').value;
+  const profil = valeurProfilAvecPrecision('sr-precision-equipe', document.getElementById('sr-profil').value);
   const ecole = ecoleIdChoisie && ecoleIdChoisie !== '__autre__' ? ECOLES.find(e => e.id === ecoleIdChoisie) : null;
   const lieuLibre = document.getElementById('sr-lieu-libre').value.trim();
   let ou = '—';
@@ -333,7 +337,7 @@ async function enregistrer() {
     const date = document.getElementById('sr-date').value || new Date().toISOString().slice(0, 10);
     const theme = document.getElementById('sr-theme').value.trim();
     const notes = document.getElementById('sr-notes').value.trim();
-    const profil = document.getElementById('sr-profil').value;
+    const profil = valeurProfilAvecPrecision('sr-precision-equipe', document.getElementById('sr-profil').value);
     const origine = document.getElementById('sr-origine').value;
     const intervenant = INTERVENANTS.find(i => i.id === quiId);
     const categorie = categorieResolue(type ? type.categorie : null);

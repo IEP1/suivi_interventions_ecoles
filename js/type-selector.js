@@ -79,3 +79,39 @@ function remplirPersonneSuivie(selectId, inputId, typeId, equipe) {
     else if (sel.value) { input.value = sel.value; }
   };
 }
+
+/*
+ * Précision affichée sous le profil « Accompagnement d'équipe » : cases à cocher pour le(s)
+ * cycle(s) concerné(s) si le profil choisi est « Équipe de cycle » (plusieurs possibles), ou pour
+ * les enseignants du groupe (issus de la structure pédagogique) si le profil choisi est « Groupe ».
+ * La précision est recopiée dans la valeur finale du profil via valeurProfilAvecPrecision(), pas
+ * stockée à part — pas de nouveau champ de données.
+ */
+function rendrePrecisionEquipe(zoneId, profilValue, equipe) {
+  const zone = document.getElementById(zoneId);
+  if (!zone) return;
+  if (profilValue === 'Équipe de cycle') {
+    zone.style.display = 'block';
+    zone.innerHTML = '<p class="intro" style="margin:8px 0 6px;">Cycle(s) concerné(s)</p>' +
+      CYCLES_ECOLE.map(c => `<label style="display:inline-flex;align-items:center;gap:5px;margin:0 14px 6px 0;font-weight:400;"><input type="checkbox" class="chk-precision-equipe" value="${c}"> ${c}</label>`).join('');
+  } else if (profilValue === 'Groupe' && equipe && equipe.enseignants && equipe.enseignants.length) {
+    zone.style.display = 'block';
+    const tri = [...equipe.enseignants].sort((a, b) => (a.niveau || '').localeCompare(b.niveau || ''));
+    zone.innerHTML = '<p class="intro" style="margin:8px 0 6px;">Enseignants du groupe</p>' +
+      tri.map(t => {
+        const nom = [t.prenom, t.nom].filter(Boolean).join(' ') || 'Sans nom';
+        return `<label style="display:flex;align-items:center;gap:6px;margin:0 0 4px;font-weight:400;"><input type="checkbox" class="chk-precision-equipe" value="${nom}"> ${nom}${t.niveau ? ' (' + t.niveau + ')' : ''}</label>`;
+      }).join('');
+  } else {
+    zone.style.display = 'none';
+    zone.innerHTML = '';
+  }
+}
+
+/** Valeur finale à enregistrer dans « Profil / public » : le profil choisi, précision(s) cochée(s) entre parenthèses. */
+function valeurProfilAvecPrecision(zoneId, profilValue) {
+  const zone = document.getElementById(zoneId);
+  if (!zone) return profilValue;
+  const coches = Array.from(zone.querySelectorAll('.chk-precision-equipe:checked')).map(c => c.value);
+  return coches.length ? `${profilValue} (${coches.join(', ')})` : profilValue;
+}
