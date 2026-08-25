@@ -34,6 +34,26 @@
   </div>
 
   <div class="carte">
+    <h2>Nettoyer les types personnalisés en double</h2>
+    <p class="intro">
+      Toute action personnalisée saisie une fois (libellé libre) reste ensuite proposée dans
+      « Actions personnalisées » — avec le temps, certaines finissent par faire doublon avec un
+      type officiel (ex. une ancienne « Conseil des maîtres » alors que le type « Instance d'école »
+      couvre déjà ce cas) ou avec le champ Origine (ex. « Intervention à la demande de l'IEN »).
+      Cet outil liste les types personnalisés actuellement enregistrés dans le repo de données et
+      permet de les fusionner vers un type officiel (les interventions déjà saisies sont
+      automatiquement réaffectées) ou de les supprimer s'ils ne sont utilisés par aucune
+      intervention.
+    </p>
+    <div id="alerte-zone-nettoyage"></div>
+    <div class="groupe-btns">
+      <button class="btn btn-primaire" id="btn-analyser-nettoyage">Analyser les types personnalisés</button>
+    </div>
+    <div id="liste-nettoyage" style="margin-top:14px;"></div>
+    <pre id="journal-nettoyage" style="margin-top:16px;white-space:pre-wrap;font-size:0.82rem;"></pre>
+  </div>
+
+  <div class="carte">
     <h2>Réaffecter d'anciens types déjà enregistrés</h2>
     <p class="intro">
       Corrige, dans les interventions déjà enregistrées sur GitHub, les typeId devenus obsolètes.
@@ -49,7 +69,7 @@
 
 <p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
 
-<script src="js/seed-data.js?v=16"></script>
+<script src="js/seed-data.js?v=17"></script>
 <script src="js/github-store.js?v=7"></script>
 <script src="js/data-store.js?v=10"></script>
 <script src="js/google-calendar.js?v=11"></script>
@@ -116,6 +136,103 @@ async function migrerTypeId(ancienId, nouvelId, logFn) {
   }
   return total;
 }
+
+let TYPES_ANALYSE = [];
+let USAGE_ANALYSE = {};
+
+function logNettoyage(msg) { document.getElementById('journal-nettoyage').textContent += msg + '\n'; }
+function afficherAlerteNettoyage(msg, classe) { document.getElementById('alerte-zone-nettoyage').innerHTML = `<div class="alerte ${classe}">${msg}</div>`; }
+
+/** Types officiels (catégorie reconnue, hors « autre ») proposables comme destination de fusion. */
+function optionsTypesOfficiels(excluId) {
+  const officiels = TYPES_ANALYSE.filter(t => CATEGORIES_INTERVENTION[t.categorie] && t.categorie !== 'autre' && t.id !== excluId);
+  const categories = Object.keys(CATEGORIES_INTERVENTION).filter(c => c !== 'autre' && officiels.some(t => t.categorie === c));
+  return '<option value="">— Choisir —</option>' + categories.map(c =>
+    `<optgroup label="${CATEGORIES_INTERVENTION[c]}">` +
+    officiels.filter(t => t.categorie === c).map(t => `<option value="${t.id}">${t.label}</option>`).join('') +
+    `</optgroup>`).join('');
+}
+
+function rendreListeNettoyage() {
+  const personnalises = TYPES_ANALYSE.filter(t => !CATEGORIES_INTERVENTION[t.categorie] || t.categorie === 'autre');
+  const zone = document.getElementById('liste-nettoyage');
+  if (!personnalises.length) {
+    zone.innerHTML = '<p class="alerte alerte-ok">Aucun type personnalisé en attente — rien à nettoyer pour l\'instant.</p>';
+    return;
+  }
+  zone.innerHTML = personnalises.map(t => {
+    const n = USAGE_ANALYSE[t.id] || 0;
+    return `
+    <div class="carte" style="margin-bottom:10px;padding:12px 14px;" data-type-id="${t.id}">
+      <p style="margin:0 0 8px;"><b>${t.label}</b> <span class="intro" style="margin:0;">— ${n} intervention(s) avec ce type</span></p>
+      <div class="ligne-champs" style="align-items:flex-end;">
+        <div class="champ" style="flex:2;margin-bottom:0;">
+          <label>Fusionner vers →</label>
+          <select class="sel-fusion">${optionsTypesOfficiels(t.id)}</select>
+        </div>
+        <button type="button" class="btn btn-secondaire btn-sm btn-fusionner">Fusionner</button>
+        <button type="button" class="btn btn-danger btn-sm btn-supprimer" ${n ? 'disabled title="Utilisé par au moins une intervention — fusionnez plutôt."' : ''}>Supprimer</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  zone.querySelectorAll('.btn-fusionner').forEach(btn => btn.addEventListener('click', async (ev) => {
+    const carte = ev.target.closest('[data-type-id]');
+    const ancienId = carte.dataset.typeId;
+    const nouvelId = carte.querySelector('.sel-fusion').value;
+    if (!nouvelId) { alert('Choisissez un type de destination.'); return; }
+    const ancien = TYPES_ANALYSE.find(t => t.id === ancienId);
+    const nouveau = TYPES_ANALYSE.find(t => t.id === nouvelId);
+    if (!confirm(`Fusionner « ${ancien.label} » vers « ${nouveau.label} » ? Les interventions déjà enregistrées avec « ${ancien.label} » seront réaffectées, puis ce type personnalisé sera supprimé de la liste.`)) return;
+    btn.disabled = true;
+    document.getElementById('journal-nettoyage').textContent = '';
+    try {
+      const total = await migrerTypeId(ancienId, nouvelId, logNettoyage);
+      const typesRestants = (await Store.chargerTypes()).filter(t => t.id !== ancienId);
+      await Store.sauvegarderTypes(typesRestants);
+      logNettoyage(`\n✓ « ${ancien.label} » retiré de la liste (${total} intervention(s) réaffectée(s) vers « ${nouveau.label} »).`);
+      afficherAlerteNettoyage('Fusion terminée.', 'alerte-ok');
+      await analyserTypesPersonnalises();
+    } catch (e) {
+      logNettoyage('✗ Échec : ' + e.message);
+      afficherAlerteNettoyage('Échec : ' + e.message, 'alerte-err');
+      btn.disabled = false;
+    }
+  }));
+
+  zone.querySelectorAll('.btn-supprimer').forEach(btn => btn.addEventListener('click', async (ev) => {
+    if (btn.disabled) return;
+    const carte = ev.target.closest('[data-type-id]');
+    const id = carte.dataset.typeId;
+    const t = TYPES_ANALYSE.find(x => x.id === id);
+    if (!confirm(`Supprimer définitivement « ${t.label} » de la liste des types ? Aucune intervention ne l'utilise actuellement.`)) return;
+    btn.disabled = true;
+    try {
+      const typesRestants = (await Store.chargerTypes()).filter(x => x.id !== id);
+      await Store.sauvegarderTypes(typesRestants);
+      afficherAlerteNettoyage(`« ${t.label} » supprimé.`, 'alerte-ok');
+      await analyserTypesPersonnalises();
+    } catch (e) {
+      afficherAlerteNettoyage('Échec : ' + e.message, 'alerte-err');
+      btn.disabled = false;
+    }
+  }));
+}
+
+async function analyserTypesPersonnalises() {
+  if (!ghConfig.isConfigured()) { afficherAlerteNettoyage("Connectez d'abord le repo de données via ⚙ Données.", 'alerte-err'); return; }
+  document.getElementById('liste-nettoyage').innerHTML = '<p class="alerte alerte-info">Analyse en cours…</p>';
+  const [types, actions] = await Promise.all([Store.chargerTypes(), Store.chargerToutesLesActions()]);
+  TYPES_ANALYSE = types;
+  USAGE_ANALYSE = {};
+  actions.forEach(a => { USAGE_ANALYSE[a.typeId] = (USAGE_ANALYSE[a.typeId] || 0) + 1; });
+  rendreListeNettoyage();
+}
+
+document.getElementById('btn-analyser-nettoyage').addEventListener('click', () => {
+  document.getElementById('journal-nettoyage').textContent = '';
+  analyserTypesPersonnalises().catch(e => afficherAlerteNettoyage('Échec : ' + e.message, 'alerte-err'));
+});
 
 document.getElementById('btn-migrer-animation').addEventListener('click', async () => {
   if (!ghConfig.isConfigured()) { afficherAlerteMigration("Connectez d'abord le repo de données via ⚙ Données.", 'alerte-err'); return; }

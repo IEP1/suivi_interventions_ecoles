@@ -29,42 +29,51 @@
       <button class="btn btn-primaire" id="btn-ouvrir-modale">+ Ajouter une intervention</button>
     </div>
 
-    <div class="grille-stats" id="grille-stats-ecole"></div>
-
-    <div class="carte">
-      <div class="barre-actions">
-        <h3 style="margin:0;">Structure pédagogique</h3>
-        <a class="btn btn-sm btn-secondaire no-print" id="lien-modifier-equipe" href="#">Modifier</a>
-      </div>
-      <p class="intro" id="info-psy" style="margin-bottom:10px;"></p>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Niveau</th><th>Nom</th><th>Prénom</th><th>Statut</th><th>Référent / responsabilité</th></tr></thead>
-          <tbody id="corps-equipe"></tbody>
-        </table>
-      </div>
-      <p class="intro" id="msg-vide-equipe" style="display:none;margin-top:10px;">
-        Structure pédagogique pas encore renseignée pour cette école.
-        <a href="#" id="lien-modifier-equipe-2">La renseigner</a>.
-      </p>
+    <div class="onglets no-print">
+      <button type="button" class="onglet actif" id="onglet-suivi">Suivi</button>
+      <button type="button" class="onglet" id="onglet-structure">Structure pédagogique</button>
     </div>
 
-    <div class="carte carte-graphique">
-      <h3>Interventions par type — cette école</h3>
-      <canvas id="graph-ecole" height="90"></canvas>
+    <div id="vue-suivi">
+      <div class="grille-stats" id="grille-stats-ecole"></div>
+
+      <div class="carte carte-graphique">
+        <h3>Interventions par type — cette école</h3>
+        <canvas id="graph-ecole" height="90"></canvas>
+      </div>
+
+      <div class="carte">
+        <div class="barre-actions">
+          <h3 style="margin:0;">Historique des interventions</h3>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Date</th><th>Type</th><th>Intervenant</th><th>Thème / personne suivie</th><th>Notes</th></tr></thead>
+            <tbody id="corps-historique"></tbody>
+          </table>
+        </div>
+        <p class="intro" id="msg-vide" style="display:none;margin-top:10px;">Aucune intervention enregistrée pour cette école pour l'instant.</p>
+      </div>
     </div>
 
-    <div class="carte">
-      <div class="barre-actions">
-        <h3 style="margin:0;">Historique des interventions</h3>
+    <div id="vue-structure" style="display:none;">
+      <div class="carte">
+        <div class="barre-actions">
+          <h3 style="margin:0;">Structure pédagogique</h3>
+          <a class="btn btn-sm btn-secondaire no-print" id="lien-modifier-equipe" href="#">Modifier</a>
+        </div>
+        <p class="intro" id="info-psy" style="margin-bottom:10px;"></p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Niveau</th><th>Nom</th><th>Prénom</th><th>Statut</th><th>Référent / responsabilité</th></tr></thead>
+            <tbody id="corps-equipe"></tbody>
+          </table>
+        </div>
+        <p class="intro" id="msg-vide-equipe" style="display:none;margin-top:10px;">
+          Structure pédagogique pas encore renseignée pour cette école.
+          <a href="#" id="lien-modifier-equipe-2">La renseigner</a>.
+        </p>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Date</th><th>Type</th><th>Intervenant</th><th>Thème / personne suivie</th><th>Notes</th></tr></thead>
-          <tbody id="corps-historique"></tbody>
-        </table>
-      </div>
-      <p class="intro" id="msg-vide" style="display:none;margin-top:10px;">Aucune intervention enregistrée pour cette école pour l'instant.</p>
     </div>
   </div>
 </main>
@@ -94,6 +103,7 @@
       <div class="champ">
         <label for="type-personnalise">…ou action personnalisée (libellé libre)</label>
         <input type="text" id="type-personnalise" placeholder="Ex : Médiation avec une famille">
+        <p class="intro" style="margin:6px 0 0;">Réservé aux actions vraiment nouvelles — inutile de préciser ici « à la demande de… », c'est le rôle du champ Origine, à l'étape suivante.</p>
       </div>
       <div class="champ" id="bloc-profil" style="display:none;margin-bottom:0;">
         <label for="mi-profil">Profil / public</label>
@@ -112,6 +122,7 @@
       </div>
       <div class="champ">
         <label for="mi-theme">Thème / détail <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
+        <select id="mi-personne-suivie" style="display:none;margin-bottom:8px;"></select>
         <input type="text" id="mi-theme" placeholder="Ex : GURRERA Alexia — différenciation en maths">
       </div>
       <div class="champ" style="margin-bottom:0;">
@@ -136,11 +147,11 @@
 
 <p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
 
-<script src="js/seed-data.js?v=16"></script>
+<script src="js/seed-data.js?v=17"></script>
 <script src="js/github-store.js?v=7"></script>
 <script src="js/data-store.js?v=10"></script>
 <script src="js/stats.js?v=12"></script>
-<script src="js/type-selector.js?v=8"></script>
+<script src="js/type-selector.js?v=9"></script>
 <script src="js/assistant-etapes.js?v=5"></script>
 <script src="js/google-calendar.js?v=11"></script>
 <script src="js/layout.js?v=14"></script>
@@ -154,8 +165,16 @@ let ECOLE = null;
 let INTERVENTIONS = [];
 let TYPES = [];
 let INTERVENANTS = [];
+let EQUIPE = { psychologueScolaire: '', enseignants: [] };
 let selecteurType = null;
 let graphEcole;
+
+function basculerOngletEcole(vue) {
+  document.getElementById('onglet-suivi').classList.toggle('actif', vue === 'suivi');
+  document.getElementById('onglet-structure').classList.toggle('actif', vue === 'structure');
+  document.getElementById('vue-suivi').style.display = vue === 'suivi' ? 'block' : 'none';
+  document.getElementById('vue-structure').style.display = vue === 'structure' ? 'block' : 'none';
+}
 
 function rendreEntete() {
   document.getElementById('nom-ecole').textContent = ECOLE.nom;
@@ -335,8 +354,7 @@ async function init() {
     document.getElementById('zone-chargement').textContent = 'École introuvable.';
     return;
   }
-  let equipe;
-  [INTERVENANTS, TYPES, equipe] = await Promise.all([Store.chargerIntervenants(), Store.chargerTypes(), Store.chargerEquipeEcole(ecoleId)]);
+  [INTERVENANTS, TYPES, EQUIPE] = await Promise.all([Store.chargerIntervenants(), Store.chargerTypes(), Store.chargerEquipeEcole(ecoleId)]);
   INTERVENTIONS = (await Store.chargerInterventionsEcole(ecoleId)).interventions;
 
   selecteurType = initialiserSelecteurType({ selTypeId: 'mi-type', inputPersonaliseId: 'type-personnalise', types: TYPES, filtrerEnEcole: true });
@@ -348,7 +366,7 @@ async function init() {
           const perso = document.getElementById('type-personnalise').value.trim();
           return (selecteurType.typeSelectionneId() || perso) ? true : "Merci de choisir un type d'intervention ou de saisir une action personnalisée.";
         } },
-      { id: 'details', titre: 'Détails', valider: () => document.getElementById('mi-date').value ? true : 'Merci de renseigner une date.' }
+      { id: 'details', titre: 'Détails', onEntree: () => remplirPersonneSuivie('mi-personne-suivie', 'mi-theme', selecteurType.typeSelectionneId(), EQUIPE), valider: () => document.getElementById('mi-date').value ? true : 'Merci de renseigner une date.' }
     ],
     construireRecap: construireRecapIntervention,
     onValider: validerIntervention,
@@ -356,7 +374,7 @@ async function init() {
   });
 
   rendreEntete();
-  rendreEquipe(equipe);
+  rendreEquipe(EQUIPE);
   rendreStats();
   rendreGraphique();
   rendreHistorique();
@@ -365,6 +383,8 @@ async function init() {
   document.getElementById('zone-contenu').style.display = 'block';
 }
 
+document.getElementById('onglet-suivi').addEventListener('click', () => basculerOngletEcole('suivi'));
+document.getElementById('onglet-structure').addEventListener('click', () => basculerOngletEcole('structure'));
 document.getElementById('btn-ouvrir-modale').addEventListener('click', ouvrirModale);
 document.getElementById('btn-fermer-modale').addEventListener('click', fermerModale);
 document.getElementById('mi-type').addEventListener('change', majVisibiliteProfil);

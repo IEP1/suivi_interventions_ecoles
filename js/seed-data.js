@@ -104,6 +104,13 @@ const PROFILS_PAR_TYPE = {
  */
 const TYPES_THEME_SUGGERE = ['formation-donnee', 'formation-recue', 'groupe-travail-referent'];
 
+/*
+ * Types qui suivent une personne précise plutôt qu'un thème général — le champ « Thème / détail »
+ * y propose alors en premier les enseignants réels de l'école (structure pédagogique), avec repli
+ * en texte libre (personne pas encore renseignée, stagiaire, remplaçant récent…).
+ */
+const TYPES_PERSONNE_SUIVIE = ['accompagnement-individuel', 'inspection-eae'];
+
 /* Origine de l'action : proposée pour tous les types, toujours facultative. */
 const ORIGINES_INTERVENTION = [
   'Mon initiative',

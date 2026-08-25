@@ -50,9 +50,15 @@ rien ne peut être enregistré durablement.
   de l'équipe de circonscription.
 - **Écoles** (`ecoles.html` → `ecole.html`) : liste des 21 écoles groupées par type
   (maternelles / élémentaires / groupes scolaires / structures), avec une pastille indiquant la
-  fraîcheur du dernier suivi. Chaque fiche école affiche ses statistiques, son historique complet
-  et permet d'ajouter une intervention (type prédéfini en un clic, ou action personnalisée
-  libre).
+  fraîcheur du dernier suivi. Chaque fiche école a deux onglets : **Suivi** (statistiques,
+  graphique, historique, ajout d'une intervention) et **Structure pédagogique** (lecture seule ;
+  le bouton « Modifier » ouvre `equipe.html` pour l'éditer, comme avant).
+- **Thème / détail — personne suivie** : pour les types qui suivent une personne précise
+  (Accompagnement individuel, Inspection/EAE), un menu déroulant propose d'abord les enseignants
+  réels de l'école (issus de la structure pédagogique) au lieu de ressaisir un nom à la main ; le
+  choix recopie sa valeur dans le champ texte, qui reste modifiable et sert de repli (« Autre / non
+  listé… ») quand la personne n'y figure pas encore. Voir `remplirPersonneSuivie()` dans
+  `js/type-selector.js`, utilisé par `ecole.html`, `conseiller.html` et `saisie-rapide.html`.
 - **Espace formateurs** (`conseillers.html` → `conseiller.html`) : chaque intervenant (CPC, PEMF,
   secrétariat, IAP — CPC/PEMF/IAP sont tous des formateurs) peut saisir une action et l'attribuer
   en une fois à une ou plusieurs écoles
@@ -77,7 +83,12 @@ rien ne peut être enregistré durablement.
   la liste proposée aux suivantes. Les anciens types (avant cette typologie) restent lisibles dans
   l'historique via `TYPES_HERITES`, sans être proposés à la nouvelle saisie. La précision d'« Instance
   d'école » inclut aussi la visite d'accompagnement (VA) et la résidence pédagogique, aux côtés des
-  conseils de cycle/maîtres/école.
+  conseils de cycle/maîtres/école. Le champ « action personnalisée » rappelle de ne pas y noter « à
+  la demande de… » (c'est le rôle du champ Origine, à l'étape suivante) — pour nettoyer les
+  doublons déjà accumulés dans le repo de données, voir « Nettoyer les types personnalisés en
+  double » sur `maj-listes.html` : liste chaque type personnalisé enregistré avec son nombre
+  d'utilisations, et permet de le fusionner vers un type officiel (réaffecte automatiquement les
+  interventions concernées) ou de le supprimer s'il n'est utilisé nulle part.
 - **Intervenants** (`conseillers.html`) : ajout et suppression manuels d'intervenants (nom + rôle
   parmi conseiller pédagogique / PEMF / secrétariat / IAP).
 - **Écoles de référence** (`conseiller.html`) : chaque intervenant peut cocher ses écoles de

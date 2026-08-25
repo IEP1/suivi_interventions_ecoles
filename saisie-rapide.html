@@ -48,6 +48,7 @@
         <div id="chips-types"></div>
         <div id="zone-perso" style="display:none;margin-top:10px;">
           <input type="text" id="type-personnalise" placeholder="Préciser l'action…">
+          <p class="intro" style="margin:6px 0 0;">Réservé aux actions vraiment nouvelles — inutile de préciser ici « à la demande de… », c'est le rôle du champ Origine, à l'étape suivante.</p>
         </div>
         <div class="champ" id="bloc-profil" style="display:none;margin-top:10px;margin-bottom:0;">
           <label for="sr-profil">Profil / public</label>
@@ -75,6 +76,7 @@
         </div>
         <div class="champ">
           <label for="sr-theme">Thème / détail <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
+          <select id="sr-personne-suivie" style="display:none;margin-bottom:8px;"></select>
           <input type="text" id="sr-theme" placeholder="Facultatif">
         </div>
         <div class="champ" style="margin-bottom:0;">
@@ -116,10 +118,11 @@
 
 <p class="pied">IEP1 — Saisie rapide</p>
 
-<script src="js/seed-data.js?v=16"></script>
+<script src="js/seed-data.js?v=17"></script>
 <script src="js/github-store.js?v=7"></script>
 <script src="js/data-store.js?v=10"></script>
 <script src="js/stats.js?v=12"></script>
+<script src="js/type-selector.js?v=9"></script>
 <script src="js/assistant-etapes.js?v=5"></script>
 <script src="js/google-calendar.js?v=11"></script>
 <script src="js/layout.js?v=14"></script>
@@ -265,6 +268,13 @@ function rendreChipsEcoleUnique() {
   document.getElementById('zone-lieu-libre').style.display = ecoleIdChoisie === '__autre__' ? 'block' : 'none';
 }
 
+/* Le menu « personne suivie » n'apparaît que pour une école précise (pas « Autre » / pas d'école). */
+async function rendrePersonneSuivieRapide() {
+  const uneEcole = ecoleIdChoisie && ecoleIdChoisie !== '__autre__';
+  const equipe = uneEcole ? await Store.chargerEquipeEcole(ecoleIdChoisie) : null;
+  remplirPersonneSuivie('sr-personne-suivie', 'sr-theme', typeIdChoisi, equipe);
+}
+
 function reinitialiserFormulaire() {
   typeIdChoisi = undefined;
   document.getElementById('type-personnalise').value = '';
@@ -275,6 +285,7 @@ function reinitialiserFormulaire() {
   document.getElementById('sr-origine').value = '';
   document.getElementById('sr-theme').value = '';
   document.getElementById('sr-notes').value = '';
+  document.getElementById('sr-personne-suivie').style.display = 'none';
   document.getElementById('sr-date').value = new Date().toISOString().slice(0, 10);
 }
 
@@ -383,7 +394,7 @@ async function init() {
           return (!typeIdChoisi && !perso) ? "Choisis un type d'intervention." : true;
         } },
       { id: 'ou', titre: 'Où ?', onEntree: rendreChipsEcoleUnique },
-      { id: 'details', titre: 'Détails' }
+      { id: 'details', titre: 'Détails', onEntree: rendrePersonneSuivieRapide }
     ],
     construireRecap: construireRecapSaisieRapide,
     onValider: enregistrer,
