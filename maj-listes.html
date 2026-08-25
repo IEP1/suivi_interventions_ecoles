@@ -19,12 +19,13 @@
       Connectez d'abord le repo via <strong>⚙ Données</strong> ci-dessus si ce n'est pas déjà fait.
     </p>
     <p class="alerte alerte-warn">
-      Écoles et intervenants sont <strong>remplacés</strong> par la version actuelle du code : tout
-      ajout ou changement fait uniquement depuis l'application (écoles de référence, nouvel
-      intervenant...) sera perdu. Les <strong>types d'intervention</strong>, eux, sont
-      <strong>fusionnés</strong> : les types déjà utilisés et les types personnalisés créés en cours
-      d'usage sont conservés, seuls les types explicitement retirés de la typologie officielle
-      (ex. Instruction à domicile, Agrément) sont supprimés de la liste.
+      Les <strong>écoles</strong> sont <strong>remplacées</strong> par la version actuelle du code :
+      tout ajout ou changement fait uniquement depuis l'application (écoles de référence...) sera
+      perdu. Les <strong>intervenants</strong> et les <strong>types d'intervention</strong>, eux,
+      sont <strong>fusionnés</strong> : un intervenant ou un type déjà présent dans votre repo (nom
+      personnalisé compris) n'est jamais écrasé — seuls les nouveaux (absents du repo) sont ajoutés
+      depuis le code, et seuls les types explicitement retirés de la typologie officielle (ex.
+      Instruction à domicile, Agrément) sont supprimés.
     </p>
     <div id="alerte-zone"></div>
     <div class="groupe-btns">
@@ -69,7 +70,7 @@
 
 <p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
 
-<script src="js/seed-data.js?v=17"></script>
+<script src="js/seed-data.js?v=18"></script>
 <script src="js/github-store.js?v=7"></script>
 <script src="js/data-store.js?v=10"></script>
 <script src="js/google-calendar.js?v=11"></script>
@@ -81,7 +82,7 @@ function log(msg) { document.getElementById('journal').textContent += msg + '\n'
 function afficherAlerte(msg, classe) { document.getElementById('alerte-zone').innerHTML = `<div class="alerte ${classe}">${msg}</div>`; }
 
 document.getElementById('btn-maj').addEventListener('click', async () => {
-  if (!confirm("Écraser la liste des écoles et des intervenants sur GitHub avec la version actuelle du code (js/seed-data.js) ? Tout ajout/suppression déjà fait depuis l'application sera perdu. Les types d'intervention, eux, seront fusionnés (les types personnalisés déjà créés sont conservés).")) return;
+  if (!confirm("Écraser la liste des écoles sur GitHub avec la version actuelle du code (js/seed-data.js) ? Tout ajout/suppression déjà fait depuis l'application sera perdu. Intervenants et types d'intervention, eux, seront fusionnés (noms personnalisés et types personnalisés déjà créés conservés).")) return;
   if (!ghConfig.isConfigured()) { afficherAlerte("Connectez d'abord le repo de données via ⚙ Données.", 'alerte-err'); return; }
   document.getElementById('journal').textContent = '';
   try {
@@ -89,8 +90,14 @@ document.getElementById('btn-maj').addEventListener('click', async () => {
     log('✓ Liste des écoles mise à jour.');
   } catch (e) { log('✗ Écoles : ' + e.message); }
   try {
-    await Store.sauvegarderIntervenants(SEED_INTERVENANTS);
-    log('✓ Liste des intervenants mise à jour.');
+    // Fusion, jamais remplacement : un intervenant déjà présent dans le repo (nom réel renseigné)
+    // garde sa fiche telle quelle — seuls les id absents du repo sont ajoutés depuis le code (avec
+    // leur nom de démonstration, à renommer ensuite depuis l'appli si besoin).
+    const intervenantsActuels = await Store.chargerIntervenants();
+    const parId = new Map(intervenantsActuels.map(i => [i.id, i]));
+    SEED_INTERVENANTS.forEach(i => { if (!parId.has(i.id)) parId.set(i.id, i); });
+    await Store.sauvegarderIntervenants(Array.from(parId.values()));
+    log('✓ Liste des intervenants mise à jour (noms déjà personnalisés dans votre repo conservés).');
   } catch (e) { log('✗ Intervenants : ' + e.message); }
   try {
     // Types retirés de la typologie officielle : plus jamais proposés à la saisie, mais laissés en

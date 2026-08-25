@@ -90,7 +90,12 @@ rien ne peut être enregistré durablement.
   d'utilisations, et permet de le fusionner vers un type officiel (réaffecte automatiquement les
   interventions concernées) ou de le supprimer s'il n'est utilisé nulle part.
 - **Intervenants** (`conseillers.html`) : ajout et suppression manuels d'intervenants (nom + rôle
-  parmi conseiller pédagogique / PEMF / secrétariat / IAP).
+  parmi conseiller pédagogique / PEMF / secrétariat / IAP). Les noms dans `SEED_INTERVENANTS`
+  (`js/seed-data.js`, public) sont volontairement des noms de démonstration génériques — les vrais
+  noms des formateurs ne vivent que dans `intervenants.json` du repo privé de données. Les `id`,
+  eux, sont stables entre code et repo privé (ne pas les changer). `maj-listes.html` **fusionne**
+  les intervenants (comme les types) : un nom déjà personnalisé dans le repo privé n'est jamais
+  écrasé par le nom de démonstration du code.
 - **Écoles de référence** (`conseiller.html`) : chaque intervenant peut cocher ses écoles de
   référence depuis sa propre page, pour y accéder plus vite et pré-remplir automatiquement la
   liste lors de la saisie d'une action groupée.

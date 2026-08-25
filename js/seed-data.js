@@ -40,20 +40,26 @@ const TYPES_ECOLE = {
 };
 
 /*
- * Intervenants pouvant saisir des interventions : les 5 conseillers
- * pédagogiques (CPC) référents des écoles ci-dessus, plus le secrétariat et
- * l'IAP (qui saisissent occasionnellement pour leur propre compte ou pour le
- * compte d'un CPC). CPC, PEMF et IAP sont tous des formateurs.
+ * Intervenants pouvant saisir des interventions : les conseillers pédagogiques
+ * (CPC) référents des écoles ci-dessus, plus le secrétariat et l'IAP (qui
+ * saisissent occasionnellement pour leur propre compte ou pour le compte d'un
+ * CPC). CPC, PEMF et IAP sont tous des formateurs.
+ *
+ * Noms de démonstration volontairement génériques : les vrais noms des formateurs
+ * ne vivent que dans le repo privé de données (intervenants.json), jamais ici —
+ * voir la « frontière vie privée » dans le README. Les id, eux, restent stables
+ * (ce sont les mêmes que dans le repo privé et dans l'historique des interventions
+ * déjà enregistrées) ; ne pas les changer.
  */
 const SEED_INTERVENANTS = [
-  { id: 'cyrille', nom: 'Cyrille PHILIPPE', role: 'iap' },
-  { id: 'nadia', nom: 'Nadia CAFFA', role: 'cpc' },
-  { id: 'nadege', nom: 'Nadège REDON', role: 'cpc' },
-  { id: 'vaea', nom: 'Vaéa DOUARCHE', role: 'cpc' },
-  { id: 'stephanie', nom: 'Stéphanie MATHELON', role: 'cpc' },
-  { id: 'marielouise', nom: 'Marie-Louise KAKUE', role: 'cpc' },
-  { id: 'vincent', nom: 'Vincent RENAIS', role: 'cpc' },
-  { id: 'mareen', nom: 'Mareen BASTIEN', role: 'secretariat' }
+  { id: 'cyrille', nom: 'IAP (démo)', role: 'iap' },
+  { id: 'nadia', nom: 'CPC 1 (démo)', role: 'cpc' },
+  { id: 'nadege', nom: 'CPC 2 (démo)', role: 'cpc' },
+  { id: 'vaea', nom: 'CPC 3 (démo)', role: 'cpc' },
+  { id: 'stephanie', nom: 'CPC 4 (démo)', role: 'cpc' },
+  { id: 'marielouise', nom: 'CPC 5 (démo)', role: 'cpc' },
+  { id: 'vincent', nom: 'CPC 6 (démo)', role: 'cpc' },
+  { id: 'mareen', nom: 'Secrétariat (démo)', role: 'secretariat' }
 ];
 
 /*
