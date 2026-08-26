@@ -77,11 +77,13 @@ const SEED_TYPES_INTERVENTION = [
   { id: 'accompagnement-individuel', label: 'Accompagnement individuel', categorie: 'accompagnement', enEcole: true },
   { id: 'accompagnement-equipe', label: "Accompagnement d'équipe", categorie: 'accompagnement', enEcole: true },
   { id: 'instance-ecole', label: "Instance d'école", categorie: 'accompagnement', enEcole: true },
+  { id: 'animation-pedagogique', label: 'Animation pédagogique', categorie: 'formation', enEcole: true },
   { id: 'formation-donnee', label: 'Formation donnée', categorie: 'formation', enEcole: true },
   { id: 'formation-recue', label: 'Formation reçue', categorie: 'formation', enEcole: false },
   { id: 'projet-ecole', label: "Projet d'école", categorie: 'projets', enEcole: true },
-  { id: 'liaison-intercycles', label: 'Liaison inter-cycles', categorie: 'projets', enEcole: true },
   { id: 'action-projet-pedagogique', label: 'Projet pédagogique', categorie: 'projets', enEcole: true },
+  { id: 'liaison-intercycles', label: 'Liaison inter-cycles', categorie: 'projets', enEcole: true },
+  { id: 'gt-groupe-travail', label: 'GT (Groupe de Travail)', categorie: 'circonscription', enEcole: false },
   { id: 'groupe-travail-referent', label: 'Mission référent', categorie: 'circonscription', enEcole: false },
   { id: 'reunion-circonscription', label: 'Réunion de circonscription', categorie: 'circonscription', enEcole: false },
   { id: 'inspection-eae', label: 'Inspection / EAE', categorie: 'circonscription', enEcole: true },
@@ -100,15 +102,32 @@ const PROFILS_PAR_TYPE = {
   'accompagnement-individuel': ['T0', 'T1', 'T2', 'T3', 'Titulaire', 'Remplaçant', 'Stagiaire', 'Direction'],
   'inspection-eae': ['T0', 'T1', 'T2', 'T3', 'Titulaire', 'Remplaçant', 'Stagiaire', 'Direction'],
   'accompagnement-equipe': ['Équipe complète', 'Équipe de cycle', 'Groupe'],
-  'instance-ecole': ['Conseil de cycle', 'Conseil des maîtres', "Conseil d'école", 'Visite d\'accompagnement (VA)', 'Résidence pédagogique']
+  'instance-ecole': ['Conseil de cycle', 'Conseil des maîtres', "Conseil d'école", 'Visite d\'accompagnement (VA)', 'Résidence pédagogique'],
+  'liaison-intercycles': ['SG-CP', 'CM2-6ème'],
+  'action-projet-pedagogique': ['Projet fédérateur', "Projet d'action de classe"]
 };
 
 /*
- * Types dont le champ "Thème / détail" est particulièrement utile (formation : quel sujet ; mission
- * référent : laquelle) — sert à déplier automatiquement les détails en saisie rapide pour ne pas
- * les faire chercher un onglet en plus.
+ * Types pour lesquels le champ « Thème / détail » a un sens (typologie officielle, colonne
+ * "Comment ça se remplit") — la clé conditionne à la fois l'affichage du champ (masqué sinon,
+ * ex. Réunion de circonscription qui n'en a pas) et son texte d'exemple. Affiché en plus du profil
+ * pour les types qui ont les deux (ex. Projet pédagogique : profil fédérateur/classe + nom du
+ * projet). Les types à « personne suivie » (TYPES_PERSONNE_SUIVIE) ont leur propre widget, pas
+ * besoin d'entrée ici.
  */
-const TYPES_THEME_SUGGERE = ['formation-donnee', 'formation-recue', 'groupe-travail-referent'];
+const DETAIL_THEME_PAR_TYPE = {
+  'animation-pedagogique': 'Ex : Différenciation en maths — quel sujet',
+  'formation-donnee': 'Ex : Journée de formation Narramus — quel sujet',
+  'formation-recue': 'Ex : Séminaire DENC — quel sujet',
+  'projet-ecole': "Ex : Aide à l'écriture du projet — quel type d'aide",
+  'action-projet-pedagogique': 'Ex : Nom du projet',
+  'gt-groupe-travail': 'Ex : Nom du GT',
+  'groupe-travail-referent': 'Ex : Quelle mission',
+  'jury-correction': 'Ex : Quel sujet / jury',
+  'redaction-sujets': 'Ex : Quel sujet',
+  'situation-particuliere': 'Ex : Détails',
+  'tache-administrative': 'Ex : Détails'
+};
 
 /*
  * Types qui suivent une personne précise plutôt qu'un thème général — le champ « Thème / détail »

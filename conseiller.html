@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Espace formateur — Suivi des interventions IEP1</title>
-<link rel="stylesheet" href="css/style.css?v=14">
+<link rel="stylesheet" href="css/style.css?v=15">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -12,7 +12,7 @@
 <div id="entete-app"></div>
 
 <main>
-  <p class="no-print"><a href="conseillers.html">&larr; Changer de conseiller</a></p>
+  <p class="no-print"><a href="conseillers.html">&larr; Changer de formateur</a></p>
 
   <div id="zone-chargement" class="alerte alerte-info">Chargement…</div>
 
@@ -43,24 +43,7 @@
         <div class="assistant-barre"><span style="width:0%"></span></div>
       </div>
 
-      <div class="etape-assistant" data-etape="quoi">
-        <div class="champ">
-          <label for="ci-type">Type d'intervention</label>
-          <select id="ci-type"></select>
-        </div>
-        <div class="champ">
-          <label for="type-personnalise">…ou action personnalisée (libellé libre)</label>
-          <input type="text" id="type-personnalise" placeholder="Ex : Médiation avec une famille">
-          <p class="intro" style="margin:6px 0 0;">Réservé aux actions vraiment nouvelles — inutile de préciser ici « à la demande de… », c'est le rôle du champ Origine, à l'étape suivante.</p>
-        </div>
-        <div class="champ" id="bloc-profil" style="display:none;margin-bottom:0;">
-          <label for="ci-profil">Profil / public</label>
-          <select id="ci-profil"></select>
-          <div id="ci-precision-equipe" style="display:none;"></div>
-        </div>
-      </div>
-
-      <div class="etape-assistant" data-etape="ou" style="display:none;">
+      <div class="etape-assistant" data-etape="ou">
         <label>Où ?</label>
         <div class="onglets">
           <button type="button" class="onglet actif" id="onglet-mode-referentes">Mes écoles de référence</button>
@@ -77,6 +60,28 @@
         </div>
       </div>
 
+      <div class="etape-assistant" data-etape="quoi" style="display:none;">
+        <div class="champ">
+          <label for="ci-type">Type d'intervention</label>
+          <select id="ci-type"></select>
+        </div>
+        <div class="champ">
+          <label for="type-personnalise">…ou action personnalisée (libellé libre)</label>
+          <input type="text" id="type-personnalise" placeholder="Ex : Médiation avec une famille">
+          <p class="intro" style="margin:6px 0 0;">Réservé aux actions vraiment nouvelles — inutile de préciser ici « à la demande de… », c'est le rôle du champ Origine, à l'étape suivante.</p>
+        </div>
+        <div class="champ" id="bloc-profil" style="display:none;margin-bottom:0;">
+          <label for="ci-profil">Profil / public</label>
+          <select id="ci-profil"></select>
+          <div id="ci-precision-equipe" style="display:none;"></div>
+        </div>
+        <div class="champ" id="bloc-theme" style="display:none;margin-bottom:0;margin-top:14px;">
+          <label for="ci-theme">Thème / détail <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
+          <select id="ci-personne-suivie" style="display:none;margin-bottom:8px;"></select>
+          <input type="text" id="ci-theme" placeholder="">
+        </div>
+      </div>
+
       <div class="etape-assistant" data-etape="details" style="display:none;">
         <div class="champ">
           <label for="ci-date">Date</label>
@@ -85,11 +90,6 @@
         <div class="champ">
           <label for="ci-origine">Origine <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
           <select id="ci-origine"></select>
-        </div>
-        <div class="champ">
-          <label for="ci-theme">Thème / détail <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
-          <select id="ci-personne-suivie" style="display:none;margin-bottom:8px;"></select>
-          <input type="text" id="ci-theme" placeholder="Ex : Journée de formation Narramus">
         </div>
         <div class="champ" style="margin-bottom:0;">
           <label for="ci-notes">Notes <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
@@ -125,6 +125,14 @@
           </div>
           <div>
             <p class="intro" style="margin-bottom:8px;"><span id="bilan-total"></span> action(s) en école prises en compte dans ce bilan (les actions hors école partent vers Google Agenda mais ne comptent pas ici).</p>
+            <p class="intro" style="margin:0 0 6px;font-weight:600;">Répartition par catégorie</p>
+            <div class="table-wrap" style="margin-bottom:16px;">
+              <table>
+                <thead><tr><th>Catégorie</th><th>Nb</th><th>%</th></tr></thead>
+                <tbody id="corps-bilan-categories"></tbody>
+              </table>
+            </div>
+            <p class="intro" style="margin:0 0 6px;font-weight:600;">Détail par type</p>
             <div class="table-wrap">
               <table>
                 <thead><tr><th>Type</th><th>Nb</th><th>%</th></tr></thead>
@@ -140,7 +148,7 @@
       <h3 style="margin-top:0;">Dernières actions saisies par cet intervenant</h3>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Date</th><th>Type</th><th>École</th><th>Thème / personne</th></tr></thead>
+          <thead><tr><th>Date</th><th>Type</th><th>École</th><th>Thème / personne</th><th class="no-print"></th></tr></thead>
           <tbody id="corps-historique"></tbody>
         </table>
       </div>
@@ -149,13 +157,59 @@
   </div>
 </main>
 
+<!-- Modale modification d'une action déjà enregistrée -->
+<div class="fond-modale no-print" id="modale-modif-action">
+  <div class="contenu-modale">
+    <h3>Modifier l'action</h3>
+    <div class="champ">
+      <label for="mod-type">Type d'intervention</label>
+      <select id="mod-type"></select>
+    </div>
+    <div class="champ" id="mod-bloc-profil" style="display:none;">
+      <label for="mod-profil">Profil / public</label>
+      <select id="mod-profil"></select>
+      <div id="mod-precision-equipe" style="display:none;"></div>
+    </div>
+    <div class="champ" id="mod-bloc-theme" style="display:none;">
+      <label for="mod-theme">Thème / détail <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
+      <select id="mod-personne-suivie" style="display:none;margin-bottom:8px;"></select>
+      <input type="text" id="mod-theme" placeholder="">
+    </div>
+    <div class="champ">
+      <label for="mod-ecole">École</label>
+      <select id="mod-ecole"></select>
+    </div>
+    <div class="champ" id="mod-bloc-lieu-libre" style="display:none;">
+      <label for="mod-lieu-libre">Lieu <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
+      <input type="text" id="mod-lieu-libre" placeholder="Ex : DENC, domicile, Médipôle…">
+    </div>
+    <div class="champ">
+      <label for="mod-date">Date</label>
+      <input type="date" id="mod-date">
+    </div>
+    <div class="champ">
+      <label for="mod-origine">Origine <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
+      <select id="mod-origine"></select>
+    </div>
+    <div class="champ" style="margin-bottom:0;">
+      <label for="mod-notes">Notes <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
+      <textarea id="mod-notes" rows="3"></textarea>
+    </div>
+    <p class="alerte" id="mod-message" style="display:none;margin-top:12px;"></p>
+    <div class="groupe-btns" style="margin-top:14px;justify-content:flex-end;">
+      <button class="btn btn-secondaire" id="btn-annuler-modif" type="button">Annuler</button>
+      <button class="btn btn-primaire" id="btn-valider-modif" type="button">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
 
-<script src="js/seed-data.js?v=19"></script>
+<script src="js/seed-data.js?v=20"></script>
 <script src="js/github-store.js?v=7"></script>
-<script src="js/data-store.js?v=10"></script>
+<script src="js/data-store.js?v=11"></script>
 <script src="js/stats.js?v=12"></script>
-<script src="js/type-selector.js?v=10"></script>
+<script src="js/type-selector.js?v=11"></script>
 <script src="js/assistant-etapes.js?v=5"></script>
 <script src="js/school-picker.js?v=7"></script>
 <script src="js/google-calendar.js?v=11"></script>
@@ -178,12 +232,16 @@ let graphBilanCategorie = null;
 let assistant = null;
 
 function majVisibiliteProfil() {
-  const options = PROFILS_PAR_TYPE[selecteurType.typeSelectionneId()];
+  const typeId = selecteurType.typeSelectionneId();
+  const options = PROFILS_PAR_TYPE[typeId];
   const bloc = document.getElementById('bloc-profil');
   bloc.style.display = options ? 'block' : 'none';
   document.getElementById('ci-profil').innerHTML = options
     ? '<option value="">—</option>' + options.map(o => `<option value="${o}">${o}</option>`).join('')
     : '';
+  document.getElementById('ci-precision-equipe').style.display = 'none';
+  majVisibiliteThemeDetail({ blocId: 'bloc-theme', inputId: 'ci-theme', typeId, placeholderPersonneSuivie: 'Ex : GURRERA Alexia — différenciation en maths' });
+  rendrePersonneSuivieAction();
 }
 
 function remplirSelectOrigine() {
@@ -368,19 +426,144 @@ async function validerAction() {
   }
 }
 
+let HISTORIQUE_ACTIONS = [];
+
 async function chargerHistorique() {
-  const mesActions = (await Store.chargerToutesLesActionsIntervenant(intervenantId))
+  HISTORIQUE_ACTIONS = (await Store.chargerToutesLesActionsIntervenant(intervenantId))
     .sort((a, b) => b.date.localeCompare(a.date) || b.horodatage.localeCompare(a.horodatage));
   const corps = document.getElementById('corps-historique');
-  corps.innerHTML = mesActions.slice(0, 30).map(iv => {
+  corps.innerHTML = HISTORIQUE_ACTIONS.slice(0, 30).map(iv => {
     return `<tr>
       <td>${formaterDate(iv.date)}</td>
       <td>${libelleType(iv.typeId, TYPES)}</td>
       <td>${iv.ecoleId ? `<a href="ecole.html?id=${iv.ecoleId}">${iv.ecoleNom}</a>` : '—'}</td>
       <td>${iv.theme || '—'}</td>
+      <td class="no-print" style="white-space:nowrap;">
+        <button type="button" class="btn-icone" title="Modifier" data-modif="${iv.id}">✎</button>
+        <button type="button" class="btn-icone" title="Supprimer" data-suppr="${iv.id}">✕</button>
+      </td>
     </tr>`;
   }).join('');
-  document.getElementById('msg-vide-historique').style.display = mesActions.length ? 'none' : 'block';
+  document.getElementById('msg-vide-historique').style.display = HISTORIQUE_ACTIONS.length ? 'none' : 'block';
+  corps.querySelectorAll('[data-modif]').forEach(btn => btn.addEventListener('click', () => ouvrirModaleModif(btn.dataset.modif)));
+  corps.querySelectorAll('[data-suppr]').forEach(btn => btn.addEventListener('click', () => supprimerActionHistorique(btn.dataset.suppr)));
+}
+
+let selecteurTypeModif = null;
+let actionEnModification = null;
+
+function remplirSelectEcoleModif(ecoleIdActuelle) {
+  document.getElementById('mod-ecole').innerHTML = '<option value="">— Aucune école —</option>' +
+    ECOLES.map(e => `<option value="${e.id}" ${e.id === ecoleIdActuelle ? 'selected' : ''}>${e.nom}</option>`).join('');
+}
+
+async function rafraichirEquipeModif() {
+  const typeId = selecteurTypeModif.typeSelectionneId();
+  const ecoleId = document.getElementById('mod-ecole').value;
+  const equipe = ecoleId ? await Store.chargerEquipeEcole(ecoleId) : null;
+  remplirPersonneSuivie('mod-personne-suivie', 'mod-theme', typeId, equipe);
+  rendrePrecisionEquipe('mod-precision-equipe', document.getElementById('mod-profil').value, equipe);
+}
+
+async function majDetailModif() {
+  const typeId = selecteurTypeModif.typeSelectionneId();
+  const options = PROFILS_PAR_TYPE[typeId];
+  const blocProfil = document.getElementById('mod-bloc-profil');
+  blocProfil.style.display = options ? 'block' : 'none';
+  document.getElementById('mod-profil').innerHTML = options
+    ? '<option value="">—</option>' + options.map(o => `<option value="${o}">${o}</option>`).join('')
+    : '';
+  document.getElementById('mod-precision-equipe').style.display = 'none';
+  majVisibiliteThemeDetail({ blocId: 'mod-bloc-theme', inputId: 'mod-theme', typeId, placeholderPersonneSuivie: 'Ex : GURRERA Alexia — différenciation en maths' });
+  await rafraichirEquipeModif();
+}
+
+function ouvrirModaleModif(actionId) {
+  const action = HISTORIQUE_ACTIONS.find(a => a.id === actionId);
+  if (!action) return;
+  actionEnModification = action;
+  document.getElementById('mod-message').style.display = 'none';
+  remplirSelectEcoleModif(action.ecoleId);
+  document.getElementById('mod-bloc-lieu-libre').style.display = action.ecoleId ? 'none' : 'block';
+  document.getElementById('mod-lieu-libre').value = action.lieuLibre || '';
+  document.getElementById('mod-origine').innerHTML = '<option value="">—</option>' +
+    ORIGINES_INTERVENTION.map(o => `<option value="${o}">${o}</option>`).join('');
+  document.getElementById('mod-origine').value = action.origine || '';
+  document.getElementById('mod-date').value = action.date;
+  document.getElementById('mod-notes').value = action.notes || '';
+  selecteurTypeModif.reset();
+  document.getElementById('mod-type').value = action.typeId;
+  majDetailModif().then(async () => {
+    const match = /^(.*?)(?: \(([^)]+)\))?$/.exec(action.profil || '');
+    const profilBase = match ? match[1] : (action.profil || '');
+    const precisions = match && match[2] ? match[2].split(', ') : [];
+    if (PROFILS_PAR_TYPE[action.typeId]) document.getElementById('mod-profil').value = profilBase;
+    document.getElementById('mod-theme').value = action.theme || '';
+    await rafraichirEquipeModif();
+    precisions.forEach(val => {
+      const chk = document.querySelector(`#mod-precision-equipe .chk-precision-equipe[value="${CSS.escape(val)}"]`);
+      if (chk) chk.checked = true;
+    });
+  });
+  document.getElementById('modale-modif-action').classList.add('ouverte');
+}
+
+function fermerModaleModif() {
+  document.getElementById('modale-modif-action').classList.remove('ouverte');
+}
+
+async function validerModifAction() {
+  const btn = document.getElementById('btn-valider-modif');
+  const msg = document.getElementById('mod-message');
+  const date = document.getElementById('mod-date').value;
+  if (!date) { msg.className = 'alerte alerte-warn'; msg.textContent = 'Merci de renseigner une date.'; msg.style.display = 'block'; return; }
+  btn.disabled = true;
+  try {
+    const typeId = selecteurTypeModif.typeSelectionneId();
+    const type = TYPES.find(t => t.id === typeId);
+    const nouvelEcoleId = document.getElementById('mod-ecole').value || null;
+    const nouvelleEcole = nouvelEcoleId ? ECOLES.find(e => e.id === nouvelEcoleId) : null;
+    const profil = valeurProfilAvecPrecision('mod-precision-equipe', document.getElementById('mod-profil').value);
+    const nouvelleAction = {
+      id: actionEnModification.id,
+      date, typeId,
+      intervenantId,
+      theme: document.getElementById('mod-theme').value.trim(),
+      notes: document.getElementById('mod-notes').value.trim(),
+      profil,
+      origine: document.getElementById('mod-origine').value,
+      horodatage: actionEnModification.horodatage
+    };
+    if (!nouvelEcoleId) nouvelleAction.lieuLibre = document.getElementById('mod-lieu-libre').value.trim();
+    if (actionEnModification.groupeId) nouvelleAction.groupeId = actionEnModification.groupeId;
+
+    await Store.remplacerAction(
+      intervenantId, INTERVENANT.nom,
+      actionEnModification.ecoleId, actionEnModification.ecoleNom,
+      nouvelleAction,
+      nouvelEcoleId, nouvelleEcole ? nouvelleEcole.nom : null
+    );
+    fermerModaleModif();
+    await chargerHistorique();
+    await rendreBilan();
+  } catch (e) {
+    msg.className = 'alerte alerte-err'; msg.textContent = e.message; msg.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function supprimerActionHistorique(actionId) {
+  const action = HISTORIQUE_ACTIONS.find(a => a.id === actionId);
+  if (!action) return;
+  if (!confirm(`Supprimer définitivement cette action (${libelleType(action.typeId, TYPES)}, ${formaterDate(action.date)}) ?`)) return;
+  try {
+    await Store.supprimerAction(intervenantId, INTERVENANT.nom, action.id, action.ecoleId, action.ecoleNom);
+    await chargerHistorique();
+    await rendreBilan();
+  } catch (e) {
+    alert('Échec de la suppression : ' + e.message);
+  }
 }
 
 function remplirSelecteurAnneeBilan() {
@@ -401,6 +584,9 @@ async function rendreBilan() {
   if (!bilan.total) return;
 
   document.getElementById('bilan-total').textContent = bilan.total;
+
+  document.getElementById('corps-bilan-categories').innerHTML = bilan.parCategorie.map(c =>
+    `<tr><td>${c.label}</td><td>${c.n}</td><td>${c.pct}%</td></tr>`).join('');
 
   document.getElementById('corps-bilan-types').innerHTML = bilan.parType.map(t =>
     `<tr><td>${t.label}</td><td>${t.n}</td><td>${t.pct}%</td></tr>`).join('');
@@ -430,15 +616,16 @@ async function init() {
   document.getElementById('titre-intervenant').textContent = INTERVENANT.nom;
   document.getElementById('ci-date').value = new Date().toISOString().slice(0, 10);
   selecteurType = initialiserSelecteurType({ selTypeId: 'ci-type', inputPersonaliseId: 'type-personnalise', types: TYPES });
+  selecteurTypeModif = initialiserSelecteurType({ selTypeId: 'mod-type', types: TYPES });
   assistant = creerAssistant({
     racine: document.getElementById('carte-assistant-action'),
     etapes: [
-      { id: 'quoi', titre: 'Quoi ?', valider: () => {
+      { id: 'ou', titre: 'Où ?' },
+      { id: 'quoi', titre: 'Quoi ?', onEntree: majVisibiliteProfil, valider: () => {
           const perso = document.getElementById('type-personnalise').value.trim();
           return (selecteurType.typeSelectionneId() || perso) ? true : "Merci de choisir un type d'intervention ou de saisir une action personnalisée.";
         } },
-      { id: 'ou', titre: 'Où ?' },
-      { id: 'details', titre: 'Détails', onEntree: rendrePersonneSuivieAction, valider: () => document.getElementById('ci-date').value ? true : 'Merci de renseigner une date.' }
+      { id: 'details', titre: 'Détails', valider: () => document.getElementById('ci-date').value ? true : 'Merci de renseigner une date.' }
     ],
     construireRecap: construireRecapAction,
     onValider: validerAction,
@@ -465,7 +652,16 @@ document.getElementById('onglet-mode-choisir').addEventListener('click', () => b
 document.getElementById('onglet-mode-autre').addEventListener('click', () => basculerModeAction('autre'));
 document.getElementById('ci-type').addEventListener('change', majVisibiliteProfil);
 document.getElementById('type-personnalise').addEventListener('input', majVisibiliteProfil);
+document.getElementById('ci-profil').addEventListener('change', () => rendrePersonneSuivieAction());
 document.getElementById('sel-annee-bilan').addEventListener('change', () => rendreBilan());
+document.getElementById('mod-type').addEventListener('change', majDetailModif);
+document.getElementById('mod-ecole').addEventListener('change', () => {
+  document.getElementById('mod-bloc-lieu-libre').style.display = document.getElementById('mod-ecole').value ? 'none' : 'block';
+  rafraichirEquipeModif();
+});
+document.getElementById('mod-profil').addEventListener('change', rafraichirEquipeModif);
+document.getElementById('btn-annuler-modif').addEventListener('click', fermerModaleModif);
+document.getElementById('btn-valider-modif').addEventListener('click', validerModifAction);
 
 if (!intervenantId) {
   document.getElementById('zone-chargement').className = 'alerte alerte-err';

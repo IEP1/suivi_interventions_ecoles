@@ -116,6 +116,10 @@ h3 { font-size: 1.15rem; color: var(--navy); }
 .btn-sm { padding: 5px 10px; font-size: 0.78rem; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
+.btn-icone { border: none; background: transparent; cursor: pointer; font-size: 0.95rem; padding: 3px 6px; border-radius: 6px; color: var(--texte-muted); }
+.btn-icone:hover { background: var(--bleu-light); color: var(--navy); }
+.btn-icone[data-suppr]:hover { background: var(--corail-light); color: var(--corail); }
+
 /* ===== Cartes / panneaux ===== */
 .carte {
   background: var(--surface);

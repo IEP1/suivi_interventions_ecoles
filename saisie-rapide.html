@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Saisie rapide — IEP1</title>
-<link rel="stylesheet" href="css/style.css?v=14">
+<link rel="stylesheet" href="css/style.css?v=15">
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="IEP1 Saisie">
@@ -44,16 +44,24 @@
       </div>
 
       <div class="etape-assistant" data-etape="quoi" style="display:none;">
-        <label>Quoi ?</label>
-        <div id="chips-types"></div>
-        <div id="zone-perso" style="display:none;margin-top:10px;">
+        <div class="champ">
+          <label for="sr-type">Type d'intervention</label>
+          <select id="sr-type"></select>
+        </div>
+        <div class="champ">
+          <label for="type-personnalise">…ou action personnalisée (libellé libre)</label>
           <input type="text" id="type-personnalise" placeholder="Préciser l'action…">
           <p class="intro" style="margin:6px 0 0;">Réservé aux actions vraiment nouvelles — inutile de préciser ici « à la demande de… », c'est le rôle du champ Origine, à l'étape suivante.</p>
         </div>
-        <div class="champ" id="bloc-profil" style="display:none;margin-top:10px;margin-bottom:0;">
+        <div class="champ" id="bloc-profil" style="display:none;margin-bottom:0;">
           <label for="sr-profil">Profil / public</label>
           <select id="sr-profil"></select>
           <div id="sr-precision-equipe" style="display:none;"></div>
+        </div>
+        <div class="champ" id="bloc-theme" style="display:none;margin-bottom:0;margin-top:14px;">
+          <label for="sr-theme">Thème / détail <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
+          <select id="sr-personne-suivie" style="display:none;margin-bottom:8px;"></select>
+          <input type="text" id="sr-theme" placeholder="">
         </div>
       </div>
 
@@ -74,11 +82,6 @@
         <div class="champ">
           <label for="sr-origine">Origine <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
           <select id="sr-origine"></select>
-        </div>
-        <div class="champ">
-          <label for="sr-theme">Thème / détail <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
-          <select id="sr-personne-suivie" style="display:none;margin-bottom:8px;"></select>
-          <input type="text" id="sr-theme" placeholder="Facultatif">
         </div>
         <div class="champ" style="margin-bottom:0;">
           <label for="sr-notes">Notes <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
@@ -119,11 +122,11 @@
 
 <p class="pied">IEP1 — Saisie rapide</p>
 
-<script src="js/seed-data.js?v=19"></script>
+<script src="js/seed-data.js?v=20"></script>
 <script src="js/github-store.js?v=7"></script>
-<script src="js/data-store.js?v=10"></script>
+<script src="js/data-store.js?v=11"></script>
 <script src="js/stats.js?v=12"></script>
-<script src="js/type-selector.js?v=10"></script>
+<script src="js/type-selector.js?v=11"></script>
 <script src="js/assistant-etapes.js?v=5"></script>
 <script src="js/google-calendar.js?v=11"></script>
 <script src="js/layout.js?v=14"></script>
@@ -136,9 +139,9 @@ let INTERVENANTS = [];
 let ECOLES = [];
 let TYPES = [];
 let quiId = null;
-let typeIdChoisi; // undefined = rien choisi, null = "autre" (personnalisé), sinon un id de type
 let ecoleIdChoisie = null;
 let assistant = null;
+let selecteurType = null;
 
 function rendreChipsQui() {
   document.getElementById('chips-qui').innerHTML = INTERVENANTS.map(i =>
@@ -160,91 +163,22 @@ function rendreRecapAgenda() {
   document.getElementById('agenda-confirme').style.display = connecte ? 'block' : 'none';
 }
 
-/* Fréquence d'usage des types par personne (propre à cet appareil), pour faire remonter en tête
-   les actions habituelles au lieu de faire chercher dans les 6 catégories à chaque fois. */
-function cleFrequenceTypes(id) { return 'sie_saisie_rapide_freq_' + id; }
-function chargerFrequenceTypes(id) {
-  try { return JSON.parse(localStorage.getItem(cleFrequenceTypes(id)) || '{}'); } catch (e) { return {}; }
-}
-function incrementerFrequenceType(id, typeId) {
-  const freq = chargerFrequenceTypes(id);
-  freq[typeId] = (freq[typeId] || 0) + 1;
-  localStorage.setItem(cleFrequenceTypes(id), JSON.stringify(freq));
-}
-function typesFrequents(id, limite = 6) {
-  const freq = chargerFrequenceTypes(id);
-  return Object.entries(freq)
-    .filter(([, n]) => n >= 2)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, limite)
-    .map(([typeId]) => TYPES.find(t => t.id === typeId))
-    .filter(Boolean);
-}
-
-function rendreChipsTypes() {
-  const frequents = typesFrequents(quiId);
-  const categories = Object.keys(CATEGORIES_INTERVENTION).filter(c => c !== 'autre' && TYPES.some(t => t.categorie === c));
-  const personnalises = TYPES.filter(t => !CATEGORIES_INTERVENTION[t.categorie] || t.categorie === 'autre');
-
-  const chip = t => `<button type="button" class="chip-type" data-id="${t.id}">${t.label}</button>`;
-
-  const blocFrequents = frequents.length ? `
-    <div class="groupe-ecoles-titre" style="margin-top:0;">⭐ Vos actions fréquentes</div>
-    <div class="grille-types">
-      ${frequents.map(t => `<button type="button" class="chip-type frequent" data-id="${t.id}">${t.label}</button>`).join('')}
-    </div>
-  ` : '';
-
-  const blocCategories = categories.map(c => `
-    <div class="groupe-ecoles-titre" style="margin-top:14px;">${CATEGORIES_INTERVENTION[c]}</div>
-    <div class="grille-types">
-      ${TYPES.filter(t => t.categorie === c).map(chip).join('')}
-    </div>
-  `).join('');
-
-  const blocPersonnalises = personnalises.length ? `
-    <div class="groupe-ecoles-titre" style="margin-top:14px;">Actions personnalisées déjà utilisées</div>
-    <div class="grille-types">${personnalises.map(chip).join('')}</div>
-  ` : '';
-
-  document.getElementById('chips-types').innerHTML = blocFrequents + blocCategories + blocPersonnalises + `
-    <div class="groupe-ecoles-titre" style="margin-top:14px;">Autre</div>
-    <div class="grille-types">
-      <button type="button" class="chip-type" id="chip-autre">Nouvelle action personnalisée…</button>
-    </div>
-  `;
-  document.getElementById('chips-types').querySelectorAll('.chip-type[data-id]').forEach(btn => {
-    btn.classList.toggle('selectionne', btn.dataset.id === typeIdChoisi);
-    btn.addEventListener('click', () => choisirType(btn.dataset.id));
-  });
-  document.getElementById('chip-autre').classList.toggle('selectionne', typeIdChoisi === null);
-  document.getElementById('chip-autre').addEventListener('click', () => choisirType(null));
-}
-
-function typeActuel() {
-  return TYPES.find(t => t.id === typeIdChoisi);
-}
-
 function majVisibiliteProfil() {
-  const options = PROFILS_PAR_TYPE[typeIdChoisi];
-  document.getElementById('bloc-profil').style.display = options ? 'block' : 'none';
+  const typeId = selecteurType.typeSelectionneId();
+  const options = PROFILS_PAR_TYPE[typeId];
+  const bloc = document.getElementById('bloc-profil');
+  bloc.style.display = options ? 'block' : 'none';
   document.getElementById('sr-profil').innerHTML = options
     ? '<option value="">—</option>' + options.map(o => `<option value="${o}">${o}</option>`).join('')
     : '';
+  document.getElementById('sr-precision-equipe').style.display = 'none';
+  majVisibiliteThemeDetail({ blocId: 'bloc-theme', inputId: 'sr-theme', typeId, placeholderPersonneSuivie: 'Ex : GURRERA Alexia — différenciation en maths' });
+  rendrePersonneSuivieRapide();
 }
 
 function remplirSelectOrigine() {
   document.getElementById('sr-origine').innerHTML = '<option value="">—</option>' +
     ORIGINES_INTERVENTION.map(o => `<option value="${o}">${o}</option>`).join('');
-}
-
-function choisirType(id) {
-  typeIdChoisi = id;
-  document.getElementById('zone-perso').style.display = id === null ? 'block' : 'none';
-  document.getElementById('chips-types').querySelectorAll('.chip-type').forEach(btn => {
-    btn.classList.toggle('selectionne', id === null ? btn.id === 'chip-autre' : btn.dataset.id === id);
-  });
-  majVisibiliteProfil();
 }
 
 function mesEcolesReferentes() {
@@ -264,6 +198,7 @@ function rendreChipsEcoleUnique() {
       ecoleIdChoisie = ecoleIdChoisie === btn.dataset.id ? null : btn.dataset.id;
       document.getElementById('chips-ecole-unique').querySelectorAll('button').forEach(b => b.classList.toggle('selectionne', b.dataset.id === ecoleIdChoisie));
       document.getElementById('zone-lieu-libre').style.display = ecoleIdChoisie === '__autre__' ? 'block' : 'none';
+      rendrePersonneSuivieRapide();
     });
   });
   document.getElementById('zone-lieu-libre').style.display = ecoleIdChoisie === '__autre__' ? 'block' : 'none';
@@ -274,21 +209,17 @@ function rendreChipsEcoleUnique() {
 async function rendrePersonneSuivieRapide() {
   const uneEcole = ecoleIdChoisie && ecoleIdChoisie !== '__autre__';
   const equipe = uneEcole ? await Store.chargerEquipeEcole(ecoleIdChoisie) : null;
-  remplirPersonneSuivie('sr-personne-suivie', 'sr-theme', typeIdChoisi, equipe);
+  remplirPersonneSuivie('sr-personne-suivie', 'sr-theme', selecteurType.typeSelectionneId(), equipe);
   rendrePrecisionEquipe('sr-precision-equipe', document.getElementById('sr-profil').value, equipe);
 }
 
 function reinitialiserFormulaire() {
-  typeIdChoisi = undefined;
-  document.getElementById('type-personnalise').value = '';
-  document.getElementById('zone-perso').style.display = 'none';
+  selecteurType.reset();
   majVisibiliteProfil();
   ecoleIdChoisie = null;
   document.getElementById('sr-lieu-libre').value = '';
   document.getElementById('sr-origine').value = '';
-  document.getElementById('sr-theme').value = '';
   document.getElementById('sr-notes').value = '';
-  document.getElementById('sr-personne-suivie').style.display = 'none';
   document.getElementById('sr-precision-equipe').style.display = 'none';
   document.getElementById('sr-date').value = new Date().toISOString().slice(0, 10);
 }
@@ -296,7 +227,7 @@ function reinitialiserFormulaire() {
 function construireRecapSaisieRapide() {
   const intervenant = INTERVENANTS.find(i => i.id === quiId);
   const perso = document.getElementById('type-personnalise').value.trim();
-  const type = typeActuel();
+  const type = TYPES.find(t => t.id === selecteurType.typeSelectionneId());
   const profil = valeurProfilAvecPrecision('sr-precision-equipe', document.getElementById('sr-profil').value);
   const ecole = ecoleIdChoisie && ecoleIdChoisie !== '__autre__' ? ECOLES.find(e => e.id === ecoleIdChoisie) : null;
   const lieuLibre = document.getElementById('sr-lieu-libre').value.trim();
@@ -324,16 +255,15 @@ async function enregistrer() {
   const btn = document.querySelector('.assistant-valider');
   btn.disabled = true;
   try {
-    let typeId = typeIdChoisi;
-    let typeLabel = perso;
-    if (typeIdChoisi === null) {
+    let typeId = selecteurType.typeSelectionneId();
+    if (perso) {
       const type = await Store.ajouterTypePersonnalise(perso);
       typeId = type.id;
       TYPES = await Store.chargerTypes();
-    } else {
-      typeLabel = typeActuel().label;
+      selecteurType.majTypes(TYPES);
     }
     const type = TYPES.find(t => t.id === typeId);
+    const typeLabel = type ? type.label : perso;
     const date = document.getElementById('sr-date').value || new Date().toISOString().slice(0, 10);
     const theme = document.getElementById('sr-theme').value.trim();
     const notes = document.getElementById('sr-notes').value.trim();
@@ -361,7 +291,6 @@ async function enregistrer() {
           .catch(e => console.warn('Google Agenda :', e.message));
       }
     }
-    incrementerFrequenceType(quiId, typeId);
     reinitialiserFormulaire();
     assistant.aller(1); // retour à l'étape « Quoi » : pas besoin de reconfirmer qui on est pour enchaîner une saisie
     assistant.afficherMessageOk('Enregistré ✓');
@@ -377,6 +306,8 @@ async function enregistrer() {
 document.getElementById('btn-connecter-agenda-rappel').addEventListener('click', ouvrirModaleGcal);
 window.addEventListener('focus', rendreRecapAgenda);
 document.getElementById('type-personnalise').addEventListener('input', majVisibiliteProfil);
+document.getElementById('sr-type').addEventListener('change', majVisibiliteProfil);
+document.getElementById('sr-profil').addEventListener('change', () => rendrePersonneSuivieRapide());
 
 async function init() {
   [INTERVENANTS, ECOLES, TYPES] = await Promise.all([Store.chargerIntervenants(), Store.chargerEcoles(), Store.chargerTypes()]);
@@ -388,17 +319,19 @@ async function init() {
   remplirSelectOrigine();
   document.getElementById('sr-date').value = new Date().toISOString().slice(0, 10);
   rendreRecapAgenda();
+  selecteurType = initialiserSelecteurType({ selTypeId: 'sr-type', inputPersonaliseId: 'type-personnalise', types: TYPES });
+  majVisibiliteProfil();
 
   assistant = creerAssistant({
     racine: document,
     etapes: [
       { id: 'qui', titre: 'Qui es-tu ?', valider: () => quiId ? true : 'Choisis qui tu es.' },
-      { id: 'quoi', titre: 'Quoi ?', onEntree: rendreChipsTypes, valider: () => {
+      { id: 'quoi', titre: 'Quoi ?', valider: () => {
           const perso = document.getElementById('type-personnalise').value.trim();
-          return (!typeIdChoisi && !perso) ? "Choisis un type d'intervention." : true;
+          return (!selecteurType.typeSelectionneId() && !perso) ? "Choisis un type d'intervention." : true;
         } },
       { id: 'ou', titre: 'Où ?', onEntree: rendreChipsEcoleUnique },
-      { id: 'details', titre: 'Détails', onEntree: rendrePersonneSuivieRapide }
+      { id: 'details', titre: 'Détails' }
     ],
     construireRecap: construireRecapSaisieRapide,
     onValider: enregistrer,

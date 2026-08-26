@@ -89,6 +89,36 @@ const Store = {
     await this.sauvegarderActionsGeneralesIntervenant(intervenantId, data, nomIntervenant);
   },
 
+  /*
+   * Supprime une action déjà enregistrée, qu'elle vive dans le fichier d'une école (intervention,
+   * ecoleId renseigné) ou dans les actions générales d'un intervenant (ecoleId null/undefined).
+   */
+  async supprimerAction(intervenantId, nomIntervenant, actionId, ecoleId, nomEcole) {
+    if (ecoleId) {
+      const data = await this.chargerInterventionsEcole(ecoleId);
+      data.interventions = data.interventions.filter(iv => iv.id !== actionId);
+      await this.sauvegarderInterventionsEcole(ecoleId, data, nomEcole);
+    } else {
+      const data = await this.chargerActionsGeneralesIntervenant(intervenantId);
+      data.actions = data.actions.filter(a => a.id !== actionId);
+      await this.sauvegarderActionsGeneralesIntervenant(intervenantId, data, nomIntervenant);
+    }
+  },
+
+  /*
+   * Remplace une action existante par sa nouvelle version (même id) : supprime l'ancienne copie à
+   * son emplacement d'origine puis réinsère la nouvelle à son emplacement choisi — gère ainsi le
+   * cas où l'école a changé (ou a été retirée/ajoutée) lors de la modification.
+   */
+  async remplacerAction(intervenantId, nomIntervenant, ancienEcoleId, ancienNomEcole, nouvelleAction, nouvelEcoleId, nouvelNomEcole) {
+    await this.supprimerAction(intervenantId, nomIntervenant, nouvelleAction.id, ancienEcoleId, ancienNomEcole);
+    if (nouvelEcoleId) {
+      await this.ajouterIntervention(nouvelEcoleId, nouvelleAction, nouvelNomEcole);
+    } else {
+      await this.ajouterActionGenerale(intervenantId, nouvelleAction, nomIntervenant);
+    }
+  },
+
   /** Bilan d'un conseiller : ses interventions école + ses actions générales, à plat. */
   async chargerToutesLesActionsIntervenant(intervenantId) {
     const ecoles = await this.chargerToutesLesEcolesAvecInterventions();

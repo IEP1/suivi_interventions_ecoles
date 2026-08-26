@@ -8,7 +8,7 @@
  */
 function initialiserSelecteurType({ selTypeId, inputPersonaliseId, types, filtrerEnEcole }) {
   const selType = document.getElementById(selTypeId);
-  const inputPerso = document.getElementById(inputPersonaliseId);
+  const inputPerso = inputPersonaliseId ? document.getElementById(inputPersonaliseId) : null;
 
   function typesVisibles() {
     return filtrerEnEcole ? types.filter(t => t.enEcole !== false) : types;
@@ -28,15 +28,15 @@ function initialiserSelecteurType({ selTypeId, inputPersonaliseId, types, filtre
         personnalises.map(t => `<option value="${t.id}">${t.label}</option>`).join('') + `</optgroup>` : '');
   }
 
-  selType.addEventListener('change', () => { if (selType.value) inputPerso.value = ''; });
-  inputPerso.addEventListener('input', () => { if (inputPerso.value.trim()) selType.value = ''; });
+  selType.addEventListener('change', () => { if (selType.value && inputPerso) inputPerso.value = ''; });
+  if (inputPerso) inputPerso.addEventListener('input', () => { if (inputPerso.value.trim()) selType.value = ''; });
 
   remplir();
 
   return {
     reset() {
       selType.value = '';
-      inputPerso.value = '';
+      if (inputPerso) inputPerso.value = '';
     },
     majTypes(nouveauxTypes) {
       types = nouveauxTypes;
@@ -106,6 +106,23 @@ function rendrePrecisionEquipe(zoneId, profilValue, equipe) {
     zone.style.display = 'none';
     zone.innerHTML = '';
   }
+}
+
+/*
+ * Affiche ou masque le bloc « Thème / détail » (placé dans l'étape "Quoi", juste après le profil)
+ * selon le type choisi : visible pour les types à personne suivie (widget géré par
+ * remplirPersonneSuivie) ou listés dans DETAIL_THEME_PAR_TYPE (placeholder dédié), masqué sinon
+ * (ex. Réunion de circonscription, qui n'a pas de détail selon la typologie officielle).
+ */
+function majVisibiliteThemeDetail({ blocId, inputId, typeId, placeholderPersonneSuivie }) {
+  const bloc = document.getElementById(blocId);
+  const input = document.getElementById(inputId);
+  if (!bloc || !input) return;
+  const personneSuivie = TYPES_PERSONNE_SUIVIE.includes(typeId);
+  const visible = personneSuivie || !!DETAIL_THEME_PAR_TYPE[typeId];
+  bloc.style.display = visible ? 'block' : 'none';
+  if (!visible) { input.value = ''; return; }
+  input.placeholder = personneSuivie ? (placeholderPersonneSuivie || '') : DETAIL_THEME_PAR_TYPE[typeId];
 }
 
 /** Valeur finale à enregistrer dans « Profil / public » : le profil choisi, précision(s) cochée(s) entre parenthèses. */
