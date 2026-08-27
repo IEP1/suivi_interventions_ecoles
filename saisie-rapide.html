@@ -48,11 +48,6 @@
           <label for="sr-type">Type d'intervention</label>
           <select id="sr-type"></select>
         </div>
-        <div class="champ">
-          <label for="type-personnalise">…ou action personnalisée (libellé libre)</label>
-          <input type="text" id="type-personnalise" placeholder="Préciser l'action…">
-          <p class="intro" style="margin:6px 0 0;">Réservé aux actions vraiment nouvelles — inutile de préciser ici « à la demande de… », c'est le rôle du champ Origine, à l'étape suivante.</p>
-        </div>
         <div class="champ" id="bloc-profil" style="display:none;margin-bottom:0;">
           <label for="sr-profil">Profil / public</label>
           <select id="sr-profil"></select>
@@ -122,7 +117,7 @@
 
 <p class="pied">IEP1 — Saisie rapide</p>
 
-<script src="js/seed-data.js?v=20"></script>
+<script src="js/seed-data.js?v=21"></script>
 <script src="js/github-store.js?v=7"></script>
 <script src="js/data-store.js?v=11"></script>
 <script src="js/stats.js?v=12"></script>
@@ -226,7 +221,6 @@ function reinitialiserFormulaire() {
 
 function construireRecapSaisieRapide() {
   const intervenant = INTERVENANTS.find(i => i.id === quiId);
-  const perso = document.getElementById('type-personnalise').value.trim();
   const type = TYPES.find(t => t.id === selecteurType.typeSelectionneId());
   const profil = valeurProfilAvecPrecision('sr-precision-equipe', document.getElementById('sr-profil').value);
   const ecole = ecoleIdChoisie && ecoleIdChoisie !== '__autre__' ? ECOLES.find(e => e.id === ecoleIdChoisie) : null;
@@ -237,7 +231,7 @@ function construireRecapSaisieRapide() {
 
   const lignes = [
     ['Qui', intervenant ? intervenant.nom : '—'],
-    ['Quoi', (perso || (type ? type.label : '—')) + (profil ? ` (${profil})` : '')],
+    ['Quoi', (type ? type.label : '—') + (profil ? ` (${profil})` : '')],
     ['Où', ou],
     ['Date', formaterDate(document.getElementById('sr-date').value)]
   ];
@@ -251,19 +245,12 @@ function construireRecapSaisieRapide() {
 }
 
 async function enregistrer() {
-  const perso = document.getElementById('type-personnalise').value.trim();
   const btn = document.querySelector('.assistant-valider');
   btn.disabled = true;
   try {
-    let typeId = selecteurType.typeSelectionneId();
-    if (perso) {
-      const type = await Store.ajouterTypePersonnalise(perso);
-      typeId = type.id;
-      TYPES = await Store.chargerTypes();
-      selecteurType.majTypes(TYPES);
-    }
+    const typeId = selecteurType.typeSelectionneId();
     const type = TYPES.find(t => t.id === typeId);
-    const typeLabel = type ? type.label : perso;
+    const typeLabel = type ? type.label : '';
     const date = document.getElementById('sr-date').value || new Date().toISOString().slice(0, 10);
     const theme = document.getElementById('sr-theme').value.trim();
     const notes = document.getElementById('sr-notes').value.trim();
@@ -305,7 +292,6 @@ async function enregistrer() {
 
 document.getElementById('btn-connecter-agenda-rappel').addEventListener('click', ouvrirModaleGcal);
 window.addEventListener('focus', rendreRecapAgenda);
-document.getElementById('type-personnalise').addEventListener('input', majVisibiliteProfil);
 document.getElementById('sr-type').addEventListener('change', majVisibiliteProfil);
 document.getElementById('sr-profil').addEventListener('change', () => rendrePersonneSuivieRapide());
 
@@ -319,17 +305,14 @@ async function init() {
   remplirSelectOrigine();
   document.getElementById('sr-date').value = new Date().toISOString().slice(0, 10);
   rendreRecapAgenda();
-  selecteurType = initialiserSelecteurType({ selTypeId: 'sr-type', inputPersonaliseId: 'type-personnalise', types: TYPES });
+  selecteurType = initialiserSelecteurType({ selTypeId: 'sr-type', types: TYPES });
   majVisibiliteProfil();
 
   assistant = creerAssistant({
     racine: document,
     etapes: [
       { id: 'qui', titre: 'Qui es-tu ?', valider: () => quiId ? true : 'Choisis qui tu es.' },
-      { id: 'quoi', titre: 'Quoi ?', valider: () => {
-          const perso = document.getElementById('type-personnalise').value.trim();
-          return (!selecteurType.typeSelectionneId() && !perso) ? "Choisis un type d'intervention." : true;
-        } },
+      { id: 'quoi', titre: 'Quoi ?', valider: () => selecteurType.typeSelectionneId() ? true : "Choisis un type d'intervention." },
       { id: 'ou', titre: 'Où ?', onEntree: rendreChipsEcoleUnique },
       { id: 'details', titre: 'Détails' }
     ],
