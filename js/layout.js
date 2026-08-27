@@ -13,14 +13,16 @@ function injecterEntete(pageActive) {
         </div>
       </a>
       <nav class="grands-onglets">
-        <a href="conseillers.html" class="grand-onglet ${pageActive === 'conseillers.html' ? 'actif' : ''}">
-          <span class="icone">🧑‍🏫</span> Espace formateurs
-        </a>
         <a href="ecoles.html" class="grand-onglet ${pageActive === 'ecoles.html' ? 'actif' : ''}">
           <span class="icone">🏫</span> Espace école
         </a>
+        <a href="conseillers.html" class="grand-onglet ${pageActive === 'conseillers.html' ? 'actif' : ''}">
+          <span class="icone">🧑‍🏫</span> Espace formateurs
+        </a>
+        <a href="saisie-rapide.html" class="grand-onglet ${pageActive === 'saisie-rapide.html' ? 'actif' : ''}" title="Point d'entrée unique pour ajouter une action, pensé pour le téléphone">
+          <span class="icone">⚡</span> Saisie rapide
+        </a>
       </nav>
-      <a href="saisie-rapide.html" class="btn btn-sm btn-orange" title="Formulaire minimal, pensé pour le téléphone">⚡ Saisie rapide</a>
       <button class="btn btn-sm btn-secondaire" id="btn-connexion-donnees" type="button" title="Connexion au stockage des données">⚙ Données</button>
       <button class="btn btn-sm btn-secondaire" id="btn-connexion-gcal" type="button" title="Connexion à Google Agenda">📅 Agenda</button>
     </header>

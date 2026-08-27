@@ -35,78 +35,9 @@
       </div>
     </div>
 
-    <p class="intro">Saisissez une action et attribuez-la à une ou plusieurs écoles en une fois : elle sera enregistrée dans l'historique de chacune.</p>
-
-    <div class="carte" id="carte-assistant-action">
-      <div class="assistant-entete">
-        <div class="assistant-titre-etape"></div>
-        <div class="assistant-barre"><span style="width:0%"></span></div>
-      </div>
-
-      <div class="etape-assistant" data-etape="ou">
-        <label>Où ?</label>
-        <div class="onglets">
-          <button type="button" class="onglet actif" id="onglet-mode-referentes">Mes écoles de référence</button>
-          <button type="button" class="onglet" id="onglet-mode-choisir">Choisir une/des écoles</button>
-          <button type="button" class="onglet" id="onglet-mode-autre">Autre / pas d'école</button>
-        </div>
-        <div id="vue-action-referentes"></div>
-        <div id="vue-action-choisir" style="display:none;">
-          <div class="grille-chips-ecoles" id="chips-action-ecoles"></div>
-        </div>
-        <div id="vue-action-autre" style="display:none;">
-          <input type="text" id="ci-lieu-libre" placeholder="Ex : DENC, domicile, Médipôle… (facultatif)">
-          <p class="intro" style="margin:8px 0 0;">Cette action n'est liée à aucune école : elle part vers Google Agenda mais ne compte dans aucune statistique.</p>
-        </div>
-      </div>
-
-      <div class="etape-assistant" data-etape="quoi" style="display:none;">
-        <div class="champ">
-          <label for="ci-type">Type d'intervention</label>
-          <select id="ci-type"></select>
-        </div>
-        <div class="champ">
-          <label for="type-personnalise">…ou action personnalisée (libellé libre)</label>
-          <input type="text" id="type-personnalise" placeholder="Ex : Médiation avec une famille">
-          <p class="intro" style="margin:6px 0 0;">Réservé aux actions vraiment nouvelles — inutile de préciser ici « à la demande de… », c'est le rôle du champ Origine, à l'étape suivante.</p>
-        </div>
-        <div class="champ" id="bloc-profil" style="display:none;margin-bottom:0;">
-          <label for="ci-profil">Profil / public</label>
-          <select id="ci-profil"></select>
-          <div id="ci-precision-equipe" style="display:none;"></div>
-        </div>
-        <div class="champ" id="bloc-theme" style="display:none;margin-bottom:0;margin-top:14px;">
-          <label for="ci-theme">Thème / détail <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
-          <select id="ci-personne-suivie" style="display:none;margin-bottom:8px;"></select>
-          <input type="text" id="ci-theme" placeholder="">
-        </div>
-      </div>
-
-      <div class="etape-assistant" data-etape="details" style="display:none;">
-        <div class="champ">
-          <label for="ci-date">Date</label>
-          <input type="date" id="ci-date">
-        </div>
-        <div class="champ">
-          <label for="ci-origine">Origine <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
-          <select id="ci-origine"></select>
-        </div>
-        <div class="champ" style="margin-bottom:0;">
-          <label for="ci-notes">Notes <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
-          <textarea id="ci-notes" rows="3"></textarea>
-        </div>
-      </div>
-
-      <div class="etape-recap"></div>
-
-      <p class="assistant-message alerte" style="display:none;"></p>
-      <div class="assistant-nav">
-        <button class="btn btn-secondaire assistant-precedent" type="button" style="display:none;">◀ Précédent</button>
-        <div class="groupe-btns" style="margin-left:auto;">
-          <button class="btn btn-primaire assistant-suivant" type="button">Suivant ▶</button>
-          <button class="btn btn-primaire assistant-valider" type="button" style="display:none;">Valider et attribuer</button>
-        </div>
-      </div>
+    <div class="carte" style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
+      <p class="intro" style="margin:0;">Pour saisir une nouvelle action, un seul point d'entrée dans l'appli : la saisie rapide — ton identité y est déjà pré-remplie.</p>
+      <a class="btn btn-primaire" id="lien-ajouter-action" href="saisie-rapide.html">+ Ajouter une action</a>
     </div>
 
     <div class="carte" style="margin-top:24px;">
@@ -210,10 +141,9 @@
 <script src="js/data-store.js?v=11"></script>
 <script src="js/stats.js?v=12"></script>
 <script src="js/type-selector.js?v=11"></script>
-<script src="js/assistant-etapes.js?v=5"></script>
 <script src="js/school-picker.js?v=7"></script>
 <script src="js/google-calendar.js?v=11"></script>
-<script src="js/layout.js?v=14"></script>
+<script src="js/layout.js?v=15"></script>
 <script>
 injecterEntete('conseillers.html');
 
@@ -224,30 +154,8 @@ let INTERVENANT = null;
 let INTERVENANTS_TOUS = [];
 let ECOLES = [];
 let TYPES = [];
-let selecteurType = null;
 let chipsReferentesPicker = null;
-let chipsActionPicker = null;
-let modeAction = 'referentes';
 let graphBilanCategorie = null;
-let assistant = null;
-
-function majVisibiliteProfil() {
-  const typeId = selecteurType.typeSelectionneId();
-  const options = PROFILS_PAR_TYPE[typeId];
-  const bloc = document.getElementById('bloc-profil');
-  bloc.style.display = options ? 'block' : 'none';
-  document.getElementById('ci-profil').innerHTML = options
-    ? '<option value="">—</option>' + options.map(o => `<option value="${o}">${o}</option>`).join('')
-    : '';
-  document.getElementById('ci-precision-equipe').style.display = 'none';
-  majVisibiliteThemeDetail({ blocId: 'bloc-theme', inputId: 'ci-theme', typeId, placeholderPersonneSuivie: 'Ex : GURRERA Alexia — différenciation en maths' });
-  rendrePersonneSuivieAction();
-}
-
-function remplirSelectOrigine() {
-  document.getElementById('ci-origine').innerHTML = '<option value="">—</option>' +
-    ORIGINES_INTERVENTION.map(o => `<option value="${o}">${o}</option>`).join('');
-}
 
 function mesEcolesReferentes() {
   return ECOLES.filter(e => e.cpcReferent === intervenantId);
@@ -258,14 +166,6 @@ function rendreVueReferentesLecture() {
     document.getElementById('vue-referentes-lecture'),
     mesEcolesReferentes(),
     "Aucune école de référence enregistrée. Cliquez sur « Modifier » pour en choisir."
-  );
-}
-
-function rendreVueActionReferentes() {
-  rendreChipsLecture(
-    document.getElementById('vue-action-referentes'),
-    mesEcolesReferentes(),
-    "Aucune école de référence — utilisez l'onglet « Choisir une/des écoles »."
   );
 }
 
@@ -295,132 +195,9 @@ async function enregistrerEcolesReferentes() {
     });
     await Store.sauvegarderEcoles(ECOLES);
     rendreVueReferentesLecture();
-    rendreVueActionReferentes();
     fermerEditionReferentes();
   } catch (e) {
     msg.className = 'alerte alerte-err'; msg.textContent = e.message; msg.style.display = 'block';
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-function basculerModeAction(mode) {
-  modeAction = mode;
-  document.getElementById('onglet-mode-referentes').classList.toggle('actif', mode === 'referentes');
-  document.getElementById('onglet-mode-choisir').classList.toggle('actif', mode === 'choisir');
-  document.getElementById('onglet-mode-autre').classList.toggle('actif', mode === 'autre');
-  document.getElementById('vue-action-referentes').style.display = mode === 'referentes' ? 'block' : 'none';
-  document.getElementById('vue-action-choisir').style.display = mode === 'choisir' ? 'block' : 'none';
-  document.getElementById('vue-action-autre').style.display = mode === 'autre' ? 'block' : 'none';
-}
-
-function ecolesSelectionnees() {
-  if (modeAction === 'autre') return [];
-  return modeAction === 'referentes' ? mesEcolesReferentes().map(e => e.id) : chipsActionPicker.getSelection();
-}
-
-/* Le menu « personne suivie » et la liste d'enseignants du « Groupe » n'ont de sens que pour une
-   seule école à la fois (une équipe pédagogique précise) — avec plusieurs écoles choisies, on reste
-   sur le texte libre / les cases à cocher restent limitées aux cycles. */
-async function rendrePersonneSuivieAction() {
-  const ecolesChoisies = ecolesSelectionnees();
-  const equipe = ecolesChoisies.length === 1 ? await Store.chargerEquipeEcole(ecolesChoisies[0]) : null;
-  remplirPersonneSuivie('ci-personne-suivie', 'ci-theme', selecteurType.typeSelectionneId(), equipe);
-  rendrePrecisionEquipe('ci-precision-equipe', document.getElementById('ci-profil').value, equipe);
-}
-
-function construireRecapAction() {
-  const perso = document.getElementById('type-personnalise').value.trim();
-  const type = TYPES.find(t => t.id === selecteurType.typeSelectionneId());
-  const profil = valeurProfilAvecPrecision('ci-precision-equipe', document.getElementById('ci-profil').value);
-  const ecolesChoisies = ecolesSelectionnees();
-
-  let ou;
-  if (ecolesChoisies.length) {
-    ou = ecolesChoisies.map(id => { const e = ECOLES.find(e => e.id === id); return e ? e.nom : id; }).join(', ');
-  } else if (modeAction === 'autre') {
-    const lieu = document.getElementById('ci-lieu-libre').value.trim();
-    ou = lieu ? `Aucune école — ${lieu}` : 'Aucune école';
-  } else {
-    ou = 'Aucune école sélectionnée';
-  }
-
-  const lignes = [
-    ['Quoi', (perso || (type ? type.label : '—')) + (profil ? ` (${profil})` : '')],
-    ['Où', ou],
-    ['Date', formaterDate(document.getElementById('ci-date').value)]
-  ];
-  const origine = document.getElementById('ci-origine').value;
-  const theme = document.getElementById('ci-theme').value.trim();
-  const notes = document.getElementById('ci-notes').value.trim();
-  if (origine) lignes.push(['Origine', origine]);
-  if (theme) lignes.push(['Thème / détail', theme]);
-  if (notes) lignes.push(['Notes', notes]);
-  return lignes.map(([cle, val]) => `<div class="recap-ligne"><span class="recap-cle">${cle}</span><b>${val}</b></div>`).join('');
-}
-
-async function validerAction() {
-  const perso = document.getElementById('type-personnalise').value.trim();
-  const typeChoisi = selecteurType.typeSelectionneId();
-  const date = document.getElementById('ci-date').value;
-  const ecolesChoisies = ecolesSelectionnees();
-
-  const btn = document.querySelector('#carte-assistant-action .assistant-valider');
-  btn.disabled = true;
-  try {
-    let typeId = typeChoisi;
-    if (perso) {
-      const type = await Store.ajouterTypePersonnalise(perso);
-      typeId = type.id;
-      TYPES = await Store.chargerTypes();
-      selecteurType.majTypes(TYPES);
-    }
-    const type = TYPES.find(t => t.id === typeId);
-    const theme = document.getElementById('ci-theme').value.trim();
-    const notes = document.getElementById('ci-notes').value.trim();
-    const profil = valeurProfilAvecPrecision('ci-precision-equipe', document.getElementById('ci-profil').value);
-    const origine = document.getElementById('ci-origine').value;
-    const categorie = categorieResolue(type ? type.categorie : null);
-    const typeLabel = type ? type.label : perso;
-    const gcalTypeLabel = profil ? `${typeLabel} (${profil})` : typeLabel;
-    let messageFinal;
-
-    if (!ecolesChoisies.length) {
-      const lieuLibre = modeAction === 'autre' ? document.getElementById('ci-lieu-libre').value.trim() : '';
-      const action = { id: genererIdIntervention(), date, typeId, intervenantId, theme, notes, profil, origine, lieuLibre, horodatage: horodatageMaintenant() };
-      await Store.ajouterActionGenerale(intervenantId, action, INTERVENANT.nom);
-      if (gcalConfig.actif) {
-        gcalPousserIntervention({ typeLabel: gcalTypeLabel, theme, notes: [notes, lieuLibre ? `Lieu : ${lieuLibre}` : ''].filter(Boolean).join('\n'), date, categorie })
-          .catch(e => console.warn('Google Agenda :', e.message));
-      }
-      messageFinal = 'Action générale enregistrée.';
-    } else {
-      const groupeId = 'grp-' + Date.now().toString(36);
-      for (let i = 0; i < ecolesChoisies.length; i++) {
-        const ecoleId = ecolesChoisies[i];
-        const ecole = ECOLES.find(e => e.id === ecoleId);
-        assistant.afficherMessage(`Enregistrement… (${i + 1}/${ecolesChoisies.length} : ${ecole.nom})`, 'alerte-info');
-        const intervention = { id: genererIdIntervention(), groupeId, date, typeId, intervenantId, theme, notes, profil, origine, horodatage: horodatageMaintenant() };
-        await Store.ajouterIntervention(ecoleId, intervention, ecole.nom);
-        if (gcalConfig.actif) {
-          gcalPousserIntervention({ ecoleNom: ecole.nom, typeLabel: gcalTypeLabel, theme, notes, date, categorie })
-            .catch(e => console.warn('Google Agenda :', e.message));
-        }
-      }
-      messageFinal = `Action enregistrée sur ${ecolesChoisies.length} école(s).`;
-    }
-    document.getElementById('ci-theme').value = '';
-    document.getElementById('ci-notes').value = '';
-    document.getElementById('ci-lieu-libre').value = '';
-    document.getElementById('ci-precision-equipe').style.display = 'none';
-    selecteurType.reset();
-    majVisibiliteProfil();
-    assistant.aller(0);
-    assistant.afficherMessageOk(messageFinal);
-    await chargerHistorique();
-    await rendreBilan();
-  } catch (e) {
-    assistant.afficherErreur(e.message);
   } finally {
     btn.disabled = false;
   }
@@ -614,28 +391,9 @@ async function init() {
   [ECOLES, TYPES] = await Promise.all([Store.chargerEcoles(), Store.chargerTypes()]);
 
   document.getElementById('titre-intervenant').textContent = INTERVENANT.nom;
-  document.getElementById('ci-date').value = new Date().toISOString().slice(0, 10);
-  selecteurType = initialiserSelecteurType({ selTypeId: 'ci-type', inputPersonaliseId: 'type-personnalise', types: TYPES });
+  document.getElementById('lien-ajouter-action').href = 'saisie-rapide.html?qui=' + encodeURIComponent(intervenantId);
   selecteurTypeModif = initialiserSelecteurType({ selTypeId: 'mod-type', types: TYPES });
-  assistant = creerAssistant({
-    racine: document.getElementById('carte-assistant-action'),
-    etapes: [
-      { id: 'ou', titre: 'Où ?' },
-      { id: 'quoi', titre: 'Quoi ?', onEntree: majVisibiliteProfil, valider: () => {
-          const perso = document.getElementById('type-personnalise').value.trim();
-          return (selecteurType.typeSelectionneId() || perso) ? true : "Merci de choisir un type d'intervention ou de saisir une action personnalisée.";
-        } },
-      { id: 'details', titre: 'Détails', valider: () => document.getElementById('ci-date').value ? true : 'Merci de renseigner une date.' }
-    ],
-    construireRecap: construireRecapAction,
-    onValider: validerAction,
-    labelValider: 'Valider et attribuer'
-  });
   rendreVueReferentesLecture();
-  rendreVueActionReferentes();
-  chipsActionPicker = creerGrilleChipsEcoles(document.getElementById('chips-action-ecoles'), ECOLES, mesEcolesReferentes().map(e => e.id));
-  remplirSelectOrigine();
-  majVisibiliteProfil();
   await chargerHistorique();
   remplirSelecteurAnneeBilan();
   await rendreBilan();
@@ -647,12 +405,6 @@ async function init() {
 document.getElementById('btn-modifier-referentes').addEventListener('click', ouvrirEditionReferentes);
 document.getElementById('btn-annuler-referentes').addEventListener('click', fermerEditionReferentes);
 document.getElementById('btn-enregistrer-referentes').addEventListener('click', enregistrerEcolesReferentes);
-document.getElementById('onglet-mode-referentes').addEventListener('click', () => basculerModeAction('referentes'));
-document.getElementById('onglet-mode-choisir').addEventListener('click', () => basculerModeAction('choisir'));
-document.getElementById('onglet-mode-autre').addEventListener('click', () => basculerModeAction('autre'));
-document.getElementById('ci-type').addEventListener('change', majVisibiliteProfil);
-document.getElementById('type-personnalise').addEventListener('input', majVisibiliteProfil);
-document.getElementById('ci-profil').addEventListener('change', () => rendrePersonneSuivieAction());
 document.getElementById('sel-annee-bilan').addEventListener('change', () => rendreBilan());
 document.getElementById('mod-type').addEventListener('change', majDetailModif);
 document.getElementById('mod-ecole').addEventListener('change', () => {

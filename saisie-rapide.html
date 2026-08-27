@@ -62,9 +62,17 @@
 
       <div class="etape-assistant" data-etape="ou" style="display:none;">
         <label>Où ?</label>
-        <div class="grille-chips-ecoles" id="chips-ecole-unique"></div>
-        <div id="zone-lieu-libre" style="display:none;margin-top:10px;">
-          <input type="text" id="sr-lieu-libre" placeholder="Ex : DENC, domicile, Médipôle… (facultatif)">
+        <div class="onglets">
+          <button type="button" class="onglet actif" id="onglet-mode-referentes">Mes écoles de référence</button>
+          <button type="button" class="onglet" id="onglet-mode-choisir">Choisir une/des écoles</button>
+          <button type="button" class="onglet" id="onglet-mode-autre">Autre / pas d'école</button>
+        </div>
+        <div id="vue-action-referentes"></div>
+        <div id="vue-action-choisir" style="display:none;">
+          <div class="grille-chips-ecoles" id="chips-action-ecoles"></div>
+        </div>
+        <div id="vue-action-autre" style="display:none;">
+          <input type="text" id="ci-lieu-libre" placeholder="Ex : DENC, domicile, Médipôle… (facultatif)">
           <p class="intro" style="margin:8px 0 0;">Cette action n'est liée à aucune école : elle part vers Google Agenda mais ne compte dans aucune statistique.</p>
         </div>
       </div>
@@ -123,20 +131,24 @@
 <script src="js/stats.js?v=12"></script>
 <script src="js/type-selector.js?v=11"></script>
 <script src="js/assistant-etapes.js?v=5"></script>
+<script src="js/school-picker.js?v=7"></script>
 <script src="js/google-calendar.js?v=11"></script>
-<script src="js/layout.js?v=14"></script>
+<script src="js/layout.js?v=15"></script>
 <script>
-injecterEntete('');
+injecterEntete('saisie-rapide.html');
 
 const STOCKAGE_QUI = 'sie_saisie_rapide_qui';
+const paramsUrl = new URLSearchParams(location.search);
+const quiForceParam = paramsUrl.get('qui'); // arrivée depuis "+ Ajouter une action" d'un profil formateur : Qui déjà décidé
 
 let INTERVENANTS = [];
 let ECOLES = [];
 let TYPES = [];
 let quiId = null;
-let ecoleIdChoisie = null;
 let assistant = null;
 let selecteurType = null;
+let chipsActionPicker = null;
+let modeAction = 'referentes';
 
 function rendreChipsQui() {
   document.getElementById('chips-qui').innerHTML = INTERVENANTS.map(i =>
@@ -150,6 +162,8 @@ function choisirQui(id) {
   quiId = id;
   localStorage.setItem(STOCKAGE_QUI, id);
   document.getElementById('chips-qui').querySelectorAll('button').forEach(b => b.classList.toggle('selectionne', b.dataset.id === id));
+  rendreVueActionReferentes();
+  chipsActionPicker.setSelection(mesEcolesReferentes().map(e => e.id));
 }
 
 function rendreRecapAgenda() {
@@ -180,30 +194,36 @@ function mesEcolesReferentes() {
   return ECOLES.filter(e => e.cpcReferent === quiId);
 }
 
-function rendreChipsEcoleUnique() {
-  const mine = mesEcolesReferentes();
-  const mineIds = new Set(mine.map(e => e.id));
-  const ordonnees = [...mine, ...ECOLES.filter(e => !mineIds.has(e.id))];
-  document.getElementById('chips-ecole-unique').innerHTML = ordonnees.map(e =>
-    `<button type="button" class="chip-ecole" data-id="${e.id}">${e.nom}</button>`).join('') +
-    `<button type="button" class="chip-ecole" data-id="__autre__">Autre</button>`;
-  document.getElementById('chips-ecole-unique').querySelectorAll('button').forEach(btn => {
-    btn.classList.toggle('selectionne', btn.dataset.id === ecoleIdChoisie);
-    btn.addEventListener('click', () => {
-      ecoleIdChoisie = ecoleIdChoisie === btn.dataset.id ? null : btn.dataset.id;
-      document.getElementById('chips-ecole-unique').querySelectorAll('button').forEach(b => b.classList.toggle('selectionne', b.dataset.id === ecoleIdChoisie));
-      document.getElementById('zone-lieu-libre').style.display = ecoleIdChoisie === '__autre__' ? 'block' : 'none';
-      rendrePersonneSuivieRapide();
-    });
-  });
-  document.getElementById('zone-lieu-libre').style.display = ecoleIdChoisie === '__autre__' ? 'block' : 'none';
+function rendreVueActionReferentes() {
+  rendreChipsLecture(
+    document.getElementById('vue-action-referentes'),
+    mesEcolesReferentes(),
+    "Aucune école de référence — utilise l'onglet « Choisir une/des écoles »."
+  );
 }
 
-/* Le menu « personne suivie » et la liste d'enseignants du « Groupe » n'apparaissent que pour une
-   école précise (pas « Autre » / pas d'école). */
+function basculerModeAction(mode) {
+  modeAction = mode;
+  document.getElementById('onglet-mode-referentes').classList.toggle('actif', mode === 'referentes');
+  document.getElementById('onglet-mode-choisir').classList.toggle('actif', mode === 'choisir');
+  document.getElementById('onglet-mode-autre').classList.toggle('actif', mode === 'autre');
+  document.getElementById('vue-action-referentes').style.display = mode === 'referentes' ? 'block' : 'none';
+  document.getElementById('vue-action-choisir').style.display = mode === 'choisir' ? 'block' : 'none';
+  document.getElementById('vue-action-autre').style.display = mode === 'autre' ? 'block' : 'none';
+  rendrePersonneSuivieRapide();
+}
+
+function ecolesSelectionnees() {
+  if (modeAction === 'autre') return [];
+  return modeAction === 'referentes' ? mesEcolesReferentes().map(e => e.id) : chipsActionPicker.getSelection();
+}
+
+/* Le menu « personne suivie » et la liste d'enseignants du « Groupe » n'ont de sens que pour une
+   seule école à la fois (une équipe pédagogique précise) — avec plusieurs écoles choisies, on reste
+   sur le texte libre / les cases à cocher restent limitées aux cycles. */
 async function rendrePersonneSuivieRapide() {
-  const uneEcole = ecoleIdChoisie && ecoleIdChoisie !== '__autre__';
-  const equipe = uneEcole ? await Store.chargerEquipeEcole(ecoleIdChoisie) : null;
+  const ecolesChoisies = ecolesSelectionnees();
+  const equipe = ecolesChoisies.length === 1 ? await Store.chargerEquipeEcole(ecolesChoisies[0]) : null;
   remplirPersonneSuivie('sr-personne-suivie', 'sr-theme', selecteurType.typeSelectionneId(), equipe);
   rendrePrecisionEquipe('sr-precision-equipe', document.getElementById('sr-profil').value, equipe);
 }
@@ -211,8 +231,7 @@ async function rendrePersonneSuivieRapide() {
 function reinitialiserFormulaire() {
   selecteurType.reset();
   majVisibiliteProfil();
-  ecoleIdChoisie = null;
-  document.getElementById('sr-lieu-libre').value = '';
+  document.getElementById('ci-lieu-libre').value = '';
   document.getElementById('sr-origine').value = '';
   document.getElementById('sr-notes').value = '';
   document.getElementById('sr-precision-equipe').style.display = 'none';
@@ -223,11 +242,17 @@ function construireRecapSaisieRapide() {
   const intervenant = INTERVENANTS.find(i => i.id === quiId);
   const type = TYPES.find(t => t.id === selecteurType.typeSelectionneId());
   const profil = valeurProfilAvecPrecision('sr-precision-equipe', document.getElementById('sr-profil').value);
-  const ecole = ecoleIdChoisie && ecoleIdChoisie !== '__autre__' ? ECOLES.find(e => e.id === ecoleIdChoisie) : null;
-  const lieuLibre = document.getElementById('sr-lieu-libre').value.trim();
-  let ou = '—';
-  if (ecole) ou = ecole.nom;
-  else if (ecoleIdChoisie === '__autre__') ou = lieuLibre || 'Autre (sans précision)';
+  const ecolesChoisies = ecolesSelectionnees();
+
+  let ou;
+  if (ecolesChoisies.length) {
+    ou = ecolesChoisies.map(id => { const e = ECOLES.find(e => e.id === id); return e ? e.nom : id; }).join(', ');
+  } else if (modeAction === 'autre') {
+    const lieu = document.getElementById('ci-lieu-libre').value.trim();
+    ou = lieu ? `Aucune école — ${lieu}` : 'Aucune école';
+  } else {
+    ou = 'Aucune école sélectionnée';
+  }
 
   const lignes = [
     ['Qui', intervenant ? intervenant.nom : '—'],
@@ -259,28 +284,36 @@ async function enregistrer() {
     const intervenant = INTERVENANTS.find(i => i.id === quiId);
     const categorie = categorieResolue(type ? type.categorie : null);
     const gcalTypeLabel = profil ? `${typeLabel} (${profil})` : typeLabel;
-    const uneEcole = ecoleIdChoisie && ecoleIdChoisie !== '__autre__';
+    const ecolesChoisies = ecolesSelectionnees();
+    let messageFinal;
 
-    if (uneEcole) {
-      const ecole = ECOLES.find(e => e.id === ecoleIdChoisie);
-      const intervention = { id: genererIdIntervention(), date, typeId, intervenantId: quiId, theme, notes, profil, origine, horodatage: horodatageMaintenant() };
-      await Store.ajouterIntervention(ecoleIdChoisie, intervention, ecole.nom);
-      if (gcalConfig.actif) {
-        gcalPousserIntervention({ ecoleNom: ecole.nom, typeLabel: gcalTypeLabel, theme, notes, date, categorie })
-          .catch(e => console.warn('Google Agenda :', e.message));
-      }
-    } else {
-      const lieuLibre = ecoleIdChoisie === '__autre__' ? document.getElementById('sr-lieu-libre').value.trim() : '';
+    if (!ecolesChoisies.length) {
+      const lieuLibre = modeAction === 'autre' ? document.getElementById('ci-lieu-libre').value.trim() : '';
       const action = { id: genererIdIntervention(), date, typeId, intervenantId: quiId, theme, notes, profil, origine, lieuLibre, horodatage: horodatageMaintenant() };
       await Store.ajouterActionGenerale(quiId, action, intervenant ? intervenant.nom : quiId);
       if (gcalConfig.actif) {
         gcalPousserIntervention({ typeLabel: gcalTypeLabel, theme, notes: [notes, lieuLibre ? `Lieu : ${lieuLibre}` : ''].filter(Boolean).join('\n'), date, categorie })
           .catch(e => console.warn('Google Agenda :', e.message));
       }
+      messageFinal = 'Action générale enregistrée.';
+    } else {
+      const groupeId = ecolesChoisies.length > 1 ? 'grp-' + Date.now().toString(36) : undefined;
+      for (let i = 0; i < ecolesChoisies.length; i++) {
+        const ecoleId = ecolesChoisies[i];
+        const ecole = ECOLES.find(e => e.id === ecoleId);
+        if (ecolesChoisies.length > 1) assistant.afficherMessage(`Enregistrement… (${i + 1}/${ecolesChoisies.length} : ${ecole.nom})`, 'alerte-info');
+        const intervention = { id: genererIdIntervention(), groupeId, date, typeId, intervenantId: quiId, theme, notes, profil, origine, horodatage: horodatageMaintenant() };
+        await Store.ajouterIntervention(ecoleId, intervention, ecole.nom);
+        if (gcalConfig.actif) {
+          gcalPousserIntervention({ ecoleNom: ecole.nom, typeLabel: gcalTypeLabel, theme, notes, date, categorie })
+            .catch(e => console.warn('Google Agenda :', e.message));
+        }
+      }
+      messageFinal = ecolesChoisies.length > 1 ? `Action enregistrée sur ${ecolesChoisies.length} écoles.` : 'Enregistré ✓';
     }
     reinitialiserFormulaire();
     assistant.aller(1); // retour à l'étape « Quoi » : pas besoin de reconfirmer qui on est pour enchaîner une saisie
-    assistant.afficherMessageOk('Enregistré ✓');
+    assistant.afficherMessageOk(messageFinal);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     if (navigator.vibrate) { try { navigator.vibrate(30); } catch (e) { /* pas de vibreur, tant pis */ } }
   } catch (e) {
@@ -294,12 +327,20 @@ document.getElementById('btn-connecter-agenda-rappel').addEventListener('click',
 window.addEventListener('focus', rendreRecapAgenda);
 document.getElementById('sr-type').addEventListener('change', majVisibiliteProfil);
 document.getElementById('sr-profil').addEventListener('change', () => rendrePersonneSuivieRapide());
+document.getElementById('onglet-mode-referentes').addEventListener('click', () => basculerModeAction('referentes'));
+document.getElementById('onglet-mode-choisir').addEventListener('click', () => basculerModeAction('choisir'));
+document.getElementById('onglet-mode-autre').addEventListener('click', () => basculerModeAction('autre'));
 
 async function init() {
   [INTERVENANTS, ECOLES, TYPES] = await Promise.all([Store.chargerIntervenants(), Store.chargerEcoles(), Store.chargerTypes()]);
 
   const sauvegarde = localStorage.getItem(STOCKAGE_QUI);
-  if (sauvegarde && INTERVENANTS.some(i => i.id === sauvegarde)) quiId = sauvegarde;
+  if (quiForceParam && INTERVENANTS.some(i => i.id === quiForceParam)) {
+    quiId = quiForceParam;
+    localStorage.setItem(STOCKAGE_QUI, quiId);
+  } else if (sauvegarde && INTERVENANTS.some(i => i.id === sauvegarde)) {
+    quiId = sauvegarde;
+  }
 
   rendreChipsQui();
   remplirSelectOrigine();
@@ -307,19 +348,22 @@ async function init() {
   rendreRecapAgenda();
   selecteurType = initialiserSelecteurType({ selTypeId: 'sr-type', types: TYPES });
   majVisibiliteProfil();
+  rendreVueActionReferentes();
+  chipsActionPicker = creerGrilleChipsEcoles(document.getElementById('chips-action-ecoles'), ECOLES, mesEcolesReferentes().map(e => e.id));
 
   assistant = creerAssistant({
     racine: document,
     etapes: [
       { id: 'qui', titre: 'Qui es-tu ?', valider: () => quiId ? true : 'Choisis qui tu es.' },
       { id: 'quoi', titre: 'Quoi ?', valider: () => selecteurType.typeSelectionneId() ? true : "Choisis un type d'intervention." },
-      { id: 'ou', titre: 'Où ?', onEntree: rendreChipsEcoleUnique },
+      { id: 'ou', titre: 'Où ?' },
       { id: 'details', titre: 'Détails' }
     ],
     construireRecap: construireRecapSaisieRapide,
     onValider: enregistrer,
     labelValider: '✓ Enregistrer'
   });
+  if (quiForceParam && quiId === quiForceParam) assistant.aller(1); // Qui déjà connu (arrivée depuis un profil formateur) : direct à l'étape Quoi
 
   document.getElementById('zone-chargement').style.display = 'none';
   document.getElementById('zone-assistant').style.display = 'block';
