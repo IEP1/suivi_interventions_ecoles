@@ -16,7 +16,6 @@
       À utiliser après une mise à jour du site qui change la liste des écoles, des intervenants ou
       des types d'intervention (le code source, <code>js/seed-data.js</code>) — sinon le repo privé
       de données reste sur l'ancienne liste et les nouveautés n'apparaissent pas dans les menus.
-      Connectez d'abord le repo via <strong>⚙ Données</strong> ci-dessus si ce n'est pas déjà fait.
     </p>
     <p class="alerte alerte-warn">
       Les <strong>écoles</strong> sont <strong>remplacées</strong> par la version actuelle du code :
@@ -71,10 +70,10 @@
 <p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
 
 <script src="js/seed-data.js?v=21"></script>
-<script src="js/github-store.js?v=7"></script>
+<script src="js/github-store.js?v=8"></script>
 <script src="js/data-store.js?v=11"></script>
 <script src="js/google-calendar.js?v=11"></script>
-<script src="js/layout.js?v=15"></script>
+<script src="js/layout.js?v=16"></script>
 <script>
 injecterEntete('');
 
@@ -83,7 +82,6 @@ function afficherAlerte(msg, classe) { document.getElementById('alerte-zone').in
 
 document.getElementById('btn-maj').addEventListener('click', async () => {
   if (!confirm("Écraser la liste des écoles sur GitHub avec la version actuelle du code (js/seed-data.js) ? Tout ajout/suppression déjà fait depuis l'application sera perdu. Intervenants et types d'intervention, eux, seront fusionnés (noms personnalisés et types personnalisés déjà créés conservés).")) return;
-  if (!ghConfig.isConfigured()) { afficherAlerte("Connectez d'abord le repo de données via ⚙ Données.", 'alerte-err'); return; }
   document.getElementById('journal').textContent = '';
   try {
     await Store.sauvegarderEcoles(SEED_ECOLES);
@@ -227,7 +225,6 @@ function rendreListeNettoyage() {
 }
 
 async function analyserTypesPersonnalises() {
-  if (!ghConfig.isConfigured()) { afficherAlerteNettoyage("Connectez d'abord le repo de données via ⚙ Données.", 'alerte-err'); return; }
   document.getElementById('liste-nettoyage').innerHTML = '<p class="alerte alerte-info">Analyse en cours…</p>';
   const [types, actions] = await Promise.all([Store.chargerTypes(), Store.chargerToutesLesActions()]);
   TYPES_ANALYSE = types;
@@ -242,7 +239,6 @@ document.getElementById('btn-analyser-nettoyage').addEventListener('click', () =
 });
 
 document.getElementById('btn-migrer-animation').addEventListener('click', async () => {
-  if (!ghConfig.isConfigured()) { afficherAlerteMigration("Connectez d'abord le repo de données via ⚙ Données.", 'alerte-err'); return; }
   if (!confirm("Réaffecter toutes les interventions « Animation pédagogique / formation » (ancien type) vers « Formation donnée » ?")) return;
   document.getElementById('journal-migration').textContent = '';
   document.getElementById('btn-migrer-animation').disabled = true;

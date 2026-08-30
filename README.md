@@ -4,11 +4,20 @@ Mémoire et suivi des interventions menées par les formateurs (CPC, PEMF, IAP) 
 la circonscription : accompagnement individuel ou d'équipe, visites d'accompagnement, résidences
 pédagogiques, conseils des maîtres, projets d'école, liaisons, animations, etc.
 
-Site 100% statique (HTML/CSS/JS, aucune installation). Les données (écoles, intervenants, types
-d'intervention, historique) sont stockées dans un **second repo GitHub privé**, distinct de
-celui-ci, pour ne jamais exposer de données publiquement.
+Site 100% statique (HTML/CSS/JS) hébergé sur **Netlify** (gratuit). Les données (écoles,
+intervenants, types d'intervention, historique) sont stockées dans un **second repo GitHub
+privé**, distinct de celui-ci, pour ne jamais exposer de données publiquement — mais lues/écrites
+via une **fonction serveur Netlify** (`netlify/functions/data.js`) qui détient seule le token
+GitHub. Personne (formateur, secrétariat, IAP, inspecteur de passage…) n'a besoin de "se
+connecter" : ouvrir le lien du site suffit, en lecture comme en écriture. L'accès se règle
+uniquement en choisissant à qui on donne ce lien.
 
-## Mise en service (une seule fois)
+*Avant août 2026, l'appli demandait à chaque personne de coller un token GitHub personnel dans une
+modale "⚙ Données" — ce mécanisme a été retiré : un visiteur sans token voyait silencieusement les
+données de démonstration au lieu des vraies données, ce qui a fait croire à un inspecteur que
+l'outil était vide. Ne pas réintroduire cette modale : c'était la cause du bug.*
+
+## Mise en service (une seule fois, par la personne référente du site)
 
 1. **Créer le repo de données privé**, par ex. `IEP1/suivi_interventions_ecoles-data`, sur
    github.com → *New repository* → cocher **Private**. Il peut rester vide, l'appli crée les
@@ -19,20 +28,31 @@ celui-ci, pour ne jamais exposer de données publiquement.
    tokens* → *Generate new token*.
    - *Repository access* : seulement le repo de données créé à l'étape 1.
    - *Permissions* → *Contents* : **Read and write**.
-   - Copier le token généré (il ne sera plus jamais affiché).
-   - Un seul token peut être partagé entre les formateurs (CPC, PEMF), le secrétariat et l'IAP,
-     ou chacun peut créer le sien avec les mêmes droits — au choix.
+   - Copier le token généré (il ne sera plus jamais affiché) — il ne sera collé qu'une seule fois,
+     à l'étape 4, jamais redemandé ensuite à qui que ce soit.
 
-3. **Activer GitHub Pages** sur *ce* repo (le code) : *Settings* → *Pages* → *Deploy from a
-   branch* → branche `main`, dossier `/ (root)`.
+3. **Créer un compte Netlify** (gratuit, [netlify.com](https://www.netlify.com)) puis
+   *Add new site* → *Import an existing project* → connecter GitHub → choisir **ce** repo (le
+   code, `suivi_interventions_ecoles`). Laisser les réglages de build par défaut (aucune commande
+   de build nécessaire, c'est un site statique ; Netlify détecte automatiquement le dossier
+   `netlify/functions`).
 
-4. Chaque personne, sur son navigateur, ouvre le site puis clique **⚙ Données** en haut de page
-   et renseigne : compte/organisation, nom du repo privé, branche (`main`), et le token créé à
-   l'étape 2. Le token reste uniquement dans le navigateur (localStorage), jamais dans le code.
+4. Sur le site Netlify créé → *Site configuration* → *Environment variables*, ajouter :
+   - `GITHUB_TOKEN` = le token créé à l'étape 2
+   - `GITHUB_OWNER` = le compte/organisation GitHub du repo de données (ex. `IEP1`)
+   - `GITHUB_REPO` = le nom du repo de données (ex. `suivi_interventions_ecoles-data`)
+   - `GITHUB_BRANCH` = `main` (facultatif, `main` par défaut)
 
-Tant que rien n'est connecté, le site fonctionne quand même en **mode démo local** : les 21
-écoles réelles et les types d'intervention proposés s'affichent (données de démarrage), mais
-rien ne peut être enregistré durablement.
+   Puis redéployer le site (*Deploys* → *Trigger deploy*) pour que les variables prennent effet.
+
+5. **Diffuser l'URL Netlify** (ex. `https://iep1-suivi.netlify.app`, personnalisable dans *Site
+   configuration* → *Domain management*) aux personnes concernées — c'est ce lien, et lui seul,
+   qui contrôle qui a accès à l'outil.
+
+Si le site est ouvert autrement (ex. `python -m http.server` en local sans Netlify), il retombe
+automatiquement en **mode démo local** : les 21 écoles réelles et les types d'intervention
+s'affichent (données de démarrage), mais rien ne peut être enregistré durablement — pratique pour
+prévisualiser une modification de code sans dépendre de Netlify.
 
 ## Fonctionnement
 
@@ -136,11 +156,13 @@ structure pédagogique des 21 écoles extraite de "Tableau bord circonscription 
 l'importer dans le repo privé :
 
 1. Ces deux fichiers existent déjà dans votre dossier de projet local (jamais poussés sur
-   GitHub, voir `.gitignore`) : `js/import-equipes.local.js` et `import.html`.
+   GitHub, voir `.gitignore`) : `js/import-equipes.local.js` et `import.html`. Ils datent d'avant
+   le passage au proxy Netlify (voir plus haut) : `import.html` appelle encore directement l'API
+   GitHub avec un token collé sur place — à mettre à jour sur le même principe que
+   `js/github-store.js` si vous deviez le réutiliser un jour (l'import initial a déjà été fait).
 2. Lancez le site en local (`python -m http.server` à la racine du projet) et ouvrez
    `http://localhost:8000/import.html` (ou le port utilisé).
-3. Connectez le repo de données via **⚙ Données** si besoin, puis cliquez
-   **Importer la structure pédagogique**.
+3. Cliquez **Importer la structure pédagogique**.
 4. Le fichier source contient quelques accents mal restitués (encodage déjà abîmé dans le
    classeur d'origine) : une correction automatique a été appliquée à l'extraction, mais
    relisez chaque école ensuite (bouton **Modifier** sur sa fiche) pour corriger d'éventuelles
@@ -179,7 +201,7 @@ Mise en service (une seule fois, par personne qui veut ce lien) :
    Rester en statut **Test** suffit pour un usage personnel (pas besoin de validation par Google).
 4. *APIs & Services* → *Identifiants* → *Créer des identifiants* → **ID client OAuth** → type
    **Application Web**. Dans *Origines JavaScript autorisées*, ajouter l'URL de votre site
-   GitHub Pages (ex. `https://iep1.github.io`) et, pour les tests en local,
+   Netlify (ex. `https://iep1-suivi.netlify.app`) et, pour les tests en local,
    `http://localhost:8000` (ou le port utilisé). Copier le **Client ID** généré (pas de secret à
    copier : ce type de client est public par construction, comme le token n'est jamais demandé
    côté serveur).

@@ -1,0 +1,14 @@
+# Config Netlify — site 100% statique, aucune étape de build.
+# La fonction serveur (netlify/functions/data.js) détient le token GitHub du repo privé de
+# données : voir son en-tête pour les variables d'environnement à régler dans
+# Netlify → Site configuration → Environment variables.
+
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+# URL propre : l'appli appelle /api/data au lieu de /.netlify/functions/data.
+[[redirects]]
+  from = "/api/data"
+  to = "/.netlify/functions/data"
+  status = 200

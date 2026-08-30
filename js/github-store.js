@@ -1,105 +1,57 @@
 /*
- * Couche de stockage : lit/écrit les données de l'appli dans un repo GitHub
- * privé, via l'API REST "contents". Chaque école a son propre fichier JSON
- * pour éviter les conflits d'écriture entre conseillers qui travaillent en
- * même temps sur des écoles différentes.
+ * Couche de stockage : lit/écrit les données de l'appli dans le repo GitHub privé de données, via
+ * un proxy serveur (netlify/functions/data.js) qui détient seul le token GitHub. Plus aucun
+ * appareil n'a besoin de "se connecter" : la lecture et l'écriture marchent directement, pour
+ * quiconque ouvre le site — l'accès se règle en partageant (ou non) l'URL du site, pas par un
+ * token personnel à copier.
  *
- * Le token (Personal Access Token à portée restreinte au repo de données)
- * est saisi une fois par appareil et reste uniquement dans le localStorage
- * du navigateur — il n'est jamais transmis ailleurs qu'à api.github.com.
+ * Repli local : si le proxy est injoignable (ex. site ouvert en local avec un simple serveur
+ * statique, sans `netlify dev`), l'appli retombe sur les données de démarrage (js/seed-data.js)
+ * sans planter — pratique pour prévisualiser une modification de code sans dépendre de Netlify.
  */
-const GH_API = 'https://api.github.com';
+const API_DATA = '/api/data';
 
-const ghConfig = {
-  get owner() { return localStorage.getItem('sie_data_owner') || ''; },
-  get repo() { return localStorage.getItem('sie_data_repo') || ''; },
-  get branch() { return localStorage.getItem('sie_data_branch') || 'main'; },
-  get token() { return localStorage.getItem('sie_data_token') || ''; },
-  set(owner, repo, branch, token) {
-    localStorage.setItem('sie_data_owner', owner);
-    localStorage.setItem('sie_data_repo', repo);
-    localStorage.setItem('sie_data_branch', branch || 'main');
-    localStorage.setItem('sie_data_token', token);
-  },
-  clear() {
-    ['sie_data_owner', 'sie_data_repo', 'sie_data_branch', 'sie_data_token'].forEach(k => localStorage.removeItem(k));
-  },
-  isConfigured() { return !!(this.owner && this.repo && this.token); }
-};
-
-function b64EncodeUnicode(str) {
-  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) => String.fromCharCode('0x' + p1)));
-}
-function b64DecodeUnicode(str) {
-  return decodeURIComponent(atob(str).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-}
-
-async function ghRequest(path, options = {}) {
-  if (!ghConfig.isConfigured()) throw new Error('Stockage des données non connecté — cliquez sur ⚙ Données en haut de page pour renseigner le repo GitHub privé.');
-  const url = `${GH_API}/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${path}`;
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      'Accept': 'application/vnd.github+json',
-      'Authorization': `Bearer ${ghConfig.token}`,
-      ...(options.headers || {})
-    }
-  });
-  return res;
-}
-
-/** Lit un fichier JSON du repo de données. Retourne {data, sha} ou {data: fallback, sha: null} si absent. */
+/** Lit un fichier JSON du repo de données. Retourne {data, sha} ou {data: fallback, sha: null} si absent/injoignable. */
 async function chargerJSON(path, fallback) {
-  if (!ghConfig.isConfigured()) return { data: fallback, sha: null };
+  let res;
   try {
-    const res = await ghRequest(`${path}?ref=${ghConfig.branch}`);
-    if (res.status === 404) return { data: fallback, sha: null };
-    if (!res.ok) throw new Error(`Erreur GitHub ${res.status} sur ${path}`);
-    const json = await res.json();
-    const contenu = b64DecodeUnicode(json.content.replace(/\n/g, ''));
-    return { data: JSON.parse(contenu), sha: json.sha };
+    res = await fetch(`${API_DATA}?path=${encodeURIComponent(path)}`);
   } catch (e) {
-    console.error('chargerJSON', path, e);
-    throw e;
+    // Échec réseau (proxy injoignable, ex. prévisualisation locale sans Netlify) : mode démo.
+    console.warn('chargerJSON : proxy de données injoignable, repli sur les données de démonstration —', path);
+    return { data: fallback, sha: null };
   }
+  if (res.status === 404) {
+    // Sur Netlify, notre fonction renvoie {data:null} (jamais un 404 HTTP) pour un fichier absent :
+    // un vrai 404 ici signifie que /api/data lui-même n'existe pas (site servi hors Netlify).
+    console.warn("chargerJSON : /api/data introuvable (site non servi depuis Netlify ?), repli sur les données de démonstration —", path);
+    return { data: fallback, sha: null };
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const erreur = new Error(err.error || `Erreur ${res.status} sur ${path}`);
+    console.error('chargerJSON', path, erreur);
+    throw erreur;
+  }
+  const { data, sha } = await res.json();
+  return data === null ? { data: fallback, sha: null } : { data, sha };
 }
 
 /** Écrit un fichier JSON dans le repo de données (crée ou met à jour). */
 async function sauvegarderJSON(path, data, message) {
-  if (!ghConfig.isConfigured()) throw new Error('Stockage des données non connecté — cliquez sur ⚙ Données en haut de page pour renseigner le repo GitHub privé.');
-  // On relit le sha juste avant d'écrire pour limiter les conflits (dernier écrit gagne sinon 409).
-  let sha = null;
+  let res;
   try {
-    const res = await ghRequest(`${path}?ref=${ghConfig.branch}`);
-    if (res.ok) sha = (await res.json()).sha;
-  } catch (e) { /* fichier probablement inexistant, on le crée */ }
-
-  const body = {
-    message: message || `Mise à jour ${path}`,
-    content: b64EncodeUnicode(JSON.stringify(data, null, 2)),
-    branch: ghConfig.branch
-  };
-  if (sha) body.sha = sha;
-
-  const res = await ghRequest(path, { method: 'PUT', body: JSON.stringify(body) });
-  if (res.status === 409) {
-    throw new Error('CONFLIT: quelqu\'un d\'autre vient de modifier ce fichier. Rechargez la page et recommencez.');
+    res = await fetch(API_DATA, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path, data, message })
+    });
+  } catch (e) {
+    throw new Error("Impossible de joindre le stockage des données — vérifiez la connexion internet, ou que le site est bien servi depuis Netlify (pas un aperçu local sans fonctions).");
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(`Échec de sauvegarde (${res.status}) : ${err.message || ''}`);
+    throw new Error(err.error || `Échec de sauvegarde (${res.status})`);
   }
   return res.json();
-}
-
-async function testerConnexion() {
-  if (!ghConfig.isConfigured()) return false;
-  try {
-    const res = await fetch(`${GH_API}/repos/${ghConfig.owner}/${ghConfig.repo}`, {
-      headers: { 'Accept': 'application/vnd.github+json', 'Authorization': `Bearer ${ghConfig.token}` }
-    });
-    return res.ok;
-  } catch (e) {
-    return false;
-  }
 }
