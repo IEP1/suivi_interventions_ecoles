@@ -9,6 +9,15 @@
  */
 const GCAL_API = 'https://www.googleapis.com/calendar/v3';
 
+/*
+ * Client ID OAuth Google, commun à tout le monde — comme la clé Supabase, ce n'est pas un secret :
+ * un Client ID de type "Web application" est public par construction (voir doc Google OAuth,
+ * et README section Google Agenda). Créé une seule fois par la personne référente du site ; codé
+ * en dur ici pour que personne d'autre n'ait jamais à s'en préoccuper — chacun clique juste
+ * "Connecter" et s'authentifie avec son PROPRE compte Google, jamais celui de quelqu'un d'autre.
+ */
+const GCAL_CLIENT_ID = 'REMPLACER_PAR_LE_CLIENT_ID.apps.googleusercontent.com';
+
 /** Les 11 couleurs d'événement Google Agenda (id officiel + nom + teinte approximative). */
 const GCAL_COULEURS_REF = [
   { id: '1', nom: 'Lavande', hex: '#7986CB' },
@@ -25,7 +34,7 @@ const GCAL_COULEURS_REF = [
 ];
 
 const gcalConfig = {
-  get clientId() { return localStorage.getItem('sie_gcal_client_id') || ''; },
+  get clientId() { return GCAL_CLIENT_ID; },
   get calendarId() { return localStorage.getItem('sie_gcal_calendar_id') || 'primary'; },
   get actif() { return localStorage.getItem('sie_gcal_actif') === '1'; },
   /** Couleurs personnalisées par catégorie (remplacent COULEURS_GCAL_CATEGORIE), propres à
@@ -34,17 +43,16 @@ const gcalConfig = {
     try { return JSON.parse(localStorage.getItem('sie_gcal_couleurs') || '{}'); } catch (e) { return {}; }
   },
   setCouleurs(map) { localStorage.setItem('sie_gcal_couleurs', JSON.stringify(map)); },
-  set(clientId, calendarId) {
-    localStorage.setItem('sie_gcal_client_id', clientId);
+  set(calendarId) {
     localStorage.setItem('sie_gcal_calendar_id', calendarId || 'primary');
   },
   setActif(actif) { localStorage.setItem('sie_gcal_actif', actif ? '1' : '0'); },
   clear() {
-    ['sie_gcal_client_id', 'sie_gcal_calendar_id', 'sie_gcal_actif', 'sie_gcal_couleurs'].forEach(k => localStorage.removeItem(k));
+    ['sie_gcal_calendar_id', 'sie_gcal_actif', 'sie_gcal_couleurs'].forEach(k => localStorage.removeItem(k));
     _gcalAccessToken = null;
     _gcalAccessTokenExpiry = 0;
   },
-  isConfigured() { return !!this.clientId; }
+  isConfigured() { return !!GCAL_CLIENT_ID && !GCAL_CLIENT_ID.startsWith('REMPLACER_'); }
 };
 
 let _gcalTokenClient = null;

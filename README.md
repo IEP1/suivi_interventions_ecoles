@@ -178,25 +178,30 @@ intervention enregistrée dans l'appli (fiche école ou espace formateurs) peut 
 ajoutée à votre Google Agenda** en même temps. C'est une saisie à sens unique (outil → agenda) :
 l'appli n'importe jamais depuis l'agenda, elle ne fait qu'y écrire.
 
-Mise en service (une seule fois, par personne qui veut ce lien) :
+Le Client ID OAuth est codé en dur dans `js/google-calendar.js` (`GCAL_CLIENT_ID`) — comme la clé
+Supabase, ce n'est pas un secret (un Client ID "Web application" est public par construction).
+**Personne n'a besoin de le connaître ni de le saisir** : chacun clique juste **📅 Agenda** →
+**Connecter**, et s'authentifie avec son propre compte Google.
+
+Mise en service (une seule fois, par la personne référente du site) :
 
 1. Sur [console.cloud.google.com](https://console.cloud.google.com), créer un projet (ou réutiliser
    un projet existant).
 2. *APIs & Services* → *Bibliothèque* → activer **Google Calendar API**.
 3. *APIs & Services* → *Écran de consentement OAuth* → type **Externe**, renseigner un nom
-   d'application, puis dans l'onglet *Utilisateurs test*, ajouter votre propre adresse Google.
-   Rester en statut **Test** suffit pour un usage personnel (pas besoin de validation par Google).
+   d'application. Pour que chaque formateur puisse se connecter avec son propre compte (pas
+   seulement vous en tant qu'"utilisateur test"), publier l'écran de consentement (*Publier
+   l'application* — reste en accès simple, pas besoin de validation Google pour un usage interne à
+   une organisation ; Google affichera un écran "application non vérifiée", normal, voir étape 5).
 4. *APIs & Services* → *Identifiants* → *Créer des identifiants* → **ID client OAuth** → type
    **Application Web**. Dans *Origines JavaScript autorisées*, ajouter l'URL de votre site
    Netlify (ex. `https://iep1-suivi.netlify.app`) et, pour les tests en local,
-   `http://localhost:8000` (ou le port utilisé). Copier le **Client ID** généré (pas de secret à
-   copier : ce type de client est public par construction, comme le token n'est jamais demandé
-   côté serveur).
-5. Dans l'appli, cliquer **📅 Agenda** en haut de page, coller le Client ID (l'identifiant du
-   calendrier peut rester `primary` pour votre agenda principal), puis **Connecter**. Google
-   affichera un écran « application non vérifiée » (normal pour un usage personnel en statut
-   Test) : cliquer *Paramètres avancés* puis *Accéder à [nom de l'app] (non sécurisé)*, puis
-   autoriser l'accès à l'agenda.
+   `http://localhost:8000` (ou le port utilisé). Copier le **Client ID** généré.
+5. Coller ce Client ID dans `js/google-calendar.js`, constante `GCAL_CLIENT_ID`, puis commit/push
+   (déploiement automatique). Ensuite, dans l'appli, cliquer **📅 Agenda** → **Connecter** :
+   chacun s'authentifie avec son propre compte Google. Écran "application non vérifiée" (normal,
+   statut non validé par Google) : cliquer *Paramètres avancés* puis *Accéder à [nom de l'app]
+   (non sécurisé)*, puis autoriser l'accès à l'agenda.
 6. Chaque intervention créée ensuite génère un événement Google Agenda sur toute la journée,
    intitulé `École — Type : Thème` (ou juste `Type : Thème` pour une action générale sans école),
    coloré selon sa catégorie. Le jeton de connexion n'est jamais stocké : il est redemandé

@@ -57,9 +57,8 @@ function injecterModaleGcal() {
       <div id="gc-tuto" style="display:none;background:var(--bg);border:1px solid var(--bordure);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px;font-size:0.85rem;">
         <b>Comment se connecter :</b>
         <ol style="margin:8px 0 0;padding-left:20px;">
-          <li>Demander le <b>Client ID</b> à la personne référente du site (le même pour tout le monde).</li>
-          <li>Le coller ci-dessous dans « Client ID OAuth Google ».</li>
-          <li>Cliquer <b>Connecter</b>, puis se connecter avec son <b>propre compte Google</b> (jamais celui de quelqu'un d'autre).</li>
+          <li>Cliquer <b>Connecter</b>.</li>
+          <li>Se connecter avec son <b>propre compte Google</b> (jamais celui de quelqu'un d'autre).</li>
           <li>Google affiche un écran « application non vérifiée » : cliquer <i>Paramètres avancés</i> puis <i>Accéder à… (non sécurisé)</i> — normal pour un usage interne.</li>
         </ol>
       </div>
@@ -68,11 +67,7 @@ function injecterModaleGcal() {
         à votre Google Agenda (un seul geste de saisie pour le suivi et pour la DRH).
       </p>
       <div class="champ">
-        <label for="gc-client-id">Client ID OAuth Google</label>
-        <input type="text" id="gc-client-id" placeholder="xxxxxxxx.apps.googleusercontent.com">
-      </div>
-      <div class="champ">
-        <label for="gc-calendar-id">Identifiant du calendrier</label>
+        <label for="gc-calendar-id">Identifiant du calendrier <span style="font-weight:400;color:var(--texte-muted);">(facultatif — laisser "primary" pour votre agenda principal)</span></label>
         <input type="text" id="gc-calendar-id" placeholder="primary">
       </div>
       <p id="gc-message" class="alerte" style="display:none;"></p>
@@ -97,7 +92,6 @@ function injecterModaleGcal() {
   `;
   document.body.appendChild(div);
 
-  document.getElementById('gc-client-id').value = gcalConfig.clientId;
   document.getElementById('gc-calendar-id').value = gcalConfig.calendarId;
 
   document.getElementById('gc-aide').addEventListener('click', () => {
@@ -138,8 +132,7 @@ function injecterModaleGcal() {
   document.getElementById('gc-deconnecter').addEventListener('click', () => {
     gcalDeconnecter();
     gcalConfig.clear();
-    document.getElementById('gc-client-id').value = '';
-    document.getElementById('gc-calendar-id').value = '';
+    document.getElementById('gc-calendar-id').value = 'primary';
     div.querySelectorAll('.gc-couleur-select').forEach(sel => {
       sel.dataset.selected = COULEURS_GCAL_CATEGORIE[sel.dataset.categorie] || '8';
     });
@@ -148,13 +141,12 @@ function injecterModaleGcal() {
     afficherMessageModaleGcal('Déconnecté. Les interventions ne seront plus ajoutées à Google Agenda.', 'alerte-info');
   });
   document.getElementById('gc-connecter').addEventListener('click', async () => {
-    const clientId = document.getElementById('gc-client-id').value.trim();
-    const calendarId = document.getElementById('gc-calendar-id').value.trim() || 'primary';
-    if (!clientId) {
-      afficherMessageModaleGcal('Merci de renseigner le Client ID OAuth Google.', 'alerte-warn');
+    if (!gcalConfig.isConfigured()) {
+      afficherMessageModaleGcal("Connexion à Google Agenda pas encore configurée par la personne référente du site (Client ID manquant dans le code).", 'alerte-err');
       return;
     }
-    gcalConfig.set(clientId, calendarId);
+    const calendarId = document.getElementById('gc-calendar-id').value.trim() || 'primary';
+    gcalConfig.set(calendarId);
     afficherMessageModaleGcal('Ouverture de la fenêtre de consentement Google…', 'alerte-info');
     try {
       await gcalConnecter();
