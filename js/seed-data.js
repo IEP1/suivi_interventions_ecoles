@@ -1,8 +1,11 @@
 /*
  * Données initiales, extraites de "2026 IEP1 Liste des écoles + référents
- * CPC_ DESED.xlsx" et de "Tableau bord circonscription IEP1.xlsx". Servent de
- * point de départ tant qu'aucune donnée n'a encore été enregistrée sur le
- * repo GitHub privé. Modifiables ensuite entièrement depuis l'application.
+ * CPC_ DESED.xlsx" et de "Tableau bord circonscription IEP1.xlsx". Ne servent plus de repli
+ * d'affichage (une vraie erreur Supabase remonte désormais telle quelle, volontairement — voir
+ * js/data-store.js — plutôt que de masquer un problème derrière de fausses données de démo comme
+ * l'ancien système, ce qui avait fait croire à un inspecteur que l'outil était vide). Utilisées
+ * uniquement par maj-listes.html pour (re)semer/fusionner la base Supabase avec cette liste de
+ * référence définie dans le code.
  *
  * Les id d'école reprennent volontairement ceux déjà utilisés dans le repo
  * "carrefour_des_pratiques" (mêmes établissements, mêmes clés stables).

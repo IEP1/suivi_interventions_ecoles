@@ -4,55 +4,49 @@ Mémoire et suivi des interventions menées par les formateurs (CPC, PEMF, IAP) 
 la circonscription : accompagnement individuel ou d'équipe, visites d'accompagnement, résidences
 pédagogiques, conseils des maîtres, projets d'école, liaisons, animations, etc.
 
-Site 100% statique (HTML/CSS/JS) hébergé sur **Netlify** (gratuit). Les données (écoles,
-intervenants, types d'intervention, historique) sont stockées dans un **second repo GitHub
-privé**, distinct de celui-ci, pour ne jamais exposer de données publiquement — mais lues/écrites
-via une **fonction serveur Netlify** (`netlify/functions/data.js`) qui détient seule le token
-GitHub. Personne (formateur, secrétariat, IAP, inspecteur de passage…) n'a besoin de "se
-connecter" : ouvrir le lien du site suffit, en lecture comme en écriture. L'accès se règle
-uniquement en choisissant à qui on donne ce lien.
+Site 100% statique (HTML/CSS/JS) hébergé sur **Netlify** (gratuit, uniquement pour l'hébergement —
+plus de fonction serveur). Les données (écoles, intervenants, types d'intervention, historique)
+sont stockées dans une **base Supabase** (Postgres, gratuit à cette échelle) — voir
+`supabase/schema.sql` pour les tables et `js/supabase-client.js` pour la connexion. L'appli parle
+directement à Supabase depuis le navigateur avec une clé publique (`anon`), sécurisée côté serveur
+par des règles d'accès (Row Level Security) plutôt que par un jeton à distribuer. Personne
+(formateur, secrétariat, IAP, inspecteur de passage…) n'a besoin de "se connecter" : ouvrir le lien
+du site suffit, en lecture comme en écriture. L'accès se règle uniquement en choisissant à qui on
+donne ce lien.
 
-*Avant août 2026, l'appli demandait à chaque personne de coller un token GitHub personnel dans une
-modale "⚙ Données" — ce mécanisme a été retiré : un visiteur sans token voyait silencieusement les
-données de démonstration au lieu des vraies données, ce qui a fait croire à un inspecteur que
-l'outil était vide. Ne pas réintroduire cette modale : c'était la cause du bug.*
+*Historique : avant le 30/08/2026, les données vivaient dans un repo GitHub privé, lu/écrit via un
+token personnel collé dans une modale "⚙ Données" — un visiteur sans token voyait silencieusement
+les données de démonstration, ce qui a fait croire à un inspecteur que l'outil était vide. Un
+correctif intermédiaire (proxy via une fonction serveur Netlify) a réglé l'urgence le temps de
+migrer vers Supabase le 31/08/2026, architecture définitive décrite ci-dessous. Ne pas réintroduire
+la modale de token GitHub : c'était la cause du bug initial.*
 
 ## Mise en service (une seule fois, par la personne référente du site)
 
-1. **Créer le repo de données privé**, par ex. `IEP1/suivi_interventions_ecoles-data`, sur
-   github.com → *New repository* → cocher **Private**. Il peut rester vide, l'appli crée les
-   fichiers seule au premier enregistrement.
+1. **Créer un projet Supabase** (gratuit, [supabase.com](https://supabase.com)) → New project.
+   Noter le mot de passe de base généré (affiché une seule fois) dans un endroit sûr.
 
-2. **Créer un token d'accès personnel (fine-grained)** :
-   github.com → *Settings* → *Developer settings* → *Personal access tokens* → *Fine-grained
-   tokens* → *Generate new token*.
-   - *Repository access* : seulement le repo de données créé à l'étape 1.
-   - *Permissions* → *Contents* : **Read and write**.
-   - Copier le token généré (il ne sera plus jamais affiché) — il ne sera collé qu'une seule fois,
-     à l'étape 4, jamais redemandé ensuite à qui que ce soit.
+2. **Créer les tables** : Supabase → *SQL Editor* → coller le contenu de `supabase/schema.sql` →
+   *Run*. Crée les tables, active la sécurité par ligne (RLS) et ouvre l'accès lecture/écriture à
+   la clé publique (`anon`) — cohérent avec le principe "accès par lien" de cette appli, sans
+   compte utilisateur.
 
-3. **Créer un compte Netlify** (gratuit, [netlify.com](https://www.netlify.com)) puis
+3. Dans *Project Settings* → *API Keys*, récupérer l'**URL du projet** et la clé **`anon`
+   `public`** (jamais la `service_role`, réservée aux scripts d'administration). Les coller dans
+   `js/supabase-client.js` (`SUPABASE_URL`, `SUPABASE_ANON_KEY`) — ce sont des identifiants
+   publics par conception, sans risque à publier dans le code.
+
+4. **Créer un compte Netlify** (gratuit, [netlify.com](https://www.netlify.com)) puis
    *Add new site* → *Import an existing project* → connecter GitHub → choisir **ce** repo (le
    code, `suivi_interventions_ecoles`). Laisser les réglages de build par défaut (aucune commande
-   de build nécessaire, c'est un site statique ; Netlify détecte automatiquement le dossier
-   `netlify/functions`).
-
-4. Sur le site Netlify créé → *Site configuration* → *Environment variables*, ajouter :
-   - `GITHUB_TOKEN` = le token créé à l'étape 2
-   - `GITHUB_OWNER` = le compte/organisation GitHub du repo de données (ex. `IEP1`)
-   - `GITHUB_REPO` = le nom du repo de données (ex. `suivi_interventions_ecoles-data`)
-   - `GITHUB_BRANCH` = `main` (facultatif, `main` par défaut)
-
-   Puis redéployer le site (*Deploys* → *Trigger deploy*) pour que les variables prennent effet.
+   de build nécessaire, c'est un site statique).
 
 5. **Diffuser l'URL Netlify** (ex. `https://iep1-suivi.netlify.app`, personnalisable dans *Site
    configuration* → *Domain management*) aux personnes concernées — c'est ce lien, et lui seul,
    qui contrôle qui a accès à l'outil.
 
-Si le site est ouvert autrement (ex. `python -m http.server` en local sans Netlify), il retombe
-automatiquement en **mode démo local** : les 21 écoles réelles et les types d'intervention
-s'affichent (données de démarrage), mais rien ne peut être enregistré durablement — pratique pour
-prévisualiser une modification de code sans dépendre de Netlify.
+Le site fonctionne identiquement en local (`python -m http.server`) ou sur Netlify : les
+identifiants Supabase sont dans le code, pas dépendants de l'hébergeur.
 
 ## Fonctionnement
 
@@ -111,70 +105,63 @@ prévisualiser une modification de code sans dépendre de Netlify.
   d'école » inclut aussi la visite d'accompagnement (VA) et la résidence pédagogique, aux côtés des
   conseils de cycle/maîtres/école. Le champ « action personnalisée » rappelle de ne pas y noter « à
   la demande de… » (c'est le rôle du champ Origine, à l'étape suivante) — pour nettoyer les
-  doublons déjà accumulés dans le repo de données, voir « Nettoyer les types personnalisés en
+  doublons déjà accumulés dans la base, voir « Nettoyer les types personnalisés en
   double » sur `maj-listes.html` : liste chaque type personnalisé enregistré avec son nombre
   d'utilisations, et permet de le fusionner vers un type officiel (réaffecte automatiquement les
   interventions concernées) ou de le supprimer s'il n'est utilisé nulle part.
 - **Intervenants** (`conseillers.html`) : ajout et suppression manuels d'intervenants (nom + rôle
   parmi conseiller pédagogique / PEMF / secrétariat / IAP). Les noms dans `SEED_INTERVENANTS`
   (`js/seed-data.js`, public) sont volontairement des noms de démonstration génériques — les vrais
-  noms des formateurs ne vivent que dans `intervenants.json` du repo privé de données. Les `id`,
-  eux, sont stables entre code et repo privé (ne pas les changer). `maj-listes.html` **fusionne**
-  les intervenants (comme les types) : un nom déjà personnalisé dans le repo privé n'est jamais
-  écrasé par le nom de démonstration du code.
+  noms des formateurs ne vivent que dans la table `intervenants` de Supabase. Les `id`, eux, sont
+  stables entre code et base (ne pas les changer). `maj-listes.html` **fusionne** les intervenants
+  (comme les types) : un nom déjà personnalisé dans la base n'est jamais écrasé par le nom de
+  démonstration du code.
 - **Écoles de référence** (`conseiller.html`) : chaque intervenant peut cocher ses écoles de
   référence depuis sa propre page, pour y accéder plus vite et pré-remplir automatiquement la
   liste lors de la saisie d'une action groupée.
 - **Structure pédagogique** (`equipe.html`) : accessible depuis chaque fiche école (bouton
   « Modifier »), permet de saisir/éditer l'équipe enseignante (nom, prénom, niveau de classe,
   statut, référent ou responsabilité) et le psychologue scolaire référent. Ces informations ne
-  sont **jamais publiées** dans le code : elles vivent uniquement dans le repo privé de données.
+  sont **jamais publiées** dans le code : elles vivent uniquement dans la base Supabase.
 
-Chaque école a son propre fichier de données dans le repo privé (`interventions/<id>.json`,
-`equipes/<id>.json`), ce qui évite les conflits entre conseillers qui saisissent en même temps
-sur des écoles différentes. Chaque écriture crée un commit sur le repo de données : c'est votre
-historique de sauvegardes.
+Toutes les actions (école ou générales) vivent dans une seule table `actions` (voir schéma
+ci-dessous), ce qui évite les conflits entre formateurs qui saisissent en même temps sur des écoles
+différentes. Chaque écriture est aussi tracée dans `journal_audit` (qui/quoi/quand/avant/après) :
+c'est l'équivalent de l'historique de commits qu'offrait l'ancien système GitHub.
 
-## Fichiers du repo de données
+## Tables Supabase (voir `supabase/schema.sql` pour le détail complet)
 
-- `ecoles.json` — liste des écoles (nom, type, direction, CPC référent).
-- `intervenants.json` — formateurs (CPC, PEMF), secrétariat, IAP.
-- `types-intervention.json` — types d'intervention proposés (dont les types personnalisés créés
-  en cours d'usage).
-- `interventions/<ecoleId>.json` — historique des interventions de cette école.
-- `actions-generales/<intervenantId>.json` — actions saisies par cet intervenant sans lien avec une
-  école précise (réunion, administratif, formation, examen…).
-- `equipes/<ecoleId>.json` — structure pédagogique de cette école (enseignants, psychologue
-  référent).
-- `bilans/<année>.json` — bilan qualitatif de fin d'année (axes forts, points de vigilance,
+- `ecoles` — liste des écoles (nom, type, direction, CPC référent, psychologue scolaire).
+- `intervenants` — formateurs (CPC, PEMF), secrétariat, IAP.
+- `types_intervention` — types d'intervention proposés (dont les types personnalisés créés en
+  cours d'usage, et les anciens types retirés mais encore référencés par l'historique).
+- `actions` — chaque intervention/action (école optionnelle — nulle pour une action générale sans
+  lien avec une école précise, ex. réunion, administratif, formation).
+- `equipe_enseignants` — structure pédagogique par école (enseignants, niveau, statut).
+- `bilans_annuels` — bilan qualitatif de fin d'année (axes forts, points de vigilance,
   perspectives), saisi depuis `bilan-annuel.html`.
+- `journal_audit` — historique de chaque création/modification/suppression sur la table `actions`.
 
-## Pré-remplir la structure pédagogique (une seule fois)
+**Migration future du schéma** : toute évolution (nouvelle colonne, nouvelle table, renommage
+d'une valeur déjà enregistrée) se fait via un script SQL collé dans le *SQL Editor* de Supabase —
+jamais en donnant un accès élevé (`service_role`) à un outil tiers en permanence. Cette clé ne sert
+que ponctuellement, pour une opération en masse explicitement demandée (ex. migration initiale).
 
-Un fichier local `js/import-equipes.local.js` (jamais publié, voir `.gitignore`) contient la
-structure pédagogique des 21 écoles extraite de "Tableau bord circonscription IEP1.xlsx". Pour
-l'importer dans le repo privé :
+## Pré-remplir la structure pédagogique (historique, déjà fait)
 
-1. Ces deux fichiers existent déjà dans votre dossier de projet local (jamais poussés sur
-   GitHub, voir `.gitignore`) : `js/import-equipes.local.js` et `import.html`. Ils datent d'avant
-   le passage au proxy Netlify (voir plus haut) : `import.html` appelle encore directement l'API
-   GitHub avec un token collé sur place — à mettre à jour sur le même principe que
-   `js/github-store.js` si vous deviez le réutiliser un jour (l'import initial a déjà été fait).
-2. Lancez le site en local (`python -m http.server` à la racine du projet) et ouvrez
-   `http://localhost:8000/import.html` (ou le port utilisé).
-3. Cliquez **Importer la structure pédagogique**.
-4. Le fichier source contient quelques accents mal restitués (encodage déjà abîmé dans le
-   classeur d'origine) : une correction automatique a été appliquée à l'extraction, mais
-   relisez chaque école ensuite (bouton **Modifier** sur sa fiche) pour corriger d'éventuelles
-   coquilles.
+`js/import-equipes.local.js` + `import.html` (jamais publiés, voir `.gitignore`) ont servi une
+seule fois à importer la structure pédagogique des 21 écoles extraite de "Tableau bord
+circonscription IEP1.xlsx", à l'époque du repo GitHub privé. Cet import a déjà été fait puis migré
+vers Supabase le 31/08/2026 — ces fichiers datent d'avant et appellent encore directement l'API
+GitHub avec un token collé sur place ; à réécrire entièrement (appels Supabase, comme
+`js/data-store.js`) si un import de masse similaire devait resservir un jour.
 
 ## Saisie rapide (téléphone)
 
-Le site complet (tableau de bord, bilans, historiques) est pensé comme un outil de **vérification
-pour la hiérarchie**. Pour la saisie quotidienne sur le terrain, `saisie-rapide.html` est un
-formulaire minimal (qui / quoi / où, une école à la fois, tout le reste replié sous « + Détails »)
-qui écrit exactement dans les mêmes destinations que le reste de l'appli (repo privé + Google
-Agenda si connecté) — juste avec beaucoup moins de gestes.
+`saisie-rapide.html` est le **point d'entrée unique** pour ajouter une action au quotidien (qui /
+quoi / où — une ou plusieurs écoles à la fois — / détails), aussi bien depuis le terrain que
+depuis l'espace formateur (`conseiller.html` y renvoie via un lien pré-rempli `?qui=`). Elle écrit
+exactement dans les mêmes tables Supabase que le reste de l'appli, plus Google Agenda si connecté.
 
 Pour l'installer comme un raccourci d'icône sur le téléphone (pas une vraie appli, pas de compte
 séparé — juste un signet plein écran) :

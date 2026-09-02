@@ -1,4 +1,4 @@
-/* En-tête commun + modale de connexion au repo de données GitHub, injectés sur chaque page. */
+/* En-tête commun (nav + connexion Google Agenda), injecté sur chaque page. */
 
 function injecterEntete(pageActive) {
   const cible = document.getElementById('entete-app');
