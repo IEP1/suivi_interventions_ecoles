@@ -17,3 +17,8 @@ qualifier-visites.html
 .DS_Store
 Thumbs.db
 .claude/settings.local.json
+
+# Secrets Supabase (mot de passe DB, clés API) : jamais publiés, gardés localement seulement.
+supabase MDP ne pas diffuser/
+.env.migration
+.env*.local
