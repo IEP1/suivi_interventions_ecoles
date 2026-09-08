@@ -1,0 +1,20 @@
+name: Garder Supabase actif
+
+# Le plan gratuit Supabase met un projet en pause s'il ne reçoit aucune requête pendant 7 jours
+# glissants. Cette tâche fait une toute petite lecture (1 ligne) toutes les 3 jours pour remettre
+# le compteur à zéro — automatique, gratuit (repo public = minutes GitHub Actions illimitées),
+# aucun secret nécessaire (la clé "anon" est publique par design, voir js/supabase-client.js).
+on:
+  schedule:
+    - cron: '0 3 */3 * *'   # tous les 3 jours à 3h UTC (14h en Nouvelle-Calédonie)
+  workflow_dispatch:         # bouton "Run workflow" manuel dans l'onglet Actions, si besoin
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          curl -sf "https://kgklcrxecietxbkvwrnw.supabase.co/rest/v1/ecoles?select=id&limit=1" \
+            -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtna2xjcnhlY2lldHhia3Z3cm53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMTcxNDUsImV4cCI6MjEwMzY5MzE0NX0.YCieusV14yUf4WdkTvihdzZ0XkTWGjf3r5LXI9Ht2lY" \
+            -o /dev/null

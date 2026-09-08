@@ -147,6 +147,11 @@ d'une valeur déjà enregistrée) se fait via un script SQL collé dans le *SQL 
 jamais en donnant un accès élevé (`service_role`) à un outil tiers en permanence. Cette clé ne sert
 que ponctuellement, pour une opération en masse explicitement demandée (ex. migration initiale).
 
+**Anti-pause automatique** : le plan gratuit Supabase met un projet en pause après 7 jours sans
+requête. `.github/workflows/ping-supabase.yml` fait une petite lecture toutes les 3 jours pour
+l'éviter — automatique, gratuit (repo public), rien à faire. Visible dans l'onglet *Actions* du
+repo GitHub ; un bouton "Run workflow" y permet aussi un déclenchement manuel si besoin.
+
 ## Pré-remplir la structure pédagogique (historique, déjà fait)
 
 `js/import-equipes.local.js` + `import.html` (jamais publiés, voir `.gitignore`) ont servi une
