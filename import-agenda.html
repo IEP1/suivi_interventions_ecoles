@@ -156,21 +156,41 @@ function remplirSelectEcoleLigne(sel, ecoleIdChoisi) {
     ECOLES.map(e => `<option value="${e.id}" ${e.id === ecoleIdChoisi ? 'selected' : ''}>${e.nom}</option>`).join('');
 }
 
-/** true si la ligne est prête à être importée telle quelle sans y regarder de plus près. */
-function ligneFiable(ligne) {
+/** true si l'école/le type sont détectés sans ambiguïté (mais peut quand même être un doublon possible). */
+function ligneReconnue(ligne) {
   return !!ligne.ecoleId && !ligne.ecoleAmbigue && !!ligne.typeId;
+}
+
+/*
+ * Doublon POSSIBLE seulement (jamais certain) : une action existe déjà pour cette école à cette
+ * date, mais ça n'empêche pas d'en avoir une deuxième et bien réelle le même jour (ex. plusieurs
+ * suivis de suppléants différents dans la même école). On ne fait donc jamais disparaître ces
+ * lignes — juste décochées par défaut, à confirmer au cas par cas.
+ */
+function ligneDoublonPossible(ligne) {
+  return !!ligne.ecoleId && CLES_ACTIONS_EXISTANTES.has(cleActionExistante(ligne.ecoleId, ligne.date));
+}
+
+function badgeLigne(ligne) {
+  if (ligneDoublonPossible(ligne)) return '<span class="badge badge-a-valider">doublon possible ?</span>';
+  if (!ligneReconnue(ligne)) return '<span class="badge badge-a-valider">à vérifier</span>';
+  return '';
+}
+
+function cocheeParDefaut(ligne) {
+  return ligneReconnue(ligne) && !ligneDoublonPossible(ligne);
 }
 
 function rendreLignesImport() {
   const corps = document.getElementById('corps-import');
   corps.innerHTML = LIGNES_IMPORT.map((ligne, i) => `
     <tr data-i="${i}">
-      <td><input type="checkbox" class="chk-ligne" ${ligneFiable(ligne) ? 'checked' : ''}></td>
+      <td><input type="checkbox" class="chk-ligne" ${cocheeParDefaut(ligne) ? 'checked' : ''}></td>
       <td style="white-space:nowrap;">${formaterDate(ligne.date)}</td>
       <td><select class="sel-ecole-ligne" style="min-width:170px;"></select></td>
       <td><select class="sel-type-ligne" style="min-width:190px;"></select></td>
       <td><input type="text" class="txt-theme-ligne" value="${(ligne.theme || '').replace(/"/g, '&quot;')}" style="width:100%;"></td>
-      <td>${ligneFiable(ligne) ? '' : '<span class="badge badge-a-valider">à vérifier</span>'}</td>
+      <td>${badgeLigne(ligne)}</td>
     </tr>`).join('');
 
   corps.querySelectorAll('tr').forEach(tr => {
@@ -187,8 +207,7 @@ function rendreLignesImport() {
 }
 
 function majBadgeLigne(tr, ligne) {
-  const cellule = tr.children[5];
-  cellule.innerHTML = ligneFiable(ligne) ? '' : '<span class="badge badge-a-valider">à vérifier</span>';
+  tr.children[5].innerHTML = badgeLigne(ligne);
 }
 
 async function traiterFichierIcs(texte) {
@@ -198,22 +217,22 @@ async function traiterFichierIcs(texte) {
     .filter(e => !UIDS_DEJA_IMPORTES.has(e.uid))
     .map(e => analyserEvenementAgenda(e, ECOLES));
 
-  const dejaImportes = evenements.length - analysees.length;
-  const dejaSaisies = analysees.filter(l => l.ecoleId && CLES_ACTIONS_EXISTANTES.has(cleActionExistante(l.ecoleId, l.date))).length;
+  const dejaImportes = evenements.length - analysees.length; // ceux-là, on ne les reverra jamais (même évènement)
 
-  // Ne propose que les évènements réellement nouveaux : ni déjà importés (par UID), ni déjà
-  // saisis pour cette école à cette date (à la main ou lors d'un import précédent).
-  LIGNES_IMPORT = analysees
-    .filter(l => !(l.ecoleId && CLES_ACTIONS_EXISTANTES.has(cleActionExistante(l.ecoleId, l.date))))
-    .sort((a, b) => b.date.localeCompare(a.date));
+  // Seuls les évènements déjà importés une fois (même UID) disparaissent complètement. Une action
+  // déjà enregistrée pour la même école à la même date reste affichée mais décochée et marquée
+  // "doublon possible ?" — ça peut très bien être une deuxième action bien réelle le même jour
+  // (ex. plusieurs suivis de suppléants différents), donc jamais masquée d'office.
+  LIGNES_IMPORT = analysees.sort((a, b) => b.date.localeCompare(a.date));
+  const doublonsPossibles = LIGNES_IMPORT.filter(ligneDoublonPossible).length;
 
   document.getElementById('titre-resultats').textContent =
     `${LIGNES_IMPORT.length} évènement(s) trouvé(s)`;
-  const ignores = [];
-  if (dejaImportes) ignores.push(`${dejaImportes} déjà importé(s) précédemment`);
-  if (dejaSaisies) ignores.push(`${dejaSaisies} déjà enregistré(s) dans le suivi (même école, même date)`);
-  document.getElementById('msg-deja-importes').style.display = ignores.length ? 'block' : 'none';
-  document.getElementById('msg-deja-importes').textContent = ignores.length ? ignores.join(' — ') + ', ignoré(s).' : '';
+  const infos = [];
+  if (dejaImportes) infos.push(`${dejaImportes} déjà importé(s) précédemment, ignoré(s)`);
+  if (doublonsPossibles) infos.push(`${doublonsPossibles} correspondent à une action déjà enregistrée le même jour dans la même école — décoché(s), à vérifier avant de cocher (pas forcément un doublon)`);
+  document.getElementById('msg-deja-importes').style.display = infos.length ? 'block' : 'none';
+  document.getElementById('msg-deja-importes').textContent = infos.length ? infos.join(' — ') + '.' : '';
   document.getElementById('msg-vide-import').style.display = LIGNES_IMPORT.length ? 'none' : 'block';
   document.getElementById('msg-import').style.display = 'none';
   rendreLignesImport();
