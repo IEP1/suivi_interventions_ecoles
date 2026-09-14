@@ -254,11 +254,7 @@ function categorieResolue(cat) {
   return (cat && CATEGORIES_HERITEES[cat]) || 'divers';
 }
 
-/*
- * Palette partagée par catégorie, utilisée par les graphiques (Chart.js, couleurs hex) et par le
- * connecteur Google Agenda (colorId officiel Google Calendar, 1 à 11) — voir README pour la
- * correspondance à configurer une fois côté Google Agenda ("Utilisation du temps" > libellés).
- */
+/* Palette partagée par catégorie, utilisée par les graphiques (Chart.js, couleurs hex). */
 const COULEURS_CATEGORIE = {
   'accompagnement': '#005E86',
   'formation': '#6B3FA0',
@@ -266,13 +262,4 @@ const COULEURS_CATEGORIE = {
   'circonscription': '#123C62',
   'reglementaire': '#C24B7C',
   'divers': '#8A97A3'
-};
-
-const COULEURS_GCAL_CATEGORIE = {
-  'accompagnement': '7',   // Peacock
-  'formation': '3',        // Grape
-  'projets': '10',         // Basil
-  'circonscription': '9',  // Blueberry
-  'reglementaire': '4',    // Flamingo
-  'divers': '8'            // Graphite
 };

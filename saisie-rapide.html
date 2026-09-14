@@ -11,7 +11,6 @@
 <meta name="apple-mobile-web-app-title" content="IEP1 Saisie">
 <meta name="theme-color" content="#0F2942">
 <link rel="apple-touch-icon" href="assets/logo-iep1.png">
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 <div id="entete-app"></div>
@@ -20,19 +19,6 @@
   <div id="zone-chargement" class="alerte alerte-info">Chargement…</div>
 
   <div id="zone-assistant" style="display:none;">
-    <div class="carte" id="carte-agenda-rappel" style="display:none;">
-      <p class="intro" style="margin-bottom:10px;">
-        <b>📅 Pense à connecter ton Google Agenda</b> — chaque action saisie ici sera aussi ajoutée
-        à ton agenda, automatiquement. Ça reste propre à toi : tu te connectes avec ton propre
-        compte Google, jamais avec celui de quelqu'un d'autre — sans risque de partager le lien de
-        cette page.
-      </p>
-      <button class="btn btn-sm btn-primaire" id="btn-connecter-agenda-rappel" type="button">Connecter maintenant</button>
-    </div>
-    <p class="intro" id="agenda-confirme" style="display:none;color:#4C6329;font-weight:600;">
-      ✅ Google Agenda connecté sur cet appareil.
-    </p>
-
     <div class="carte">
       <div class="assistant-entete">
         <div class="assistant-titre-etape"></div>
@@ -74,7 +60,7 @@
         </div>
         <div id="vue-action-autre" style="display:none;">
           <input type="text" id="ci-lieu-libre" placeholder="Ex : DENC, domicile, Médipôle… (facultatif)">
-          <p class="intro" style="margin:8px 0 0;">Cette action n'est liée à aucune école : elle part vers Google Agenda mais ne compte dans aucune statistique.</p>
+          <p class="intro" style="margin:8px 0 0;">Cette action n'est liée à aucune école : elle est enregistrée dans l'historique mais ne compte dans aucune statistique.</p>
         </div>
       </div>
 
@@ -126,16 +112,15 @@
 
 <p class="pied">IEP1 — Saisie rapide</p>
 
-<script src="js/seed-data.js?v=21"></script>
+<script src="js/seed-data.js?v=22"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/supabase-client.js?v=1"></script>
 <script src="js/data-store.js?v=13"></script>
-<script src="js/stats.js?v=12"></script>
+<script src="js/stats.js?v=13"></script>
 <script src="js/type-selector.js?v=11"></script>
 <script src="js/assistant-etapes.js?v=5"></script>
 <script src="js/school-picker.js?v=7"></script>
-<script src="js/google-calendar.js?v=12"></script>
-<script src="js/layout.js?v=17"></script>
+<script src="js/layout.js?v=18"></script>
 <script>
 injecterEntete('saisie-rapide.html');
 
@@ -166,12 +151,6 @@ function choisirQui(id) {
   document.getElementById('chips-qui').querySelectorAll('button').forEach(b => b.classList.toggle('selectionne', b.dataset.id === id));
   rendreVueActionReferentes();
   chipsActionPicker.setSelection(mesEcolesReferentes().map(e => e.id));
-}
-
-function rendreRecapAgenda() {
-  const connecte = gcalConfig.isConfigured() && gcalConfig.actif;
-  document.getElementById('carte-agenda-rappel').style.display = connecte ? 'none' : 'block';
-  document.getElementById('agenda-confirme').style.display = connecte ? 'block' : 'none';
 }
 
 function majVisibiliteProfil() {
@@ -276,16 +255,12 @@ async function enregistrer() {
   btn.disabled = true;
   try {
     const typeId = selecteurType.typeSelectionneId();
-    const type = TYPES.find(t => t.id === typeId);
-    const typeLabel = type ? type.label : '';
     const date = document.getElementById('sr-date').value || new Date().toISOString().slice(0, 10);
     const theme = document.getElementById('sr-theme').value.trim();
     const notes = document.getElementById('sr-notes').value.trim();
     const profil = valeurProfilAvecPrecision('sr-precision-equipe', document.getElementById('sr-profil').value);
     const origine = document.getElementById('sr-origine').value;
     const intervenant = INTERVENANTS.find(i => i.id === quiId);
-    const categorie = categorieResolue(type ? type.categorie : null);
-    const gcalTypeLabel = profil ? `${typeLabel} (${profil})` : typeLabel;
     const ecolesChoisies = ecolesSelectionnees();
     let messageFinal;
 
@@ -293,10 +268,6 @@ async function enregistrer() {
       const lieuLibre = modeAction === 'autre' ? document.getElementById('ci-lieu-libre').value.trim() : '';
       const action = { id: genererIdIntervention(), date, typeId, intervenantId: quiId, theme, notes, profil, origine, lieuLibre, horodatage: horodatageMaintenant() };
       await Store.ajouterActionGenerale(quiId, action, intervenant ? intervenant.nom : quiId);
-      if (gcalConfig.actif) {
-        gcalPousserIntervention({ typeLabel: gcalTypeLabel, theme, notes: [notes, lieuLibre ? `Lieu : ${lieuLibre}` : ''].filter(Boolean).join('\n'), date, categorie })
-          .catch(e => console.warn('Google Agenda :', e.message));
-      }
       messageFinal = 'Action générale enregistrée.';
     } else {
       const groupeId = ecolesChoisies.length > 1 ? 'grp-' + Date.now().toString(36) : undefined;
@@ -306,10 +277,6 @@ async function enregistrer() {
         if (ecolesChoisies.length > 1) assistant.afficherMessage(`Enregistrement… (${i + 1}/${ecolesChoisies.length} : ${ecole.nom})`, 'alerte-info');
         const intervention = { id: genererIdIntervention(), groupeId, date, typeId, intervenantId: quiId, theme, notes, profil, origine, horodatage: horodatageMaintenant() };
         await Store.ajouterIntervention(ecoleId, intervention, ecole.nom);
-        if (gcalConfig.actif) {
-          gcalPousserIntervention({ ecoleNom: ecole.nom, typeLabel: gcalTypeLabel, theme, notes, date, categorie })
-            .catch(e => console.warn('Google Agenda :', e.message));
-        }
       }
       messageFinal = ecolesChoisies.length > 1 ? `Action enregistrée sur ${ecolesChoisies.length} écoles.` : 'Enregistré ✓';
     }
@@ -325,8 +292,6 @@ async function enregistrer() {
   }
 }
 
-document.getElementById('btn-connecter-agenda-rappel').addEventListener('click', ouvrirModaleGcal);
-window.addEventListener('focus', rendreRecapAgenda);
 document.getElementById('sr-type').addEventListener('change', majVisibiliteProfil);
 document.getElementById('sr-profil').addEventListener('change', () => rendrePersonneSuivieRapide());
 document.getElementById('onglet-mode-referentes').addEventListener('click', () => basculerModeAction('referentes'));
@@ -347,7 +312,6 @@ async function init() {
   rendreChipsQui();
   remplirSelectOrigine();
   document.getElementById('sr-date').value = new Date().toISOString().slice(0, 10);
-  rendreRecapAgenda();
   selecteurType = initialiserSelecteurType({ selTypeId: 'sr-type', types: TYPES });
   majVisibiliteProfil();
   rendreVueActionReferentes();

@@ -57,7 +57,7 @@ function calculerStatsGlobales(ecolesAvecInterventions, debut, fin, types) {
 /**
  * Bilan d'action (conseiller ou équipe) : répartition en % du total, pour un bilan de fin
  * d'année. Ne compte que les actions liées à une école (ecoleId défini) — une action sans école
- * part vers Google Agenda mais n'entre dans aucune statistique, seulement dans l'historique brut.
+ * (ex. réunion, administratif) n'entre dans aucune statistique, seulement dans l'historique brut.
  * actions : liste à plat (voir Store.chargerToutesLesActionsIntervenant / chargerToutesLesActions)
  */
 function calculerBilanActions(actions, debut, fin, types) {

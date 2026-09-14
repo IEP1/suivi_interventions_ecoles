@@ -78,15 +78,15 @@ identifiants Supabase sont dans le code, pas dépendants de l'hébergeur.
   en une fois à une ou plusieurs écoles
   (ses écoles référentes pré-cochées, sélection libre, ou onglet « Autre / pas d'école » pour une
   action sans lien avec une école précise). Un même geste crée une entrée dans l'historique de
-  chaque école choisie (ou une action générale, envoyée à Google Agenda mais jamais comptée dans
-  les statistiques). La page affiche les dernières actions saisies par cet intervenant, toutes
+  chaque école choisie (ou une action générale, enregistrée dans l'historique mais jamais comptée
+  dans les statistiques). La page affiche les dernières actions saisies par cet intervenant, toutes
   écoles confondues, ainsi qu'un **Bilan de l'année** (répartition en % par catégorie et par type,
   école uniquement, doughnut inclus) pour préparer le bilan d'action de fin d'année.
   `conseillers.html` affiche le même bilan au niveau de l'équipe entière.
 - **Lieu, au cas par cas** : le lieu n'est jamais déduit du type d'action — à chaque saisie, on
   choisit une école dans la liste, « Autre » (texte libre : DENC, domicile…) ou rien. Seules les
-  actions liées à une école comptent dans les statistiques (accueil, bilans) ; les autres partent
-  quand même vers Google Agenda pour garder une trace personnelle.
+  actions liées à une école comptent dans les statistiques (accueil, bilans) ; les autres restent
+  quand même dans l'historique pour garder une trace.
 - **Types d'intervention** : typologie officielle à 16 valeurs, réparties en 6 catégories
   (Accompagnement, Formation, Projets et actions, Circonscription et institution, Missions
   réglementaires, Divers) — voir `js/seed-data.js`. Deux axes complémentaires, facultatifs et
@@ -166,7 +166,7 @@ GitHub avec un token collé sur place ; à réécrire entièrement (appels Supab
 `saisie-rapide.html` est le **point d'entrée unique** pour ajouter une action au quotidien (qui /
 quoi / où — une ou plusieurs écoles à la fois — / détails), aussi bien depuis le terrain que
 depuis l'espace formateur (`conseiller.html` y renvoie via un lien pré-rempli `?qui=`). Elle écrit
-exactement dans les mêmes tables Supabase que le reste de l'appli, plus Google Agenda si connecté.
+exactement dans les mêmes tables Supabase que le reste de l'appli.
 
 Pour l'installer comme un raccourci d'icône sur le téléphone (pas une vraie appli, pas de compte
 séparé — juste un signet plein écran) :
@@ -176,79 +176,33 @@ séparé — juste un signet plein écran) :
 La personne (« Qui ») n'est demandée qu'une fois par téléphone (mémorisée dans le navigateur) —
 logique puisque chacun installe son propre raccourci sur son propre téléphone.
 
-## Google Agenda (optionnel)
+## Import depuis Google Agenda (`import-agenda.html`)
 
-Pour éviter la double saisie (l'outil pour le suivi/le chef, Google Agenda pour la DRH), chaque
-intervention enregistrée dans l'appli (fiche école ou espace formateurs) peut être **automatiquement
-ajoutée à votre Google Agenda** en même temps. Cette connexion-là reste à sens unique (outil →
-agenda) : elle n'importe jamais depuis l'agenda. Pour le sens inverse (agenda → outil), voir
-« Import depuis Google Agenda » plus bas.
-
-Le Client ID OAuth est codé en dur dans `js/google-calendar.js` (`GCAL_CLIENT_ID`) — comme la clé
-Supabase, ce n'est pas un secret (un Client ID "Web application" est public par construction).
-**Personne n'a besoin de le connaître ni de le saisir** : chacun clique juste **📅 Agenda** →
-**Connecter**, et s'authentifie avec son propre compte Google.
-
-Mise en service (une seule fois, par la personne référente du site) :
-
-1. Sur [console.cloud.google.com](https://console.cloud.google.com), créer un projet (ou réutiliser
-   un projet existant).
-2. *APIs & Services* → *Bibliothèque* → activer **Google Calendar API**.
-3. *APIs & Services* → *Écran de consentement OAuth* → type **Externe**, renseigner un nom
-   d'application. Pour que chaque formateur puisse se connecter avec son propre compte (pas
-   seulement vous en tant qu'"utilisateur test"), publier l'écran de consentement (*Publier
-   l'application* — reste en accès simple, pas besoin de validation Google pour un usage interne à
-   une organisation ; Google affichera un écran "application non vérifiée", normal, voir étape 5).
-4. *APIs & Services* → *Identifiants* → *Créer des identifiants* → **ID client OAuth** → type
-   **Application Web**. Dans *Origines JavaScript autorisées*, ajouter l'URL de votre site
-   Netlify (ex. `https://iep1-suivi.netlify.app`) et, pour les tests en local,
-   `http://localhost:8000` (ou le port utilisé). Copier le **Client ID** généré.
-5. Coller ce Client ID dans `js/google-calendar.js`, constante `GCAL_CLIENT_ID`, puis commit/push
-   (déploiement automatique). Ensuite, dans l'appli, cliquer **📅 Agenda** → **Connecter** :
-   chacun s'authentifie avec son propre compte Google. Écran "application non vérifiée" (normal,
-   statut non validé par Google) : cliquer *Paramètres avancés* puis *Accéder à [nom de l'app]
-   (non sécurisé)*, puis autoriser l'accès à l'agenda.
-6. Chaque intervention créée ensuite génère un événement Google Agenda sur toute la journée,
-   intitulé `École — Type : Thème` (ou juste `Type : Thème` pour une action générale sans école),
-   coloré selon sa catégorie. Le jeton de connexion n'est jamais stocké : il est redemandé
-   (silencieusement si possible) à chaque nouvelle session de navigateur.
-7. **Pour que "Utilisation du temps" (Réglages Google Agenda → Utilisation du temps → gérer les
-   libellés) régroupe automatiquement ces événements par catégorie**, associer une fois à chaque
-   couleur ci-dessous le libellé correspondant (les couleurs sont fixées par l'appli, voir
-   `COULEURS_GCAL_CATEGORIE` dans `js/seed-data.js` — seul le nom du libellé est à votre choix) :
-
-   | Catégorie | Couleur Google Agenda | Libellé suggéré |
-   |---|---|---|
-   | Accompagnement | Peacock (bleu paon) | Accompagnement |
-   | Formation | Grape (violet) | Formation |
-   | Projets et actions | Basil (vert) | Projets |
-   | Circonscription et institution | Blueberry (bleu marine) | Circonscription |
-   | Missions réglementaires | Flamingo (rose) | Réglementaire |
-   | Divers | Graphite (gris) | Divers |
-
-   Ces couleurs sont modifiables par chacun depuis la section « Couleurs par catégorie » de la
-   modale 📅 Agenda (elles restent alors propres à votre navigateur, comme le reste de la
-   connexion) — utile si vous avez déjà vos propres couleurs/libellés dans Google Agenda.
-
-## Import depuis Google Agenda (sens inverse, `import-agenda.html`)
+*Historique : l'appli a eu une connexion OAuth outil → Google Agenda (écriture automatique à
+chaque intervention saisie). Retirée le 2026-09-14 : les restrictions Google Cloud rencontrées à
+sa mise en service, plus l'arrivée de l'import ci-dessous (plus simple, sans OAuth), l'ont rendue
+inutile — chacun remplit directement son agenda, puis l'importe.*
 
 Pour celles et ceux qui préfèrent remplir directement leur Google Agenda plutôt que de ressaisir
 dans l'outil : cette page relit un export de l'agenda et retrouve les visites d'école qu'il
 contient. Choix assumé de rester **simple et sans risque de blocage administratif** plutôt
-qu'automatique en temps réel : pas de connexion OAuth (déjà tentée pour le push, avec des
-restrictions d'organisation possibles), juste un fichier à déposer.
+qu'automatique en temps réel : pas de connexion OAuth, juste un fichier à déposer.
 
-1. Dans **Google Agenda → Paramètres**, choisir son calendrier dans la colonne de gauche puis
-   **Exporter** (télécharge un fichier `.ics` — contient tout l'historique du calendrier).
+1. Dans **Google Agenda → Paramètres** (bouton **?** de la page pour le détail), choisir son
+   calendrier dans la colonne de gauche puis **Exporter** (télécharge un fichier `.ics` — contient
+   tout l'historique du calendrier).
 2. Depuis l'espace formateur (**📥 Importer mon agenda**, à côté de « + Ajouter une action »),
    déposer ce fichier.
 3. L'outil détecte automatiquement, par mots-clés, l'école concernée (`js/import-agenda.js`,
    `ECOLES_MOTS_CLES_AGENDA`) et suggère un type d'intervention. Chaque ligne reste éditable
-   (école, type, thème) avant import ; les lignes incertaines sont marquées **« à vérifier »** et
+   (école, type, thème) avant import ; les lignes incertaines sont marquées **« à vérifier »**,
    décochées par défaut — rien n'est jamais enregistré sans revue.
-4. Un évènement déjà importé une fois n'est plus proposé si on redépose le même fichier plus tard
-   (table `agenda_imports`, voir `supabase/schema.sql`) : on peut réexporter/redéposer régulièrement
-   sans craindre les doublons.
+4. Un évènement déjà importé une fois n'est plus jamais reproposé si on redépose le même fichier
+   plus tard (table `agenda_imports`). Une ligne dont l'école et la date correspondent à une action
+   déjà enregistrée reste affichée (jamais masquée) mais marquée **« doublon possible ? »** et
+   décochée par défaut — ça peut très bien être une deuxième action bien réelle le même jour (ex.
+   plusieurs suivis de suppléants différents dans la même école), donc c'est à vérifier au cas par
+   cas plutôt que filtré automatiquement.
 
 Cette détection est volontairement approximative (texte libre saisi par chacun) — si les mots-clés
 ne suffisent pas pour votre façon de titrer vos évènements, adaptez `ECOLES_MOTS_CLES_AGENDA` /
