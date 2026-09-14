@@ -38,7 +38,10 @@
 
     <div class="carte" style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
       <p class="intro" style="margin:0;">Pour saisir une nouvelle action, un seul point d'entrée dans l'appli : la saisie rapide — ton identité y est déjà pré-remplie.</p>
-      <a class="btn btn-primaire" id="lien-ajouter-action" href="saisie-rapide.html">+ Ajouter une action</a>
+      <div class="groupe-btns">
+        <a class="btn btn-secondaire" id="lien-importer-agenda" href="import-agenda.html">📥 Importer mon agenda</a>
+        <a class="btn btn-primaire" id="lien-ajouter-action" href="saisie-rapide.html">+ Ajouter une action</a>
+      </div>
     </div>
 
     <div class="carte" style="margin-top:24px;">
@@ -140,7 +143,7 @@
 <script src="js/seed-data.js?v=21"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/supabase-client.js?v=1"></script>
-<script src="js/data-store.js?v=12"></script>
+<script src="js/data-store.js?v=13"></script>
 <script src="js/stats.js?v=12"></script>
 <script src="js/type-selector.js?v=11"></script>
 <script src="js/school-picker.js?v=7"></script>
@@ -394,6 +397,7 @@ async function init() {
 
   document.getElementById('titre-intervenant').textContent = INTERVENANT.nom;
   document.getElementById('lien-ajouter-action').href = 'saisie-rapide.html?qui=' + encodeURIComponent(intervenantId);
+  document.getElementById('lien-importer-agenda').href = 'import-agenda.html?qui=' + encodeURIComponent(intervenantId);
   selecteurTypeModif = initialiserSelecteurType({ selTypeId: 'mod-type', types: TYPES });
   rendreVueReferentesLecture();
   await chargerHistorique();

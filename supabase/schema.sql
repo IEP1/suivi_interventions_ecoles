@@ -113,3 +113,21 @@ create policy "ouvert" on public.journal_audit for all using (true) with check (
 grant usage on schema public to anon, authenticated, service_role;
 grant all on public.ecoles, public.intervenants, public.types_intervention, public.actions,
   public.equipe_enseignants, public.bilans_annuels, public.journal_audit to anon, authenticated, service_role;
+
+-- ===== Import depuis Google Agenda (2026-09-14, voir import-agenda.html) =====
+-- Un évènement d'agenda déjà importé une fois (identifié par son UID .ics) ne doit pas être
+-- réimporté si la personne dépose à nouveau le même fichier exporté plus tard (qui contient tout
+-- l'historique de son agenda, pas seulement les nouveaux évènements).
+create table public.agenda_imports (
+  id uuid primary key default gen_random_uuid(),
+  intervenant_id text not null references public.intervenants(id),
+  uid text not null,                      -- UID de l'évènement dans le fichier .ics exporté
+  action_id text references public.actions(id) on delete set null,
+  importe_le timestamptz not null default now(),
+  unique (intervenant_id, uid)
+);
+create index agenda_imports_intervenant_idx on public.agenda_imports (intervenant_id);
+
+alter table public.agenda_imports enable row level security;
+create policy "ouvert" on public.agenda_imports for all using (true) with check (true);
+grant all on public.agenda_imports to anon, authenticated, service_role;

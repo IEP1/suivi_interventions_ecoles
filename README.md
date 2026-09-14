@@ -180,8 +180,9 @@ logique puisque chacun installe son propre raccourci sur son propre téléphone.
 
 Pour éviter la double saisie (l'outil pour le suivi/le chef, Google Agenda pour la DRH), chaque
 intervention enregistrée dans l'appli (fiche école ou espace formateurs) peut être **automatiquement
-ajoutée à votre Google Agenda** en même temps. C'est une saisie à sens unique (outil → agenda) :
-l'appli n'importe jamais depuis l'agenda, elle ne fait qu'y écrire.
+ajoutée à votre Google Agenda** en même temps. Cette connexion-là reste à sens unique (outil →
+agenda) : elle n'importe jamais depuis l'agenda. Pour le sens inverse (agenda → outil), voir
+« Import depuis Google Agenda » plus bas.
 
 Le Client ID OAuth est codé en dur dans `js/google-calendar.js` (`GCAL_CLIENT_ID`) — comme la clé
 Supabase, ce n'est pas un secret (un Client ID "Web application" est public par construction).
@@ -228,6 +229,30 @@ Mise en service (une seule fois, par la personne référente du site) :
    Ces couleurs sont modifiables par chacun depuis la section « Couleurs par catégorie » de la
    modale 📅 Agenda (elles restent alors propres à votre navigateur, comme le reste de la
    connexion) — utile si vous avez déjà vos propres couleurs/libellés dans Google Agenda.
+
+## Import depuis Google Agenda (sens inverse, `import-agenda.html`)
+
+Pour celles et ceux qui préfèrent remplir directement leur Google Agenda plutôt que de ressaisir
+dans l'outil : cette page relit un export de l'agenda et retrouve les visites d'école qu'il
+contient. Choix assumé de rester **simple et sans risque de blocage administratif** plutôt
+qu'automatique en temps réel : pas de connexion OAuth (déjà tentée pour le push, avec des
+restrictions d'organisation possibles), juste un fichier à déposer.
+
+1. Dans **Google Agenda → Paramètres**, choisir son calendrier dans la colonne de gauche puis
+   **Exporter** (télécharge un fichier `.ics` — contient tout l'historique du calendrier).
+2. Depuis l'espace formateur (**📥 Importer mon agenda**, à côté de « + Ajouter une action »),
+   déposer ce fichier.
+3. L'outil détecte automatiquement, par mots-clés, l'école concernée (`js/import-agenda.js`,
+   `ECOLES_MOTS_CLES_AGENDA`) et suggère un type d'intervention. Chaque ligne reste éditable
+   (école, type, thème) avant import ; les lignes incertaines sont marquées **« à vérifier »** et
+   décochées par défaut — rien n'est jamais enregistré sans revue.
+4. Un évènement déjà importé une fois n'est plus proposé si on redépose le même fichier plus tard
+   (table `agenda_imports`, voir `supabase/schema.sql`) : on peut réexporter/redéposer régulièrement
+   sans craindre les doublons.
+
+Cette détection est volontairement approximative (texte libre saisi par chacun) — si les mots-clés
+ne suffisent pas pour votre façon de titrer vos évènements, adaptez `ECOLES_MOTS_CLES_AGENDA` /
+`TYPES_MOTS_CLES_AGENDA` dans `js/import-agenda.js`.
 
 ## Cache navigateur (important pour les futures modifications)
 

@@ -246,6 +246,24 @@ const Store = {
       ? { axesForts: data.axes_forts || '', pointsVigilance: data.points_vigilance || '', perspectives: data.perspectives || '', modifieLe: data.modifie_le }
       : { axesForts: '', pointsVigilance: '', perspectives: '', modifieLe: null };
   },
+  /*
+   * Import depuis Google Agenda (import-agenda.html, table agenda_imports) : évite de réimporter
+   * un évènement déjà traité si la personne redépose plus tard le même fichier .ics exporté
+   * (qui contient tout son agenda à chaque export, pas seulement les nouveaux évènements).
+   */
+  async chargerUidsImportesAgenda(intervenantId) {
+    const { data, error } = await sb.from('agenda_imports').select('uid').eq('intervenant_id', intervenantId);
+    leverSiErreur(error);
+    return new Set((data || []).map(r => r.uid));
+  },
+  /** entrees : [{ uid, actionId }] — enregistré après la sauvegarde effective de chaque action retenue. */
+  async enregistrerImportsAgenda(intervenantId, entrees) {
+    if (!entrees.length) return;
+    const lignes = entrees.map(e => ({ intervenant_id: intervenantId, uid: e.uid, action_id: e.actionId }));
+    const { error } = await sb.from('agenda_imports').upsert(lignes, { onConflict: 'intervenant_id,uid' });
+    leverSiErreur(error);
+  },
+
   async sauvegarderBilanAnnuel(annee, texte) {
     const ligne = {
       annee: Number(annee),

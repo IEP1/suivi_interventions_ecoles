@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Importer depuis Google Agenda — IEP1</title>
+<link rel="stylesheet" href="css/style.css?v=15">
+<link rel="icon" href="assets/logo-iep1.png">
+</head>
+<body>
+<div id="entete-app"></div>
+
+<main>
+  <div id="zone-chargement" class="alerte alerte-info">Chargement…</div>
+
+  <div id="zone-page" style="display:none;">
+    <div class="carte">
+      <h2 style="margin-top:0;">Importer des actions depuis Google Agenda</h2>
+      <p class="intro" style="margin-bottom:10px;">
+        Si vous remplissez déjà votre Google Agenda au fil de l'eau, cette page relit un export de
+        cet agenda pour retrouver les visites d'école qu'il contient, et les ajoute ici — sans tout
+        ressaisir. Détection automatique par mots-clés (nom d'école, type d'intervention) : à
+        vérifier/corriger ci-dessous avant d'enregistrer, rien n'est jamais importé sans validation.
+      </p>
+      <p class="intro" style="margin:0;">
+        <b>Comment exporter votre agenda :</b> sur
+        <a href="https://calendar.google.com/calendar/u/0/r/settings" target="_blank" rel="noopener">Google Agenda → Paramètres</a>,
+        choisissez votre calendrier dans la colonne de gauche, puis « Exporter » (télécharge un
+        fichier <code>.ics</code>). Déposez-le ci-dessous.
+      </p>
+    </div>
+
+    <div class="carte" id="carte-qui" style="display:none;">
+      <label>Qui es-tu ?</label>
+      <div class="grille-chips-ecoles" id="chips-qui-import"></div>
+    </div>
+
+    <div class="carte" id="carte-fichier">
+      <div class="champ" style="margin-bottom:0;">
+        <label for="fichier-ics">Fichier .ics exporté</label>
+        <input type="file" id="fichier-ics" accept=".ics,text/calendar">
+      </div>
+      <p id="msg-fichier" class="alerte" style="display:none;margin-top:12px;"></p>
+    </div>
+
+    <div class="carte" id="carte-resultats" style="display:none;">
+      <div class="barre-actions">
+        <h3 style="margin:0;" id="titre-resultats"></h3>
+        <div class="groupe-btns">
+          <button class="btn btn-sm btn-secondaire" id="btn-tout-cocher" type="button">Tout cocher</button>
+          <button class="btn btn-sm btn-secondaire" id="btn-tout-decocher" type="button">Tout décocher</button>
+        </div>
+      </div>
+      <p class="intro" id="msg-deja-importes" style="display:none;"></p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>Date</th>
+              <th>École</th>
+              <th>Type</th>
+              <th>Thème / titre d'origine</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="corps-import"></tbody>
+        </table>
+      </div>
+      <p class="intro" id="msg-vide-import" style="display:none;">
+        Aucun évènement nouveau trouvé dans ce fichier (déjà tous importés précédemment, ou fichier vide).
+      </p>
+      <p id="msg-import" class="alerte" style="display:none;margin-top:14px;"></p>
+      <div class="groupe-btns" style="justify-content:flex-end;margin-top:14px;">
+        <button class="btn btn-primaire" id="btn-importer-selection" type="button">Importer la sélection</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<p class="pied">IEP1 — Import depuis Google Agenda</p>
+
+<script src="js/seed-data.js?v=21"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/supabase-client.js?v=1"></script>
+<script src="js/data-store.js?v=13"></script>
+<script src="js/stats.js?v=12"></script>
+<script src="js/ics-parser.js?v=1"></script>
+<script src="js/import-agenda.js?v=2"></script>
+<script src="js/google-calendar.js?v=12"></script>
+<script src="js/layout.js?v=17"></script>
+<script>
+injecterEntete('conseillers.html');
+
+const STOCKAGE_QUI_IMPORT = 'sie_saisie_rapide_qui'; // partagé avec saisie-rapide.html
+const paramsUrlImport = new URLSearchParams(location.search);
+const quiForceParamImport = paramsUrlImport.get('qui');
+
+let INTERVENANTS = [];
+let ECOLES = [];
+let TYPES = [];
+let quiId = null;
+let UIDS_DEJA_IMPORTES = new Set();
+let LIGNES_IMPORT = []; // lignes affichées, correspond 1-1 avec les <tr> du tableau
+
+function rendreChipsQuiImport() {
+  document.getElementById('chips-qui-import').innerHTML = INTERVENANTS.map(i =>
+    `<button type="button" class="chip-ecole${i.id === quiId ? ' selectionne' : ''}" data-id="${i.id}">${i.nom}</button>`).join('');
+  document.getElementById('chips-qui-import').querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => choisirQuiImport(btn.dataset.id));
+  });
+}
+
+async function choisirQuiImport(id) {
+  quiId = id;
+  localStorage.setItem(STOCKAGE_QUI_IMPORT, id);
+  rendreChipsQuiImport();
+  document.getElementById('carte-qui').style.display = 'none';
+  UIDS_DEJA_IMPORTES = await Store.chargerUidsImportesAgenda(quiId);
+}
+
+function remplirSelectTypeLigne(sel, typeIdChoisi) {
+  sel.innerHTML = '<option value="">— Choisir —</option>' +
+    TYPES.map(t => `<option value="${t.id}" ${t.id === typeIdChoisi ? 'selected' : ''}>${t.label}</option>`).join('');
+}
+
+function remplirSelectEcoleLigne(sel, ecoleIdChoisi) {
+  sel.innerHTML = '<option value="">— Aucune (action générale) —</option>' +
+    ECOLES.map(e => `<option value="${e.id}" ${e.id === ecoleIdChoisi ? 'selected' : ''}>${e.nom}</option>`).join('');
+}
+
+/** true si la ligne est prête à être importée telle quelle sans y regarder de plus près. */
+function ligneFiable(ligne) {
+  return !!ligne.ecoleId && !ligne.ecoleAmbigue && !!ligne.typeId;
+}
+
+function rendreLignesImport() {
+  const corps = document.getElementById('corps-import');
+  corps.innerHTML = LIGNES_IMPORT.map((ligne, i) => `
+    <tr data-i="${i}">
+      <td><input type="checkbox" class="chk-ligne" ${ligneFiable(ligne) ? 'checked' : ''}></td>
+      <td style="white-space:nowrap;">${formaterDate(ligne.date)}</td>
+      <td><select class="sel-ecole-ligne" style="min-width:170px;"></select></td>
+      <td><select class="sel-type-ligne" style="min-width:190px;"></select></td>
+      <td><input type="text" class="txt-theme-ligne" value="${(ligne.theme || '').replace(/"/g, '&quot;')}" style="width:100%;"></td>
+      <td>${ligneFiable(ligne) ? '' : '<span class="badge badge-a-valider">à vérifier</span>'}</td>
+    </tr>`).join('');
+
+  corps.querySelectorAll('tr').forEach(tr => {
+    const i = Number(tr.dataset.i);
+    const ligne = LIGNES_IMPORT[i];
+    const selEcole = tr.querySelector('.sel-ecole-ligne');
+    const selType = tr.querySelector('.sel-type-ligne');
+    remplirSelectEcoleLigne(selEcole, ligne.ecoleId);
+    remplirSelectTypeLigne(selType, ligne.typeId);
+    selEcole.addEventListener('change', () => { ligne.ecoleId = selEcole.value || null; ligne.ecoleAmbigue = false; majBadgeLigne(tr, ligne); });
+    selType.addEventListener('change', () => { ligne.typeId = selType.value || null; majBadgeLigne(tr, ligne); });
+    tr.querySelector('.txt-theme-ligne').addEventListener('input', (e) => { ligne.theme = e.target.value; });
+  });
+}
+
+function majBadgeLigne(tr, ligne) {
+  const cellule = tr.children[5];
+  cellule.innerHTML = ligneFiable(ligne) ? '' : '<span class="badge badge-a-valider">à vérifier</span>';
+}
+
+async function traiterFichierIcs(texte) {
+  const evenements = parserICS(texte);
+  const nouveaux = evenements.filter(e => !UIDS_DEJA_IMPORTES.has(e.uid));
+  const dejaImportes = evenements.length - nouveaux.length;
+
+  LIGNES_IMPORT = nouveaux
+    .map(e => analyserEvenementAgenda(e, ECOLES))
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  document.getElementById('titre-resultats').textContent =
+    `${LIGNES_IMPORT.length} évènement(s) trouvé(s)`;
+  document.getElementById('msg-deja-importes').style.display = dejaImportes ? 'block' : 'none';
+  document.getElementById('msg-deja-importes').textContent =
+    dejaImportes ? `${dejaImportes} évènement(s) déjà importé(s) précédemment, ignoré(s).` : '';
+  document.getElementById('msg-vide-import').style.display = LIGNES_IMPORT.length ? 'none' : 'block';
+  document.getElementById('msg-import').style.display = 'none';
+  rendreLignesImport();
+  document.getElementById('carte-resultats').style.display = 'block';
+}
+
+async function importerSelection() {
+  const btn = document.getElementById('btn-importer-selection');
+  const msg = document.getElementById('msg-import');
+  const corps = document.getElementById('corps-import');
+  const lignesCochees = [];
+  corps.querySelectorAll('tr').forEach(tr => {
+    if (tr.querySelector('.chk-ligne').checked) lignesCochees.push({ tr, ligne: LIGNES_IMPORT[Number(tr.dataset.i)] });
+  });
+  if (!lignesCochees.length) {
+    msg.className = 'alerte alerte-warn'; msg.textContent = 'Coche au moins une ligne à importer.'; msg.style.display = 'block';
+    return;
+  }
+  const sansType = lignesCochees.filter(({ ligne }) => !ligne.typeId);
+  if (sansType.length) {
+    msg.className = 'alerte alerte-warn';
+    msg.textContent = `Choisis un type pour chaque ligne cochée (${sansType.length} ligne(s) sans type).`;
+    msg.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  msg.className = 'alerte alerte-info'; msg.textContent = 'Importation en cours…'; msg.style.display = 'block';
+  const intervenant = INTERVENANTS.find(i => i.id === quiId);
+  const entreesImportees = [];
+  let nbErreurs = 0;
+  const lignesReussies = [];
+
+  for (const { tr, ligne } of lignesCochees) {
+    try {
+      const ecole = ligne.ecoleId ? ECOLES.find(e => e.id === ligne.ecoleId) : null;
+      const action = {
+        id: genererIdIntervention(),
+        date: ligne.date,
+        typeId: ligne.typeId,
+        intervenantId: quiId,
+        theme: (ligne.theme || '').trim(),
+        notes: 'Importé automatiquement depuis Google Agenda (fichier .ics).',
+        profil: '',
+        origine: '',
+        horodatage: horodatageMaintenant()
+      };
+      if (ecole) {
+        await Store.ajouterIntervention(ecole.id, action, ecole.nom);
+      } else {
+        await Store.ajouterActionGenerale(quiId, action, intervenant ? intervenant.nom : quiId);
+      }
+      entreesImportees.push({ uid: ligne.uid, actionId: action.id });
+      lignesReussies.push(tr);
+    } catch (e) {
+      nbErreurs++;
+      console.warn('Import agenda, ligne ignorée :', e.message);
+    }
+  }
+
+  if (entreesImportees.length) {
+    await Store.enregistrerImportsAgenda(quiId, entreesImportees);
+    UIDS_DEJA_IMPORTES = await Store.chargerUidsImportesAgenda(quiId);
+  }
+  lignesReussies.forEach(tr => tr.remove());
+  LIGNES_IMPORT = LIGNES_IMPORT.filter(l => !entreesImportees.some(e => e.uid === l.uid));
+
+  msg.className = nbErreurs ? 'alerte alerte-warn' : 'alerte alerte-ok';
+  msg.textContent = nbErreurs
+    ? `${entreesImportees.length} action(s) importée(s), ${nbErreurs} échec(s) — voir la console pour le détail.`
+    : `${entreesImportees.length} action(s) importée(s) ✓`;
+  document.getElementById('msg-vide-import').style.display = LIGNES_IMPORT.length ? 'none' : 'block';
+  btn.disabled = false;
+}
+
+document.getElementById('fichier-ics').addEventListener('change', (e) => {
+  const fichier = e.target.files[0];
+  const msg = document.getElementById('msg-fichier');
+  if (!fichier) return;
+  if (!quiId) {
+    msg.className = 'alerte alerte-warn'; msg.textContent = 'Choisis d\'abord qui tu es, ci-dessus.'; msg.style.display = 'block';
+    e.target.value = '';
+    return;
+  }
+  msg.style.display = 'none';
+  const lecteur = new FileReader();
+  lecteur.onload = () => traiterFichierIcs(lecteur.result).catch(err => {
+    msg.className = 'alerte alerte-err'; msg.textContent = 'Erreur de lecture du fichier : ' + err.message; msg.style.display = 'block';
+  });
+  lecteur.onerror = () => {
+    msg.className = 'alerte alerte-err'; msg.textContent = 'Impossible de lire ce fichier.'; msg.style.display = 'block';
+  };
+  lecteur.readAsText(fichier);
+});
+document.getElementById('btn-tout-cocher').addEventListener('click', () => {
+  document.querySelectorAll('#corps-import .chk-ligne').forEach(c => c.checked = true);
+});
+document.getElementById('btn-tout-decocher').addEventListener('click', () => {
+  document.querySelectorAll('#corps-import .chk-ligne').forEach(c => c.checked = false);
+});
+document.getElementById('btn-importer-selection').addEventListener('click', importerSelection);
+
+async function init() {
+  [INTERVENANTS, ECOLES, TYPES] = await Promise.all([Store.chargerIntervenants(), Store.chargerEcoles(), Store.chargerTypes()]);
+
+  const sauvegarde = localStorage.getItem(STOCKAGE_QUI_IMPORT);
+  if (quiForceParamImport && INTERVENANTS.some(i => i.id === quiForceParamImport)) {
+    quiId = quiForceParamImport;
+    localStorage.setItem(STOCKAGE_QUI_IMPORT, quiId);
+  } else if (sauvegarde && INTERVENANTS.some(i => i.id === sauvegarde)) {
+    quiId = sauvegarde;
+  }
+
+  document.getElementById('carte-qui').style.display = quiId ? 'none' : 'block';
+  rendreChipsQuiImport();
+  if (quiId) UIDS_DEJA_IMPORTES = await Store.chargerUidsImportesAgenda(quiId);
+
+  document.getElementById('zone-chargement').style.display = 'none';
+  document.getElementById('zone-page').style.display = 'block';
+}
+
+init().catch(err => {
+  document.getElementById('zone-chargement').className = 'alerte alerte-err';
+  document.getElementById('zone-chargement').textContent = 'Erreur au chargement : ' + err.message;
+});
+</script>
+</body>
+</html>
