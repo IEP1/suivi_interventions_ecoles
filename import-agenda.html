@@ -15,19 +15,25 @@
 
   <div id="zone-page" style="display:none;">
     <div class="carte">
-      <h2 style="margin-top:0;">Importer des actions depuis Google Agenda</h2>
-      <p class="intro" style="margin-bottom:10px;">
+      <div class="barre-actions" style="margin-bottom:6px;">
+        <h2 style="margin:0;">Importer des actions depuis Google Agenda</h2>
+        <button type="button" class="btn btn-sm btn-secondaire" id="ia-aide" title="Comment exporter mon agenda ?">?</button>
+      </div>
+      <p class="intro" style="margin-bottom:0;">
         Si vous remplissez déjà votre Google Agenda au fil de l'eau, cette page relit un export de
         cet agenda pour retrouver les visites d'école qu'il contient, et les ajoute ici — sans tout
         ressaisir. Détection automatique par mots-clés (nom d'école, type d'intervention) : à
         vérifier/corriger ci-dessous avant d'enregistrer, rien n'est jamais importé sans validation.
       </p>
-      <p class="intro" style="margin:0;">
-        <b>Comment exporter votre agenda :</b> sur
-        <a href="https://calendar.google.com/calendar/u/0/r/settings" target="_blank" rel="noopener">Google Agenda → Paramètres</a>,
-        choisissez votre calendrier dans la colonne de gauche, puis « Exporter » (télécharge un
-        fichier <code>.ics</code>). Déposez-le ci-dessous.
-      </p>
+      <div id="ia-tuto" style="display:none;background:var(--bg);border:1px solid var(--bordure);border-radius:var(--radius-sm);padding:12px 14px;margin-top:12px;font-size:0.85rem;">
+        <b>Comment exporter votre agenda :</b>
+        <ol style="margin:8px 0 0;padding-left:20px;">
+          <li>Ouvrir <a href="https://calendar.google.com/calendar/u/0/r/settings" target="_blank" rel="noopener">Google Agenda → Paramètres</a>.</li>
+          <li>Dans la colonne de gauche, cliquer sur son propre calendrier (pas un autre agenda partagé).</li>
+          <li>Cliquer <b>« Exporter »</b> : un fichier <code>.ics</code> se télécharge.</li>
+          <li>Revenir ici et le déposer ci-dessous.</li>
+        </ol>
+      </div>
     </div>
 
     <div class="carte" id="carte-qui" style="display:none;">
@@ -68,7 +74,8 @@
         </table>
       </div>
       <p class="intro" id="msg-vide-import" style="display:none;">
-        Aucun évènement nouveau trouvé dans ce fichier (déjà tous importés précédemment, ou fichier vide).
+        Aucun évènement nouveau trouvé dans ce fichier (déjà tous importés ou déjà enregistrés
+        précédemment, ou fichier vide).
       </p>
       <p id="msg-import" class="alerte" style="display:none;margin-top:14px;"></p>
       <div class="groupe-btns" style="justify-content:flex-end;margin-top:14px;">
@@ -101,7 +108,27 @@ let ECOLES = [];
 let TYPES = [];
 let quiId = null;
 let UIDS_DEJA_IMPORTES = new Set();
+let CLES_ACTIONS_EXISTANTES = new Set(); // "ecoleId|date" déjà présents dans le suivi pour cette personne
 let LIGNES_IMPORT = []; // lignes affichées, correspond 1-1 avec les <tr> du tableau
+
+function cleActionExistante(ecoleId, date) {
+  return ecoleId + '|' + date;
+}
+
+/*
+ * Recharge, pour la personne choisie : les évènements déjà importés (par UID, table
+ * agenda_imports) ET les actions déjà présentes dans le suivi pour une école à une date donnée
+ * (qu'elles aient été saisies à la main ou importées) — les deux servent à ne proposer QUE les
+ * évènements réellement nouveaux à chaque import (voir traiterFichierIcs).
+ */
+async function rafraichirDonneesExistantes() {
+  const [uids, actions] = await Promise.all([
+    Store.chargerUidsImportesAgenda(quiId),
+    Store.chargerToutesLesActionsIntervenant(quiId)
+  ]);
+  UIDS_DEJA_IMPORTES = uids;
+  CLES_ACTIONS_EXISTANTES = new Set(actions.filter(a => a.ecoleId).map(a => cleActionExistante(a.ecoleId, a.date)));
+}
 
 function rendreChipsQuiImport() {
   document.getElementById('chips-qui-import').innerHTML = INTERVENANTS.map(i =>
@@ -116,7 +143,7 @@ async function choisirQuiImport(id) {
   localStorage.setItem(STOCKAGE_QUI_IMPORT, id);
   rendreChipsQuiImport();
   document.getElementById('carte-qui').style.display = 'none';
-  UIDS_DEJA_IMPORTES = await Store.chargerUidsImportesAgenda(quiId);
+  await rafraichirDonneesExistantes();
 }
 
 function remplirSelectTypeLigne(sel, typeIdChoisi) {
@@ -165,19 +192,28 @@ function majBadgeLigne(tr, ligne) {
 }
 
 async function traiterFichierIcs(texte) {
+  await rafraichirDonneesExistantes(); // fichier potentiellement déposé après une précédente saisie manuelle
   const evenements = parserICS(texte);
-  const nouveaux = evenements.filter(e => !UIDS_DEJA_IMPORTES.has(e.uid));
-  const dejaImportes = evenements.length - nouveaux.length;
+  const analysees = evenements
+    .filter(e => !UIDS_DEJA_IMPORTES.has(e.uid))
+    .map(e => analyserEvenementAgenda(e, ECOLES));
 
-  LIGNES_IMPORT = nouveaux
-    .map(e => analyserEvenementAgenda(e, ECOLES))
+  const dejaImportes = evenements.length - analysees.length;
+  const dejaSaisies = analysees.filter(l => l.ecoleId && CLES_ACTIONS_EXISTANTES.has(cleActionExistante(l.ecoleId, l.date))).length;
+
+  // Ne propose que les évènements réellement nouveaux : ni déjà importés (par UID), ni déjà
+  // saisis pour cette école à cette date (à la main ou lors d'un import précédent).
+  LIGNES_IMPORT = analysees
+    .filter(l => !(l.ecoleId && CLES_ACTIONS_EXISTANTES.has(cleActionExistante(l.ecoleId, l.date))))
     .sort((a, b) => b.date.localeCompare(a.date));
 
   document.getElementById('titre-resultats').textContent =
     `${LIGNES_IMPORT.length} évènement(s) trouvé(s)`;
-  document.getElementById('msg-deja-importes').style.display = dejaImportes ? 'block' : 'none';
-  document.getElementById('msg-deja-importes').textContent =
-    dejaImportes ? `${dejaImportes} évènement(s) déjà importé(s) précédemment, ignoré(s).` : '';
+  const ignores = [];
+  if (dejaImportes) ignores.push(`${dejaImportes} déjà importé(s) précédemment`);
+  if (dejaSaisies) ignores.push(`${dejaSaisies} déjà enregistré(s) dans le suivi (même école, même date)`);
+  document.getElementById('msg-deja-importes').style.display = ignores.length ? 'block' : 'none';
+  document.getElementById('msg-deja-importes').textContent = ignores.length ? ignores.join(' — ') + ', ignoré(s).' : '';
   document.getElementById('msg-vide-import').style.display = LIGNES_IMPORT.length ? 'none' : 'block';
   document.getElementById('msg-import').style.display = 'none';
   rendreLignesImport();
@@ -240,7 +276,7 @@ async function importerSelection() {
 
   if (entreesImportees.length) {
     await Store.enregistrerImportsAgenda(quiId, entreesImportees);
-    UIDS_DEJA_IMPORTES = await Store.chargerUidsImportesAgenda(quiId);
+    await rafraichirDonneesExistantes();
   }
   lignesReussies.forEach(tr => tr.remove());
   LIGNES_IMPORT = LIGNES_IMPORT.filter(l => !entreesImportees.some(e => e.uid === l.uid));
@@ -279,6 +315,10 @@ document.getElementById('btn-tout-decocher').addEventListener('click', () => {
   document.querySelectorAll('#corps-import .chk-ligne').forEach(c => c.checked = false);
 });
 document.getElementById('btn-importer-selection').addEventListener('click', importerSelection);
+document.getElementById('ia-aide').addEventListener('click', () => {
+  const tuto = document.getElementById('ia-tuto');
+  tuto.style.display = tuto.style.display === 'none' ? 'block' : 'none';
+});
 
 async function init() {
   [INTERVENANTS, ECOLES, TYPES] = await Promise.all([Store.chargerIntervenants(), Store.chargerEcoles(), Store.chargerTypes()]);
@@ -293,7 +333,7 @@ async function init() {
 
   document.getElementById('carte-qui').style.display = quiId ? 'none' : 'block';
   rendreChipsQuiImport();
-  if (quiId) UIDS_DEJA_IMPORTES = await Store.chargerUidsImportesAgenda(quiId);
+  if (quiId) await rafraichirDonneesExistantes();
 
   document.getElementById('zone-chargement').style.display = 'none';
   document.getElementById('zone-page').style.display = 'block';
