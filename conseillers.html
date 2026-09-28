@@ -18,7 +18,6 @@
       <p class="intro" style="margin-bottom:0;">Choisissez qui saisit une action, pour l'attribuer directement à une ou plusieurs écoles.</p>
     </div>
     <div class="groupe-btns">
-      <a href="maj-listes.html" class="btn btn-sm btn-secondaire" title="À utiliser après une mise à jour du site (nouveaux types...)">🔄 Mettre à jour les listes</a>
       <button class="btn btn-sm btn-primaire" id="btn-ouvrir-ajout">+ Ajouter un intervenant</button>
     </div>
   </div>
@@ -66,7 +65,7 @@
           <canvas id="graph-bilan-equipe-categorie"></canvas>
         </div>
         <div>
-          <p class="intro" style="margin-bottom:8px;"><span id="bilan-equipe-total"></span> action(s) en école prises en compte dans ce bilan (les actions hors école partent vers Google Agenda mais ne comptent pas ici).</p>
+          <p class="intro" style="margin-bottom:8px;"><span id="bilan-equipe-total"></span> action(s) en école prises en compte dans ce bilan (les actions hors école ne comptent pas ici).</p>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Type</th><th>Nb</th><th>%</th></tr></thead>
@@ -81,10 +80,10 @@
 
 <p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
 
-<script src="js/seed-data.js?v=22"></script>
+<script src="js/seed-data.js?v=23"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/supabase-client.js?v=1"></script>
-<script src="js/data-store.js?v=13"></script>
+<script src="js/data-store.js?v=14"></script>
 <script src="js/stats.js?v=13"></script>
 <script src="js/layout.js?v=18"></script>
 <script>

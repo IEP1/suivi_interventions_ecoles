@@ -264,6 +264,36 @@ const Store = {
     leverSiErreur(error);
   },
 
+  /*
+   * Agenda « connecté » par adresse secrète iCal (table agenda_liens, fermée en lecture) : le
+   * navigateur ne relit jamais l'adresse, il passe par ces fonctions SQL et par la fonction
+   * serveur lire-agenda (voir supabase/functions/lire-agenda/index.ts).
+   */
+  async statutLienAgenda(intervenantId) {
+    const { data, error } = await sb.rpc('statut_lien_agenda', { p_intervenant: intervenantId });
+    leverSiErreur(error);
+    const ligne = (data || [])[0] || { configure: false };
+    return { configure: !!ligne.configure, derniereLecture: ligne.derniere_lecture || null, derniereErreur: ligne.derniere_erreur || null };
+  },
+  async enregistrerLienAgenda(intervenantId, url) {
+    const { error } = await sb.rpc('enregistrer_lien_agenda', { p_intervenant: intervenantId, p_url: url });
+    leverSiErreur(error);
+  },
+  async retirerLienAgenda(intervenantId) {
+    const { error } = await sb.rpc('retirer_lien_agenda', { p_intervenant: intervenantId });
+    leverSiErreur(error);
+  },
+  /** Renvoie { evenements: [{ uid, date, summary, description, location }], debut, fin }. */
+  async lireAgendaConnecte(intervenantId) {
+    const { data, error } = await sb.functions.invoke('lire-agenda', { body: { intervenantId } });
+    if (error) {
+      let message = error.message;
+      try { message = (await error.context.json()).erreur || message; } catch (e) { /* pas de détail */ }
+      throw new Error(message);
+    }
+    return data;
+  },
+
   async sauvegarderBilanAnnuel(annee, texte) {
     const ligne = {
       annee: Number(annee),

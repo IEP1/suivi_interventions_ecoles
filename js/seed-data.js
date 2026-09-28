@@ -3,9 +3,10 @@
  * CPC_ DESED.xlsx" et de "Tableau bord circonscription IEP1.xlsx". Ne servent plus de repli
  * d'affichage (une vraie erreur Supabase remonte désormais telle quelle, volontairement — voir
  * js/data-store.js — plutôt que de masquer un problème derrière de fausses données de démo comme
- * l'ancien système, ce qui avait fait croire à un inspecteur que l'outil était vide). Utilisées
- * uniquement par maj-listes.html pour (re)semer/fusionner la base Supabase avec cette liste de
- * référence définie dans le code.
+ * l'ancien système, ce qui avait fait croire à un inspecteur que l'outil était vide). Les listes
+ * SEED_* ne sont plus utilisées par le site (la base Supabase est la seule source de vérité,
+ * maj-listes.html a été retiré le 2026-09-28) : référence historique, gardée pour les scripts
+ * d'import ponctuels locaux (import.html…).
  *
  * Les id d'école reprennent volontairement ceux déjà utilisés dans le repo
  * "carrefour_des_pratiques" (mêmes établissements, mêmes clés stables).
@@ -49,9 +50,9 @@ const TYPES_ECOLE = {
  * CPC). CPC, PEMF et IAP sont tous des formateurs.
  *
  * Noms de démonstration volontairement génériques : les vrais noms des formateurs
- * ne vivent que dans le repo privé de données (intervenants.json), jamais ici —
+ * ne vivent que dans la table intervenants de Supabase, jamais ici —
  * voir la « frontière vie privée » dans le README. Les id, eux, restent stables
- * (ce sont les mêmes que dans le repo privé et dans l'historique des interventions
+ * (ce sont les mêmes que dans la base Supabase et dans l'historique des interventions
  * déjà enregistrées) ; ne pas les changer.
  */
 const SEED_INTERVENANTS = [
@@ -60,7 +61,6 @@ const SEED_INTERVENANTS = [
   { id: 'nadege', nom: 'CPC 2 (démo)', role: 'cpc' },
   { id: 'vaea', nom: 'CPC 3 (démo)', role: 'cpc' },
   { id: 'stephanie', nom: 'CPC 4 (démo)', role: 'cpc' },
-  { id: 'marielouise', nom: 'CPC 5 (démo)', role: 'cpc' },
   { id: 'vincent', nom: 'CPC 6 (démo)', role: 'cpc' },
   { id: 'mareen', nom: 'Secrétariat (démo)', role: 'secretariat' }
 ];

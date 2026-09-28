@@ -104,18 +104,15 @@ identifiants Supabase sont dans le code, pas dépendants de l'hébergeur.
   l'historique via `TYPES_HERITES`, sans être proposés à la nouvelle saisie. La précision d'« Instance
   d'école » inclut aussi la visite d'accompagnement (VA) et la résidence pédagogique, aux côtés des
   conseils de cycle/maîtres/école. Le champ « action personnalisée » rappelle de ne pas y noter « à
-  la demande de… » (c'est le rôle du champ Origine, à l'étape suivante) — pour nettoyer les
-  doublons déjà accumulés dans la base, voir « Nettoyer les types personnalisés en
-  double » sur `maj-listes.html` : liste chaque type personnalisé enregistré avec son nombre
-  d'utilisations, et permet de le fusionner vers un type officiel (réaffecte automatiquement les
-  interventions concernées) ou de le supprimer s'il n'est utilisé nulle part.
+  la demande de… » (c'est le rôle du champ Origine, à l'étape suivante).
 - **Intervenants** (`conseillers.html`) : ajout et suppression manuels d'intervenants (nom + rôle
   parmi conseiller pédagogique / PEMF / secrétariat / IAP). Les noms dans `SEED_INTERVENANTS`
   (`js/seed-data.js`, public) sont volontairement des noms de démonstration génériques — les vrais
   noms des formateurs ne vivent que dans la table `intervenants` de Supabase. Les `id`, eux, sont
-  stables entre code et base (ne pas les changer). `maj-listes.html` **fusionne** les intervenants
-  (comme les types) : un nom déjà personnalisé dans la base n'est jamais écrasé par le nom de
-  démonstration du code.
+  stables entre code et base (ne pas les changer). Depuis le retrait de `maj-listes.html`
+  (2026-09-28), la base Supabase est la seule référence : un intervenant qui quitte la
+  circonscription se supprime avec la croix de sa carte (possible seulement s'il n'a aucune action
+  enregistrée).
 - **Écoles de référence** (`conseiller.html`) : chaque intervenant peut cocher ses écoles de
   référence depuis sa propre page, pour y accéder plus vite et pré-remplir automatiquement la
   liste lors de la saisie d'une action groupée.
@@ -183,22 +180,41 @@ chaque intervention saisie). Retirée le 2026-09-14 : les restrictions Google Cl
 sa mise en service, plus l'arrivée de l'import ci-dessous (plus simple, sans OAuth), l'ont rendue
 inutile — chacun remplit directement son agenda, puis l'importe.*
 
-Pour celles et ceux qui préfèrent remplir directement leur Google Agenda plutôt que de ressaisir
-dans l'outil : cette page relit un export de l'agenda et retrouve les visites d'école qu'il
-contient. Choix assumé de rester **simple et sans risque de blocage administratif** plutôt
-qu'automatique en temps réel : pas de connexion OAuth, juste un fichier à déposer.
+Les actions des formateurs finissent toutes dans leur Google Agenda (saisie directe, ou envoi
+automatique depuis Poésie, l'outil obligatoire) : Google Agenda est donc la source, et cette page
+y relit les visites d'école pour ne rien ressaisir. Pas de connexion OAuth (bloquée par les
+restrictions de l'organisation, voir historique ci-dessus).
 
-1. Dans **Google Agenda → Paramètres** (bouton **?** de la page pour le détail), choisir son
-   calendrier dans la colonne de gauche puis **Exporter** (télécharge un fichier `.ics` — contient
-   tout l'historique du calendrier).
-2. Depuis l'espace formateur (**📥 Importer mon agenda**, à côté de « + Ajouter une action »),
-   déposer ce fichier.
-3. L'outil détecte automatiquement, par mots-clés, l'école concernée (`js/import-agenda.js`,
+**Agenda connecté (depuis le 2026-09-28, méthode principale)** — chaque formateur colle **une
+seule fois** l'« Adresse secrète au format iCal » de son agenda (Google Agenda → Paramètres → son
+agenda → Intégrer l'agenda). Ensuite, à chaque ouverture de la page, l'agenda est relu
+automatiquement, sans export :
+
+- L'adresse est stockée dans la table `agenda_liens`, **fermée à la clé anon** (le navigateur
+  peut l'écrire via `enregistrer_lien_agenda()`, jamais la relire) — elle donne accès à tout
+  l'agenda de la personne.
+- La lecture passe par la fonction serveur Supabase `lire-agenda`
+  (`supabase/functions/lire-agenda/index.ts`), qui ne renvoie que les évènements **du 1er janvier
+  à aujourd'hui** contenant un nom d'école ou un mot-clé d'intervention : les rendez-vous
+  personnels ne quittent jamais le serveur (n'importe qui ayant le lien du site peut appeler la
+  fonction pour n'importe quel formateur). Ses mots-clés recopient ceux de `js/import-agenda.js` :
+  **à garder alignés** (redéployer la fonction après modification).
+- Pour couper l'accès : bouton « Retirer » sur la page, ou « Réinitialiser » l'adresse secrète
+  dans Google Agenda.
+
+**Méthode de secours** (repliée sur la page) : déposer un fichier `.ics` exporté depuis Google
+Agenda → Paramètres → son agenda → Exporter.
+
+Ensuite, dans les deux cas :
+
+1. Depuis l'espace formateur (**📥 Importer mon agenda**, à côté de « + Ajouter une action »),
+   ouvrir la page : elle affiche directement les actions à valider.
+2. L'outil détecte automatiquement, par mots-clés, l'école concernée (`js/import-agenda.js`,
    `ECOLES_MOTS_CLES_AGENDA`) et suggère un type d'intervention. Chaque ligne reste éditable
    (école, type, thème) avant import ; les lignes incertaines sont marquées **« à vérifier »**,
    décochées par défaut — rien n'est jamais enregistré sans revue.
-4. Un évènement déjà importé une fois n'est plus jamais reproposé si on redépose le même fichier
-   plus tard (table `agenda_imports`). Une ligne dont l'école et la date correspondent à une action
+3. Un évènement déjà importé une fois n'est plus jamais reproposé à la relecture suivante
+   (table `agenda_imports`). Une ligne dont l'école et la date correspondent à une action
    déjà enregistrée reste affichée (jamais masquée) mais marquée **« doublon possible ? »** et
    décochée par défaut — ça peut très bien être une deuxième action bien réelle le même jour (ex.
    plusieurs suivis de suppléants différents dans la même école), donc c'est à vérifier au cas par

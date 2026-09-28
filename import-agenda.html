@@ -17,22 +17,22 @@
     <div class="carte">
       <div class="barre-actions" style="margin-bottom:6px;">
         <h2 style="margin:0;">Importer des actions depuis Google Agenda</h2>
-        <button type="button" class="btn btn-sm btn-secondaire" id="ia-aide" title="Comment exporter mon agenda ?">?</button>
+        <button type="button" class="btn btn-sm btn-secondaire" id="ia-aide" title="Comment ça marche ?">?</button>
       </div>
       <p class="intro" style="margin-bottom:0;">
-        Si vous remplissez déjà votre Google Agenda au fil de l'eau, cette page relit un export de
-        cet agenda pour retrouver les visites d'école qu'il contient, et les ajoute ici — sans tout
-        ressaisir. Détection automatique par mots-clés (nom d'école, type d'intervention) : à
-        vérifier/corriger ci-dessous avant d'enregistrer, rien n'est jamais importé sans validation.
+        Vos actions sont déjà dans votre Google Agenda (saisies à la main ou arrivées depuis
+        Poésie) : cette page les y retrouve et les ajoute ici, sans rien ressaisir. École et type
+        sont devinés d'après le texte de l'évènement : à vérifier/corriger ci-dessous avant
+        d'enregistrer, rien n'est jamais importé sans votre validation.
       </p>
       <div id="ia-tuto" style="display:none;background:var(--bg);border:1px solid var(--bordure);border-radius:var(--radius-sm);padding:12px 14px;margin-top:12px;font-size:0.85rem;">
-        <b>Comment exporter votre agenda :</b>
-        <ol style="margin:8px 0 0;padding-left:20px;">
-          <li>Ouvrir <a href="https://calendar.google.com/calendar/u/0/r/settings" target="_blank" rel="noopener">Google Agenda → Paramètres</a>.</li>
-          <li>Dans la colonne de gauche, cliquer sur son propre calendrier (pas un autre agenda partagé).</li>
-          <li>Cliquer <b>« Exporter »</b> : un fichier <code>.ics</code> se télécharge.</li>
-          <li>Revenir ici et le déposer ci-dessous.</li>
-        </ol>
+        <b>Comment ça marche :</b>
+        <ul style="margin:8px 0 0;padding-left:20px;">
+          <li>Une seule fois : vous collez ici l'« adresse secrète » de votre Google Agenda (étapes ci-dessous).</li>
+          <li>Ensuite, à chaque visite sur cette page, l'agenda est relu tout seul : seuls les évènements de l'année jusqu'à aujourd'hui qui parlent d'une école ou d'une intervention remontent — vos rendez-vous personnels restent invisibles.</li>
+          <li>Un évènement déjà importé n'est jamais reproposé.</li>
+          <li>L'adresse n'est jamais affichée sur le site. Pour couper l'accès : « Retirer » ici, ou « Réinitialiser » l'adresse dans Google Agenda.</li>
+        </ul>
       </div>
     </div>
 
@@ -41,12 +41,48 @@
       <div class="grille-chips-ecoles" id="chips-qui-import"></div>
     </div>
 
-    <div class="carte" id="carte-fichier">
-      <div class="champ" style="margin-bottom:0;">
-        <label for="fichier-ics">Fichier .ics exporté</label>
-        <input type="file" id="fichier-ics" accept=".ics,text/calendar">
+    <div class="carte" id="carte-agenda" style="display:none;">
+      <div class="barre-actions" style="margin-bottom:8px;">
+        <h3 style="margin:0;">Agenda de <span id="agenda-nom"></span></h3>
+        <button type="button" class="btn btn-sm btn-secondaire" id="btn-changer-qui">Changer de personne</button>
       </div>
-      <p id="msg-fichier" class="alerte" style="display:none;margin-top:12px;"></p>
+
+      <div id="agenda-non-connecte" style="display:none;">
+        <p class="intro">Connectez votre agenda — <b>une seule fois</b>, 1 minute :</p>
+        <ol style="margin:0 0 12px;padding-left:20px;font-size:0.9rem;line-height:1.6;">
+          <li>Ouvrir <a href="https://calendar.google.com/calendar/u/0/r/settings" target="_blank" rel="noopener">Google Agenda → Paramètres</a>.</li>
+          <li>En bas à gauche, sous « Paramètres de mes agendas », cliquer sur <b>votre nom</b>, puis sur <b>« Intégrer l'agenda »</b>.</li>
+          <li>Tout en bas, à la ligne <b>« Adresse secrète au format iCal »</b>, cliquer sur l'icône copier <span aria-hidden="true">⧉</span>.</li>
+          <li>Coller l'adresse ci-dessous et enregistrer.</li>
+        </ol>
+        <div class="champ" style="margin-bottom:0;">
+          <label for="lien-agenda">Adresse secrète au format iCal</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <input type="password" id="lien-agenda" autocomplete="off" placeholder="https://calendar.google.com/calendar/ical/…/private-…/basic.ics" style="flex:1;min-width:220px;">
+            <button type="button" class="btn btn-primaire" id="btn-enregistrer-lien">Connecter</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="agenda-connecte" style="display:none;">
+        <div class="barre-actions">
+          <span id="agenda-statut" style="font-size:0.9rem;"></span>
+          <div class="groupe-btns">
+            <button type="button" class="btn btn-sm btn-primaire" id="btn-relire-agenda">🔄 Relire mon agenda</button>
+            <button type="button" class="btn btn-sm btn-secondaire" id="btn-retirer-lien">Retirer</button>
+          </div>
+        </div>
+      </div>
+
+      <p id="msg-agenda" class="alerte" style="display:none;margin-top:12px;"></p>
+
+      <details style="margin-top:14px;font-size:0.85rem;">
+        <summary style="cursor:pointer;color:var(--texte-muted);">Autre méthode : déposer un fichier .ics exporté</summary>
+        <div class="champ" style="margin:10px 0 0;">
+          <input type="file" id="fichier-ics" accept=".ics,text/calendar">
+        </div>
+        <p id="msg-fichier" class="alerte" style="display:none;margin-top:12px;"></p>
+      </details>
     </div>
 
     <div class="carte" id="carte-resultats" style="display:none;">
@@ -74,8 +110,8 @@
         </table>
       </div>
       <p class="intro" id="msg-vide-import" style="display:none;">
-        Aucun évènement nouveau trouvé dans ce fichier (déjà tous importés ou déjà enregistrés
-        précédemment, ou fichier vide).
+        Aucun évènement nouveau : tout ce qui concerne une école ou une intervention a déjà été
+        importé. Revenez après vos prochaines visites.
       </p>
       <p id="msg-import" class="alerte" style="display:none;margin-top:14px;"></p>
       <div class="groupe-btns" style="justify-content:flex-end;margin-top:14px;">
@@ -87,10 +123,10 @@
 
 <p class="pied">IEP1 — Import depuis Google Agenda</p>
 
-<script src="js/seed-data.js?v=22"></script>
+<script src="js/seed-data.js?v=23"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/supabase-client.js?v=1"></script>
-<script src="js/data-store.js?v=13"></script>
+<script src="js/data-store.js?v=14"></script>
 <script src="js/stats.js?v=13"></script>
 <script src="js/ics-parser.js?v=1"></script>
 <script src="js/import-agenda.js?v=2"></script>
@@ -142,7 +178,53 @@ async function choisirQuiImport(id) {
   localStorage.setItem(STOCKAGE_QUI_IMPORT, id);
   rendreChipsQuiImport();
   document.getElementById('carte-qui').style.display = 'none';
+  document.getElementById('carte-resultats').style.display = 'none';
   await rafraichirDonneesExistantes();
+  await afficherEtatAgenda(true).catch(err =>
+    afficherMsgAgenda('alerte-err', 'Connexion à l\'agenda indisponible : ' + err.message));
+}
+
+function afficherMsgAgenda(classe, texte) {
+  const msg = document.getElementById('msg-agenda');
+  msg.className = 'alerte ' + classe;
+  msg.textContent = texte;
+  msg.style.display = texte ? 'block' : 'none';
+}
+
+/*
+ * Montre soit le formulaire « connecter mon agenda » (1re fois), soit l'état de l'agenda connecté.
+ * relireSiConnecte : à l'ouverture de la page (ou au choix de la personne), l'agenda connecté est
+ * relu tout de suite — c'est ce qui évite tout geste manuel au quotidien.
+ */
+async function afficherEtatAgenda(relireSiConnecte) {
+  const intervenant = INTERVENANTS.find(i => i.id === quiId);
+  document.getElementById('agenda-nom').textContent = intervenant ? intervenant.nom : quiId;
+  document.getElementById('carte-agenda').style.display = 'block';
+  afficherMsgAgenda('', '');
+  const statut = await Store.statutLienAgenda(quiId);
+  document.getElementById('agenda-non-connecte').style.display = statut.configure ? 'none' : 'block';
+  document.getElementById('agenda-connecte').style.display = statut.configure ? 'block' : 'none';
+  if (statut.configure) {
+    document.getElementById('agenda-statut').textContent = '✓ Agenda connecté';
+    if (relireSiConnecte) await relireAgendaConnecte();
+  }
+}
+
+async function relireAgendaConnecte() {
+  const btn = document.getElementById('btn-relire-agenda');
+  btn.disabled = true;
+  afficherMsgAgenda('alerte-info', 'Lecture de votre agenda…');
+  try {
+    const { evenements, debut, fin } = await Store.lireAgendaConnecte(quiId);
+    afficherMsgAgenda('', '');
+    document.getElementById('agenda-statut').textContent =
+      `✓ Agenda connecté — relu à l'instant (du ${formaterDate(debut)} au ${formaterDate(fin)})`;
+    await traiterEvenements(evenements);
+  } catch (err) {
+    afficherMsgAgenda('alerte-err', 'Impossible de lire votre agenda : ' + err.message);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function remplirSelectTypeLigne(sel, typeIdChoisi) {
@@ -209,9 +291,10 @@ function majBadgeLigne(tr, ligne) {
   tr.children[5].innerHTML = badgeLigne(ligne);
 }
 
-async function traiterFichierIcs(texte) {
-  await rafraichirDonneesExistantes(); // fichier potentiellement déposé après une précédente saisie manuelle
-  const evenements = parserICS(texte);
+/* evenements : [{ uid, date, summary, description, location }] — issus de l'agenda connecté
+   (fonction serveur lire-agenda) ou d'un fichier .ics déposé (parserICS). */
+async function traiterEvenements(evenements) {
+  await rafraichirDonneesExistantes(); // actions potentiellement saisies à la main entre-temps
   const analysees = evenements
     .filter(e => !UIDS_DEJA_IMPORTES.has(e.uid))
     .map(e => analyserEvenementAgenda(e, ECOLES));
@@ -225,8 +308,9 @@ async function traiterFichierIcs(texte) {
   LIGNES_IMPORT = analysees.sort((a, b) => b.date.localeCompare(a.date));
   const doublonsPossibles = LIGNES_IMPORT.filter(ligneDoublonPossible).length;
 
-  document.getElementById('titre-resultats').textContent =
-    `${LIGNES_IMPORT.length} évènement(s) trouvé(s)`;
+  document.getElementById('titre-resultats').textContent = LIGNES_IMPORT.length
+    ? `${LIGNES_IMPORT.length} action(s) à valider`
+    : 'Rien de nouveau à importer';
   const infos = [];
   if (dejaImportes) infos.push(`${dejaImportes} déjà importé(s) précédemment, ignoré(s)`);
   if (doublonsPossibles) infos.push(`${doublonsPossibles} correspondent à une action déjà enregistrée le même jour dans la même école — décoché(s), à vérifier avant de cocher (pas forcément un doublon)`);
@@ -274,7 +358,7 @@ async function importerSelection() {
         typeId: ligne.typeId,
         intervenantId: quiId,
         theme: (ligne.theme || '').trim(),
-        notes: 'Importé automatiquement depuis Google Agenda (fichier .ics).',
+        notes: 'Importé depuis Google Agenda.',
         profil: '',
         origine: '',
         horodatage: horodatageMaintenant()
@@ -318,7 +402,7 @@ document.getElementById('fichier-ics').addEventListener('change', (e) => {
   }
   msg.style.display = 'none';
   const lecteur = new FileReader();
-  lecteur.onload = () => traiterFichierIcs(lecteur.result).catch(err => {
+  lecteur.onload = () => traiterEvenements(parserICS(lecteur.result)).catch(err => {
     msg.className = 'alerte alerte-err'; msg.textContent = 'Erreur de lecture du fichier : ' + err.message; msg.style.display = 'block';
   });
   lecteur.onerror = () => {
@@ -333,6 +417,37 @@ document.getElementById('btn-tout-decocher').addEventListener('click', () => {
   document.querySelectorAll('#corps-import .chk-ligne').forEach(c => c.checked = false);
 });
 document.getElementById('btn-importer-selection').addEventListener('click', importerSelection);
+document.getElementById('btn-enregistrer-lien').addEventListener('click', async () => {
+  const champ = document.getElementById('lien-agenda');
+  const btn = document.getElementById('btn-enregistrer-lien');
+  if (!champ.value.trim()) { afficherMsgAgenda('alerte-warn', 'Collez d\'abord l\'adresse secrète.'); return; }
+  btn.disabled = true;
+  try {
+    await Store.enregistrerLienAgenda(quiId, champ.value.trim());
+    champ.value = '';
+    await afficherEtatAgenda(true);
+  } catch (err) {
+    afficherMsgAgenda('alerte-err', err.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+document.getElementById('btn-relire-agenda').addEventListener('click', relireAgendaConnecte);
+document.getElementById('btn-retirer-lien').addEventListener('click', async () => {
+  if (!confirm('Retirer la connexion à votre agenda ? (Vos actions déjà importées restent enregistrées.)')) return;
+  try {
+    await Store.retirerLienAgenda(quiId);
+    document.getElementById('carte-resultats').style.display = 'none';
+    await afficherEtatAgenda(false);
+  } catch (err) {
+    afficherMsgAgenda('alerte-err', err.message);
+  }
+});
+document.getElementById('btn-changer-qui').addEventListener('click', () => {
+  document.getElementById('carte-agenda').style.display = 'none';
+  document.getElementById('carte-resultats').style.display = 'none';
+  document.getElementById('carte-qui').style.display = 'block';
+});
 document.getElementById('ia-aide').addEventListener('click', () => {
   const tuto = document.getElementById('ia-tuto');
   tuto.style.display = tuto.style.display === 'none' ? 'block' : 'none';
@@ -355,6 +470,10 @@ async function init() {
 
   document.getElementById('zone-chargement').style.display = 'none';
   document.getElementById('zone-page').style.display = 'block';
+  if (quiId) {
+    await afficherEtatAgenda(true).catch(err =>
+      afficherMsgAgenda('alerte-err', 'Connexion à l\'agenda indisponible : ' + err.message));
+  }
 }
 
 init().catch(err => {
