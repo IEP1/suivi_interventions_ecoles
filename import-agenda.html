@@ -86,6 +86,11 @@
     </div>
 
     <div class="carte" id="carte-resultats" style="display:none;">
+      <div class="onglets">
+        <button type="button" class="onglet actif" id="onglet-a-importer">À importer (<span id="nb-a-importer">0</span>)</button>
+        <button type="button" class="onglet" id="onglet-non-importees">Non importées (<span id="nb-non-importees">0</span>)</button>
+      </div>
+      <div id="vue-a-importer">
       <div class="barre-actions">
         <h3 style="margin:0;" id="titre-resultats"></h3>
         <div class="groupe-btns">
@@ -128,7 +133,24 @@
       </p>
       <p id="msg-import" class="alerte" style="display:none;margin-top:14px;"></p>
       <div class="groupe-btns" style="justify-content:flex-end;margin-top:14px;">
+        <button class="btn btn-secondaire" id="btn-ecarter-selection" type="button">Ne pas importer la sélection</button>
         <button class="btn btn-primaire" id="btn-importer-selection" type="button">Importer la sélection</button>
+      </div>
+      </div>
+
+      <div id="vue-non-importees" style="display:none;">
+        <p class="intro" style="font-size:0.85rem;">
+          Évènements marqués « Ne pas importer » : ils ne sont plus reproposés. En cas d'erreur,
+          « Remettre à importer » les renvoie dans l'onglet « À importer », où vous pourrez les
+          corriger puis les valider.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Date</th><th>École / lieu</th><th>Type proposé</th><th>Intitulé d'origine</th><th></th></tr></thead>
+            <tbody id="corps-non-importees"></tbody>
+          </table>
+        </div>
+        <p class="intro" id="msg-vide-non-importees" style="display:none;">Aucun évènement écarté pour l'instant.</p>
       </div>
     </div>
   </div>
@@ -139,7 +161,7 @@
 <script src="js/seed-data.js?v=24"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/supabase-client.js?v=1"></script>
-<script src="js/data-store.js?v=14"></script>
+<script src="js/data-store.js?v=16"></script>
 <script src="js/stats.js?v=14"></script>
 <script src="js/ics-parser.js?v=2"></script>
 <script src="js/import-agenda.js?v=6"></script>
@@ -156,6 +178,9 @@ let ECOLES = [];
 let TYPES = [];
 let quiId = null;
 let UIDS_DEJA_IMPORTES = new Set();
+let UIDS_ECARTES = new Set(); // marqués « Ne pas importer » (onglet « Non importées »)
+let TOUTES_LIGNES = []; // toutes les lignes analysées du dernier agenda lu
+let LIGNES_ECARTEES = [];
 let CLES_ACTIONS_EXISTANTES = new Set(); // "ecoleId|date" déjà présents dans le suivi pour cette personne
 let LIGNES_IMPORT = [];
 let DATE_DERNIER_IMPORT = null; // voir rafraichirDonneesExistantes // lignes affichées, correspond 1-1 avec les <tr> du tableau
@@ -175,11 +200,11 @@ async function rafraichirDonneesExistantes() {
     Store.chargerUidsImportesAgenda(quiId),
     Store.chargerToutesLesActionsIntervenant(quiId)
   ]);
-  UIDS_DEJA_IMPORTES = uids;
+  UIDS_DEJA_IMPORTES = uids.importes;
+  UIDS_ECARTES = uids.ecartes;
   CLES_ACTIONS_EXISTANTES = new Set(actions.filter(a => a.ecoleId).map(a => cleActionExistante(a.ecoleId, a.date)));
   // Date du plus récent évènement déjà importé depuis l'agenda : point de reprise proposé par défaut.
-  DATE_DERNIER_IMPORT = actions.filter(a => (a.notes || '').startsWith('Importé depuis Google Agenda'))
-    .map(a => a.date).sort().pop() || null;
+  DATE_DERNIER_IMPORT = uids.dateDernierImport;
 }
 
 function rendreChipsQuiImport() {
@@ -232,10 +257,14 @@ async function relireAgendaConnecte() {
   btn.disabled = true;
   afficherMsgAgenda('alerte-info', 'Lecture de votre agenda…');
   try {
-    const { evenements, debut, fin } = await Store.lireAgendaConnecte(quiId);
-    afficherMsgAgenda('', '');
+    const { evenements, debut, fin, luLe, avertissement } = await Store.lireAgendaConnecte(quiId);
+    // Le serveur peut resservir sa dernière lecture (moins de 5 min, ou Google momentanément
+    // indisponible) : on affiche alors l'heure de cette lecture.
+    const heure = luLe ? new Date(luLe).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null;
+    const recente = !luLe || Date.now() - new Date(luLe).getTime() < 60000;
+    afficherMsgAgenda(avertissement ? 'alerte-warn' : '', avertissement ? `${avertissement} Affichage de la lecture de ${heure}.` : '');
     document.getElementById('agenda-statut').textContent =
-      `✓ Agenda connecté — relu à l'instant (du ${formaterDate(debut)} au ${formaterDate(fin)})`;
+      `✓ Agenda connecté — ${recente ? "relu à l'instant" : `lu à ${heure}`} (du ${formaterDate(debut)} au ${formaterDate(fin)})`;
     await traiterEvenements(evenements);
   } catch (err) {
     afficherMsgAgenda('alerte-err', 'Impossible de lire votre agenda : ' + err.message);
@@ -341,7 +370,10 @@ function rendreLignesImport() {
       <td><input type="text" class="txt-theme-ligne" value="${echapperAttr(ligne.theme)}" style="width:100%;min-width:160px;">
         <div style="font-size:0.75rem;color:var(--texte-muted);margin-top:3px;">${echapperAttr(ligne.poesie ? 'Poésie : ' + ligne.intitulePoesie : 'Saisi à la main : ' + ligne.texteOriginal)}</div></td>
       <td class="cellule-badges">${badgeLigne(ligne)}</td>
-      <td><button type="button" class="btn btn-sm btn-primaire btn-valider-ligne" title="Importer cette ligne seule, telle qu'elle est">Valider</button></td>
+      <td style="white-space:nowrap;">
+        <button type="button" class="btn btn-sm btn-primaire btn-valider-ligne" title="Importer cette ligne seule, telle qu'elle est">Valider</button>
+        <button type="button" class="btn btn-sm btn-secondaire btn-ecarter-ligne" title="Ne jamais importer cet évènement (récupérable dans l'onglet « Non importées »)">Ne pas importer</button>
+      </td>
     </tr>`).join('');
 
   corps.querySelectorAll('tr').forEach(tr => {
@@ -370,6 +402,7 @@ function rendreLignesImport() {
     selProfil.addEventListener('change', () => { ligne.profil = selProfil.value; });
     tr.querySelector('.chk-ligne').addEventListener('change', (e) => { ligne.coche = e.target.checked; });
     tr.querySelector('.btn-valider-ligne').addEventListener('click', (e) => importerLignes([ligne], e.target));
+    tr.querySelector('.btn-ecarter-ligne').addEventListener('click', (e) => ecarterLignes([ligne], e.target));
     tr.querySelector('.txt-theme-ligne').addEventListener('input', (e) => {
       ligne.theme = e.target.value;
       ligne.infoSensible = contientInfoSensible(ligne.theme);
@@ -388,6 +421,7 @@ function majCompteurs() {
   const pretes = restantes.filter(l => l.coche).length;
   const nbPoesie = restantes.filter(l => l.poesie).length;
   const masquees = LIGNES_IMPORT.filter(l => !l.importee).length - restantes.length;
+  document.getElementById('nb-a-importer').textContent = restantes.length;
   document.getElementById('titre-resultats').textContent = restantes.length
     ? `${restantes.length} action(s) à valider (${nbPoesie} Poésie, ${restantes.length - nbPoesie} saisies à la main) — ${pretes} cochée(s)`
     : 'Rien de nouveau à importer';
@@ -406,6 +440,7 @@ async function traiterEvenements(evenements) {
   const toutes = evenements
     .filter(e => estEvenementPoesie(e) || estEvenementEducatif(e))
     .flatMap(e => analyserEvenementAgenda(e, ECOLES));
+  TOUTES_LIGNES = toutes;
   const nouvelles = toutes.filter(l => !UIDS_DEJA_IMPORTES.has(l.uid));
   const dejaImportes = toutes.length - nouvelles.length; // ceux-là, on ne les reverra jamais (même évènement)
   // Volontairement non reprises (voir POESIE_VERS_TYPE) : rédaction de bulletin de visite, réunion
@@ -418,7 +453,7 @@ async function traiterEvenements(evenements) {
   // ignorées disparaissent. Une action déjà enregistrée pour la même école à la même date reste
   // affichée mais décochée et marquée "doublon possible ?" — ça peut très bien être une deuxième
   // action bien réelle le même jour, donc jamais masquée d'office.
-  LIGNES_IMPORT = nouvelles.filter(l => !l.ignoree)
+  LIGNES_IMPORT = nouvelles.filter(l => !l.ignoree && !UIDS_ECARTES.has(l.uid))
     .sort((a, b) => b.date.localeCompare(a.date) || (b.poesie - a.poesie));
   const doublonsPossibles = LIGNES_IMPORT.filter(ligneDoublonPossible).length;
 
@@ -442,8 +477,82 @@ async function traiterEvenements(evenements) {
   document.getElementById('msg-deja-importes').textContent = infos.length ? infos.join(' — ') + '.' : '';
   document.getElementById('msg-import').style.display = 'none';
   rendreLignesImport();
+  rendreLignesEcartees();
   majCompteurs();
   document.getElementById('carte-resultats').style.display = 'block';
+}
+
+/* Onglet « Non importées » : lignes du dernier agenda lu marquées « Ne pas importer ». */
+function rendreLignesEcartees() {
+  LIGNES_ECARTEES = TOUTES_LIGNES.filter(l => UIDS_ECARTES.has(l.uid))
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const corps = document.getElementById('corps-non-importees');
+  corps.innerHTML = LIGNES_ECARTEES.map((ligne, i) => {
+    const ecole = ligne.ecoleId ? ECOLES.find(e => e.id === ligne.ecoleId) : null;
+    const type = ligne.typeId ? TYPES.find(t => t.id === ligne.typeId) : null;
+    const lieu = [ecole ? ecole.nom : '', ligne.lieuLibre].filter(Boolean).join(' — ') || '—';
+    return `<tr>
+      <td style="white-space:nowrap;">${formaterDate(ligne.date)}</td>
+      <td>${echapperAttr(lieu)}</td>
+      <td>${type ? type.label : '—'}</td>
+      <td style="font-size:0.85rem;">${echapperAttr(ligne.poesie ? 'Poésie : ' + ligne.intitulePoesie : ligne.texteOriginal)}
+        ${ligne.theme ? `<div style="color:var(--texte-muted);">${echapperAttr(ligne.theme)}</div>` : ''}</td>
+      <td><button type="button" class="btn btn-sm btn-secondaire" data-i="${i}">Remettre à importer</button></td>
+    </tr>`;
+  }).join('');
+  corps.querySelectorAll('button[data-i]').forEach(btn => {
+    btn.addEventListener('click', () => retablirLigne(LIGNES_ECARTEES[Number(btn.dataset.i)], btn));
+  });
+  document.getElementById('msg-vide-non-importees').style.display = LIGNES_ECARTEES.length ? 'none' : 'block';
+  document.getElementById('nb-non-importees').textContent = LIGNES_ECARTEES.length;
+}
+
+/* « Ne pas importer » : mémorisé en base (agenda_imports.ecarte), la ligne passe dans l'autre onglet. */
+async function ecarterLignes(lignes, btn) {
+  const msg = document.getElementById('msg-import');
+  if (btn) btn.disabled = true;
+  try {
+    await Store.ecarterImportsAgenda(quiId, lignes.map(l => l.uid));
+    lignes.forEach(l => UIDS_ECARTES.add(l.uid));
+    LIGNES_IMPORT = LIGNES_IMPORT.filter(l => !UIDS_ECARTES.has(l.uid));
+    rendreLignesImport();
+    rendreLignesEcartees();
+    majCompteurs();
+    msg.className = 'alerte alerte-ok';
+    msg.textContent = `${lignes.length} évènement(s) mis de côté — retrouvables dans l'onglet « Non importées ».`;
+    msg.style.display = 'block';
+  } catch (e) {
+    msg.className = 'alerte alerte-err'; msg.textContent = 'Erreur : ' + e.message; msg.style.display = 'block';
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+/* « Remettre à importer » : la ligne revient dans « À importer », décochée, à relire puis valider. */
+async function retablirLigne(ligne, btn) {
+  btn.disabled = true;
+  try {
+    await Store.retablirImportAgenda(quiId, ligne.uid);
+    UIDS_ECARTES.delete(ligne.uid);
+    ligne.coche = false;
+    LIGNES_IMPORT = [...LIGNES_IMPORT, ligne].sort((a, b) => b.date.localeCompare(a.date) || (b.poesie - a.poesie));
+    // Visible même si elle est plus ancienne que le « À partir du » choisi.
+    const depuis = document.getElementById('ia-depuis');
+    if (depuis.value && ligne.date < depuis.value) depuis.value = ligne.date;
+    rendreLignesImport();
+    rendreLignesEcartees();
+    majCompteurs();
+  } catch (e) {
+    btn.disabled = false;
+    alert('Erreur : ' + e.message);
+  }
+}
+
+function basculerOngletImport(onglet) {
+  document.getElementById('onglet-a-importer').classList.toggle('actif', onglet === 'a-importer');
+  document.getElementById('onglet-non-importees').classList.toggle('actif', onglet === 'non-importees');
+  document.getElementById('vue-a-importer').style.display = onglet === 'a-importer' ? 'block' : 'none';
+  document.getElementById('vue-non-importees').style.display = onglet === 'non-importees' ? 'block' : 'none';
 }
 
 /* Enregistre une ligne de revue comme action du suivi ; renvoie l'entrée agenda_imports correspondante. */
@@ -549,6 +658,18 @@ document.getElementById('btn-tout-decocher').addEventListener('click', () => {
 });
 document.getElementById('ia-depuis').addEventListener('change', () => { rendreLignesImport(); majCompteurs(); });
 document.getElementById('btn-importer-selection').addEventListener('click', importerSelection);
+document.getElementById('btn-ecarter-selection').addEventListener('click', () => {
+  const lignes = lignesAffichees().filter(l => l.coche);
+  if (!lignes.length) {
+    const msg = document.getElementById('msg-import');
+    msg.className = 'alerte alerte-warn'; msg.textContent = 'Coche au moins une ligne à mettre de côté.'; msg.style.display = 'block';
+    return;
+  }
+  if (!confirm(`Ne pas importer les ${lignes.length} ligne(s) cochée(s) ? Elles ne seront plus reproposées (récupérables dans l'onglet « Non importées »).`)) return;
+  ecarterLignes(lignes, document.getElementById('btn-ecarter-selection'));
+});
+document.getElementById('onglet-a-importer').addEventListener('click', () => basculerOngletImport('a-importer'));
+document.getElementById('onglet-non-importees').addEventListener('click', () => basculerOngletImport('non-importees'));
 document.getElementById('btn-enregistrer-lien').addEventListener('click', async () => {
   const champ = document.getElementById('lien-agenda');
   const btn = document.getElementById('btn-enregistrer-lien');

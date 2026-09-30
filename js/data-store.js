@@ -251,16 +251,39 @@ const Store = {
    * un évènement déjà traité si la personne redépose plus tard le même fichier .ics exporté
    * (qui contient tout son agenda à chaque export, pas seulement les nouveaux évènements).
    */
+  /**
+   * { importes: Set(uid), ecartes: Set(uid), dateDernierImport } — ecartes = marqués « Ne pas
+   * importer » ; dateDernierImport = date de l'action la plus récente importée depuis l'agenda
+   * (point de reprise, indépendant d'une éventuelle modification ultérieure des notes).
+   */
   async chargerUidsImportesAgenda(intervenantId) {
-    const { data, error } = await sb.from('agenda_imports').select('uid').eq('intervenant_id', intervenantId);
+    const { data, error } = await sb.from('agenda_imports').select('uid, ecarte, actions(date)').eq('intervenant_id', intervenantId);
     leverSiErreur(error);
-    return new Set((data || []).map(r => r.uid));
+    const lignes = data || [];
+    return {
+      importes: new Set(lignes.filter(r => !r.ecarte).map(r => r.uid)),
+      ecartes: new Set(lignes.filter(r => r.ecarte).map(r => r.uid)),
+      dateDernierImport: lignes.map(r => r.actions && r.actions.date).filter(Boolean).sort().pop() || null
+    };
   },
   /** entrees : [{ uid, actionId }] — enregistré après la sauvegarde effective de chaque action retenue. */
   async enregistrerImportsAgenda(intervenantId, entrees) {
     if (!entrees.length) return;
-    const lignes = entrees.map(e => ({ intervenant_id: intervenantId, uid: e.uid, action_id: e.actionId }));
+    const lignes = entrees.map(e => ({ intervenant_id: intervenantId, uid: e.uid, action_id: e.actionId, ecarte: false }));
     const { error } = await sb.from('agenda_imports').upsert(lignes, { onConflict: 'intervenant_id,uid' });
+    leverSiErreur(error);
+  },
+  /** « Ne pas importer » : ces évènements ne seront plus reproposés (rétablissables). */
+  async ecarterImportsAgenda(intervenantId, uids) {
+    if (!uids.length) return;
+    const lignes = uids.map(uid => ({ intervenant_id: intervenantId, uid, action_id: null, ecarte: true }));
+    const { error } = await sb.from('agenda_imports').upsert(lignes, { onConflict: 'intervenant_id,uid' });
+    leverSiErreur(error);
+  },
+  /** Annule un « Ne pas importer » : l'évènement redevient proposé à l'import. */
+  async retablirImportAgenda(intervenantId, uid) {
+    const { error } = await sb.from('agenda_imports').delete()
+      .eq('intervenant_id', intervenantId).eq('uid', uid).eq('ecarte', true);
     leverSiErreur(error);
   },
 

@@ -231,7 +231,15 @@ ne quitte pas le serveur et n'apparaît nulle part. **Anti-doublon Poésie** : u
 sans école restent visibles mais décochées) ; une action possiblement déjà rentrée dans le suivi
 (même école, même date) est **encadrée de rouge**. Champ « Afficher à partir du » prérempli avec
 la date du dernier évènement importé (reprise là où on s'était arrêté). Import groupé des lignes
-cochées, ou bouton **Valider** au bout de chaque ligne pour l'importer seule.
+cochées, ou bouton **Valider** au bout de chaque ligne pour l'importer seule. Bouton **Ne pas
+importer** (par ligne ou pour la sélection) : l'évènement n'est plus jamais reproposé
+(`agenda_imports.ecarte`) et apparaît dans l'onglet **« Non importées »**, d'où « Remettre à
+importer » le renvoie dans la liste en cas d'erreur.
+
+**Limite Google (erreur 429)** — Google refuse temporairement les lectures trop rapprochées d'une
+même adresse iCal. La fonction `lire-agenda` garde donc la dernière lecture réussie (évènements
+déjà filtrés, colonnes `cache_*` d'`agenda_liens`, fermées à la clé anon) : resservie pendant
+5 minutes, ou si Google refuse momentanément (la page affiche alors l'heure de cette lecture).
 
 **Écoles hors circonscription** — une école Poésie « … - Ecole : X » absente de nos 21 écoles est
 rangée dans **« Autre école (hors circonscription) »** (ligne unique de la table `ecoles`, nom réel

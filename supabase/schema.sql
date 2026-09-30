@@ -167,6 +167,7 @@ begin
   on conflict (intervenant_id) do update
     set ics_url = excluded.ics_url, enregistre_le = now(), derniere_lecture = null, derniere_erreur = null;
 end $$;
+-- (redéfinie plus bas, section « Dernière lecture d'agenda », pour vider aussi le cache.)
 
 create or replace function public.retirer_lien_agenda(p_intervenant text)
 returns void language sql security definer set search_path = public as $$
@@ -191,3 +192,30 @@ grant execute on function public.enregistrer_lien_agenda(text, text), public.ret
 insert into public.ecoles (id, nom, type)
 values ('hors-circonscription', 'Autre école (hors circonscription)', 'hors-circonscription')
 on conflict (id) do nothing;
+
+-- ===== « Ne pas importer » (2026-10-01) =====
+-- Un évènement d'agenda écarté volontairement est mémorisé ici (ecarte = true, sans action) : il
+-- n'est plus jamais reproposé à l'import, mais reste listé dans l'onglet « Non importées »
+-- d'import-agenda.html, d'où on peut le remettre à importer (la ligne est alors supprimée).
+alter table public.agenda_imports add column if not exists ecarte boolean not null default false;
+
+-- ===== Dernière lecture d'agenda gardée côté serveur (2026-10-01) =====
+-- Google renvoie 429 si on relit trop souvent la même adresse iCal : la fonction lire-agenda garde
+-- ici les évènements (déjà filtrés) de la dernière lecture réussie, resservis pendant 5 minutes ou
+-- quand Google refuse momentanément. Table toujours fermée à la clé anon.
+alter table public.agenda_liens add column if not exists cache_evenements jsonb;
+alter table public.agenda_liens add column if not exists cache_le timestamptz;
+create or replace function public.enregistrer_lien_agenda(p_intervenant text, p_url text)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if p_url is null or trim(p_url) !~ '^https://calendar\.google\.com/calendar/ical/[^/\s]+/private-[0-9a-f]+/basic\.ics$' then
+    raise exception 'Adresse invalide : copier l''« Adresse secrète au format iCal » (elle contient « private- » et se termine par /basic.ics).';
+  end if;
+  if not exists (select 1 from intervenants where id = p_intervenant) then
+    raise exception 'Intervenant inconnu';
+  end if;
+  insert into agenda_liens (intervenant_id, ics_url) values (p_intervenant, trim(p_url))
+  on conflict (intervenant_id) do update
+    set ics_url = excluded.ics_url, enregistre_le = now(), derniere_lecture = null, derniere_erreur = null,
+        cache_evenements = null, cache_le = null;
+end $$;

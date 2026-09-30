@@ -115,28 +115,42 @@ Deno.serve(async (req) => {
   if (!intervenantId) return reponse({ erreur: 'intervenantId manquant' }, 400);
 
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-  const { data: lien, error } = await admin.from('agenda_liens').select('ics_url').eq('intervenant_id', intervenantId).maybeSingle();
+  const { data: lien, error } = await admin.from('agenda_liens')
+    .select('ics_url, cache_evenements, cache_le').eq('intervenant_id', intervenantId).maybeSingle();
   if (error) return reponse({ erreur: error.message }, 500);
   if (!lien) return reponse({ erreur: 'Aucun agenda connecté pour cette personne.' }, 404);
-
-  let texte: string;
-  try {
-    const r = await fetch(lien.ics_url);
-    if (!r.ok) throw new Error(r.status === 404
-      ? "Google ne reconnaît plus cette adresse (réinitialisée ?) : recollez la nouvelle adresse secrète."
-      : `Google Agenda a répondu ${r.status}.`);
-    texte = await r.text();
-  } catch (e) {
-    const message = (e as Error).message;
-    await admin.from('agenda_liens').update({ derniere_erreur: message }).eq('intervenant_id', intervenantId);
-    return reponse({ erreur: message }, 502);
-  }
 
   // Fenêtre : du 1er janvier (de l'année d'il y a 30 jours, pour ne rien perdre de décembre en
   // janvier) jusqu'à aujourd'hui inclus, heure de Nouvelle-Calédonie. Les évènements à venir ne
   // remontent pas : une visite prévue peut encore être annulée.
   const aujourdhui = new Date(Date.now() + 11 * 3600000).toISOString().slice(0, 10);
   const debut = new Date(Date.now() + 11 * 3600000 - 30 * 86400000).getUTCFullYear() + '-01-01';
+
+  // Google renvoie 429 quand on relit trop souvent la même adresse : la dernière lecture réussie
+  // (évènements déjà filtrés) est gardée dans agenda_liens et resservie pendant 5 minutes, ou quand
+  // Google refuse momentanément — avec son heure, pour que la page puisse le signaler.
+  const cacheValide = lien.cache_evenements && lien.cache_le;
+  if (cacheValide && Date.now() - new Date(lien.cache_le).getTime() < 5 * 60000) {
+    return reponse({ evenements: lien.cache_evenements, debut, fin: aujourdhui, luLe: lien.cache_le });
+  }
+
+  let texte: string;
+  try {
+    const r = await fetch(lien.ics_url);
+    if (!r.ok) throw new Error(r.status === 404
+      ? "Google ne reconnaît plus cette adresse (réinitialisée ?) : recollez la nouvelle adresse secrète."
+      : r.status === 429
+        ? 'Google limite momentanément les lectures trop rapprochées de cet agenda : réessayez dans quelques minutes.'
+        : `Google Agenda a répondu ${r.status}.`);
+    texte = await r.text();
+  } catch (e) {
+    const message = (e as Error).message;
+    await admin.from('agenda_liens').update({ derniere_erreur: message }).eq('intervenant_id', intervenantId);
+    if (cacheValide) {
+      return reponse({ evenements: lien.cache_evenements, debut, fin: aujourdhui, luLe: lien.cache_le, avertissement: message });
+    }
+    return reponse({ erreur: message }, 502);
+  }
 
   // Un évènement créé par Poésie (description « Actions : … ») est toujours professionnel : gardé.
   // Les autres doivent passer le filtre éducatif (voir MOTS_EDUCATIFS / MOTS_PERSONNELS).
@@ -149,6 +163,9 @@ Deno.serve(async (req) => {
     return MOTS_EDUCATIFS.some(m => t.includes(m));
   });
 
-  await admin.from('agenda_liens').update({ derniere_lecture: new Date().toISOString(), derniere_erreur: null }).eq('intervenant_id', intervenantId);
-  return reponse({ evenements, debut, fin: aujourdhui });
+  const maintenant = new Date().toISOString();
+  await admin.from('agenda_liens').update({
+    derniere_lecture: maintenant, derniere_erreur: null, cache_evenements: evenements, cache_le: maintenant
+  }).eq('intervenant_id', intervenantId);
+  return reponse({ evenements, debut, fin: aujourdhui, luLe: maintenant });
 });
