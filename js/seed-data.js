@@ -40,8 +40,26 @@ const TYPES_ECOLE = {
   'maternelle': 'École maternelle',
   'elementaire': 'École élémentaire',
   'groupe-scolaire': 'Groupe scolaire',
-  'structure': 'Structure'
+  'structure': 'Structure',
+  'hors-circonscription': 'Hors circonscription'
 };
+
+/*
+ * « Autre école (hors circonscription) » (2026-10-01) : une seule ligne dans la table ecoles, qui
+ * regroupe les interventions faites dans des écoles extérieures à la circonscription — le nom réel
+ * de l'école est gardé dans lieuLibre de chaque action. Comptée dans les totaux d'interventions,
+ * mais jamais dans les taux de couverture des écoles de la circonscription (voir js/stats.js), ni
+ * proposée comme école de référence. Ne jamais la retirer du tableau ECOLES avant un
+ * Store.sauvegarderEcoles() (synchronisation complète : elle serait supprimée de la base) — la
+ * filtrer seulement à l'affichage, avec ecolesDeLaCirconscription().
+ */
+const ID_ECOLE_HORS_CIRCO = 'hors-circonscription';
+function estEcoleHorsCirco(ecoleOuId) {
+  return (typeof ecoleOuId === 'string' ? ecoleOuId : ecoleOuId && ecoleOuId.id) === ID_ECOLE_HORS_CIRCO;
+}
+function ecolesDeLaCirconscription(ecoles) {
+  return ecoles.filter(e => !estEcoleHorsCirco(e));
+}
 
 /*
  * Intervenants pouvant saisir des interventions : les conseillers pédagogiques

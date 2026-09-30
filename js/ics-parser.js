@@ -56,6 +56,8 @@ function parserICS(texte) {
     else if (cle === 'DESCRIPTION') courant.description = desechapperTexteICS(valeur);
     else if (cle === 'LOCATION') courant.location = desechapperTexteICS(valeur);
     else if (cle === 'DTSTART') courant.date = dateICSVersISO(valeur);
+    // Visibilité « Privé » choisie dans Google Agenda : jamais importé (voir estEvenementEducatif).
+    else if (cle === 'CLASS') courant.prive = /PRIVATE|CONFIDENTIAL/i.test(valeur);
   });
   return evenements.filter(e => e.uid && e.date);
 }

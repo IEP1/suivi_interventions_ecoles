@@ -115,7 +115,7 @@
     </div>
     <div class="champ" id="mod-bloc-lieu-libre" style="display:none;">
       <label for="mod-lieu-libre">Lieu <span style="font-weight:400;color:var(--texte-muted);">(facultatif)</span></label>
-      <input type="text" id="mod-lieu-libre" placeholder="Ex : DENC, domicile, Médipôle…">
+      <input type="text" id="mod-lieu-libre" placeholder="Ex : DENC, domicile… ou nom de l'école hors circonscription">
     </div>
     <div class="champ">
       <label for="mod-date">Date</label>
@@ -139,11 +139,11 @@
 
 <p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
 
-<script src="js/seed-data.js?v=23"></script>
+<script src="js/seed-data.js?v=24"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/supabase-client.js?v=1"></script>
 <script src="js/data-store.js?v=14"></script>
-<script src="js/stats.js?v=13"></script>
+<script src="js/stats.js?v=14"></script>
 <script src="js/type-selector.js?v=11"></script>
 <script src="js/school-picker.js?v=7"></script>
 <script src="js/layout.js?v=18"></script>
@@ -176,7 +176,8 @@ function ouvrirEditionReferentes() {
   document.getElementById('vue-referentes-lecture').style.display = 'none';
   document.getElementById('vue-referentes-edition').style.display = 'block';
   document.getElementById('msg-referentes').style.display = 'none';
-  chipsReferentesPicker = creerGrilleChipsEcoles(document.getElementById('chips-referentes'), ECOLES, mesEcolesReferentes().map(e => e.id));
+  // Affichage seulement : ECOLES doit rester complet pour Store.sauvegarderEcoles (voir ID_ECOLE_HORS_CIRCO).
+  chipsReferentesPicker = creerGrilleChipsEcoles(document.getElementById('chips-referentes'), ecolesDeLaCirconscription(ECOLES), mesEcolesReferentes().map(e => e.id));
 }
 
 function fermerEditionReferentes() {
@@ -264,7 +265,7 @@ function ouvrirModaleModif(actionId) {
   actionEnModification = action;
   document.getElementById('mod-message').style.display = 'none';
   remplirSelectEcoleModif(action.ecoleId);
-  document.getElementById('mod-bloc-lieu-libre').style.display = action.ecoleId ? 'none' : 'block';
+  document.getElementById('mod-bloc-lieu-libre').style.display = action.ecoleId && !estEcoleHorsCirco(action.ecoleId) ? 'none' : 'block';
   document.getElementById('mod-lieu-libre').value = action.lieuLibre || '';
   document.getElementById('mod-origine').innerHTML = '<option value="">—</option>' +
     ORIGINES_INTERVENTION.map(o => `<option value="${o}">${o}</option>`).join('');
@@ -314,7 +315,8 @@ async function validerModifAction() {
       origine: document.getElementById('mod-origine').value,
       horodatage: actionEnModification.horodatage
     };
-    if (!nouvelEcoleId) nouvelleAction.lieuLibre = document.getElementById('mod-lieu-libre').value.trim();
+    // Lieu libre : sans école, ou nom réel de l'école pour « Autre école (hors circonscription) ».
+    if (!nouvelEcoleId || estEcoleHorsCirco(nouvelEcoleId)) nouvelleAction.lieuLibre = document.getElementById('mod-lieu-libre').value.trim();
     if (actionEnModification.groupeId) nouvelleAction.groupeId = actionEnModification.groupeId;
 
     await Store.remplacerAction(
@@ -412,7 +414,8 @@ document.getElementById('btn-enregistrer-referentes').addEventListener('click', 
 document.getElementById('sel-annee-bilan').addEventListener('change', () => rendreBilan());
 document.getElementById('mod-type').addEventListener('change', majDetailModif);
 document.getElementById('mod-ecole').addEventListener('change', () => {
-  document.getElementById('mod-bloc-lieu-libre').style.display = document.getElementById('mod-ecole').value ? 'none' : 'block';
+  const ecoleModif = document.getElementById('mod-ecole').value;
+  document.getElementById('mod-bloc-lieu-libre').style.display = ecoleModif && !estEcoleHorsCirco(ecoleModif) ? 'none' : 'block';
   rafraichirEquipeModif();
 });
 document.getElementById('mod-profil').addEventListener('change', rafraichirEquipeModif);

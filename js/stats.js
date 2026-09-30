@@ -10,16 +10,19 @@ function interventionsDansPeriode(interventions, debut, fin) {
  * types : liste des types d'intervention (pour libellés/catégories)
  */
 function calculerStatsGlobales(ecolesAvecInterventions, debut, fin, types) {
-  const nbEcoles = ecolesAvecInterventions.length;
   const parEcole = ecolesAvecInterventions.map(e => ({
     ...e,
     interventionsPeriode: interventionsDansPeriode(e.interventions, debut, fin)
   }));
+  // Taux de couverture : écoles de la circonscription seulement (pas « Autre école hors
+  // circonscription », voir ID_ECOLE_HORS_CIRCO) ; ses interventions comptent dans les totaux.
+  const parEcoleCirco = parEcole.filter(e => !estEcoleHorsCirco(e));
+  const nbEcoles = parEcoleCirco.length;
 
   const toutesInterventions = parEcole.flatMap(e => e.interventionsPeriode);
 
   const parType = types.map(t => {
-    const ecolesCouvertes = parEcole.filter(e => e.interventionsPeriode.some(iv => iv.typeId === t.id));
+    const ecolesCouvertes = parEcoleCirco.filter(e => e.interventionsPeriode.some(iv => iv.typeId === t.id));
     const nbInterventions = toutesInterventions.filter(iv => iv.typeId === t.id).length;
     return {
       typeId: t.id,

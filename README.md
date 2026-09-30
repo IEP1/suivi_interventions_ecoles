@@ -220,6 +220,25 @@ façon fiable (`analyserEvenementPoesie()` dans `js/import-agenda.js`) :
 
 Tout reste modifiable ligne par ligne (école, type, précision, thème) avant import.
 
+**Évènements saisis à la main (hors Poésie)** — pris en charge aussi, préremplis d'après leur
+titre (mots-clés, ex. « EE … » → Situation particulière, « EducNum » → GT, « Cc » → Conseil de
+cycle). **Filtre éducatif** : seul ce qui relève du travail éducatif remonte (mots éducatifs, sans
+mot personnel type coiffeur/banque/médecin dans le titre, jamais un évènement « Privé ») — le reste
+ne quitte pas le serveur et n'apparaît nulle part. **Anti-doublon Poésie** : un évènement manuel
+à la même date et dans la même école qu'une action Poésie est décoché (« déjà dans Poésie ? »).
+
+**Revue et import** — cochées d'office seulement les lignes sûres **avec une école** (les actions
+sans école restent visibles mais décochées) ; une action possiblement déjà rentrée dans le suivi
+(même école, même date) est **encadrée de rouge**. Champ « Afficher à partir du » prérempli avec
+la date du dernier évènement importé (reprise là où on s'était arrêté). Import groupé des lignes
+cochées, ou bouton **Valider** au bout de chaque ligne pour l'importer seule.
+
+**Écoles hors circonscription** — une école Poésie « … - Ecole : X » absente de nos 21 écoles est
+rangée dans **« Autre école (hors circonscription) »** (ligne unique de la table `ecoles`, nom réel
+de l'école dans le lieu, modifiable). Aussi disponible en saisie rapide (onglet « École hors
+circonscription »), dans la liste des écoles (groupe « Hors circonscription ») et comptée dans les
+bilans, mais jamais dans les taux de couverture des écoles de la circonscription.
+
 **Méthode de secours** (repliée sur la page) : déposer un fichier `.ics` exporté depuis Google
 Agenda → Paramètres → son agenda → Exporter.
 

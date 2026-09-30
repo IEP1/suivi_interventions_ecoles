@@ -3,14 +3,13 @@
  *
  * Relit le Google Agenda d'un formateur via son « adresse secrète au format iCal » (table
  * agenda_liens, jamais lisible par le navigateur, voir supabase/schema.sql) et renvoie seulement
- * les évènements utiles à l'import : de l'année en cours jusqu'à aujourd'hui, et contenant un nom
- * d'école ou un mot-clé d'intervention. Le reste de l'agenda (rendez-vous personnels…) ne quitte
- * jamais le serveur : n'importe qui ayant le lien du site peut appeler cette fonction pour
- * n'importe quel formateur, c'est donc ce filtre qui protège la vie privée.
+ * les évènements utiles à l'import : de l'année en cours jusqu'à aujourd'hui, créés par Poésie ou
+ * passant le filtre éducatif (jamais « Privé »). Le reste de l'agenda (rendez-vous
+ * personnels…) ne quitte jamais le serveur : n'importe qui ayant le lien du site peut appeler
+ * cette fonction pour n'importe quel formateur, c'est donc ce filtre qui protège la vie privée.
  *
  * Déploiement : Supabase → Edge Functions (verify_jwt activé : la clé anon du site suffit).
- * Les listes de mots-clés recopient celles de js/import-agenda.js (école + type) : à garder
- * alignées, sinon des évènements reconnus côté page ne remonteraient jamais du serveur.
+ * Les listes du filtre éducatif recopient celles de js/import-agenda.js : à garder alignées.
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -20,17 +19,32 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
-const MOTS_PERTINENTS = [
-  // Écoles (ECOLES_MOTS_CLES_AGENDA)
-  'BARDOU', 'BENEBIG', 'MEDIPOLE', 'CHT', 'CLAIN', 'DORBRITZ', 'DUMBEA-SUR-MER', 'DUMBEA SUR MER', 'FONG', 'DELACHARLERIE',
-  'ROLLY', 'MDR', 'DILLENSEGER', 'GRESLAN', 'MAINGUET', 'MYOSOTIS', 'NIAOULIS', 'OASIS', 'ORANGERS',
-  'YAHOUE', 'PETUNIAS', 'RUSSIER', 'SURLEAU',
-  // Types (TYPES_MOTS_CLES_AGENDA)
-  'ANIMATION PEDA', 'FORMATION', 'CONSEIL', 'RESIDENCE PEDAGOGIQUE', 'VISITE', 'INSPECTION', 'EAE',
-  'REUNION CIRCO', 'REUNION IEP', 'JURY', 'CORRECTION', 'CAFIPEMF', 'CAPPEI', 'REDACTION SUJET',
-  'PROJET', 'LIAISON', ' GT ', 'GROUPE DE TRAVAIL', 'ADMINISTRATIF', 'ACCOMPAGNEMENT',
-  // Génériques
-  'ECOLE', 'CLASSE', 'CIRCONSCRIPTION', 'IEP'
+// Filtre éducatif — listes recopiées de js/import-agenda.js (MOTS_PERSONNELS_AGENDA,
+// MOTS_EDUCATIFS_AGENDA) : à garder alignées. Un évènement hors Poésie n'est renvoyé que s'il
+// contient un mot éducatif et aucun mot personnel dans son titre, et n'est pas marqué « Privé ».
+const MOTS_PERSONNELS = [
+  'COIFF', 'BANQUE', 'MEDECIN', 'DOCTEUR', 'DENTISTE', 'KINE', 'OSTEO', 'OPHTALMO', 'PHARMACIE',
+  'VETERINAIRE', 'GARAGE', 'CONTROLE TECHNIQUE', 'VIDANGE', 'NOTAIRE', 'IMPOTS', 'ASSURANCE',
+  'MUTUELLE', 'ANNIVERSAIRE', 'MARIAGE', 'VACANCES', ' CONGE', ' PERSO', 'PRIVE', 'COURSES',
+  'SALLE DE SPORT', 'FITNESS', 'YOGA', 'MASSAGE', 'ESTHETI', 'MANUCURE', 'PEDICURE', 'RADIOLOG',
+  'PRISE DE SANG', 'LABORATOIRE', 'NOUNOU', 'BABY-SIT', 'BABYSIT'
+];
+const MOTS_EDUCATIFS = [
+  'BARDOU', 'BENEBIG', 'MEDIPOLE', 'CHT', 'CLAIN', 'DORBRITZ', 'DUMBEA-SUR-MER', 'DUMBEA SUR MER',
+  'FONG', 'DELACHARLERIE', 'ROLLY', 'MDR', 'DILLENSEGER', 'GRESLAN', 'MAINGUET', 'MYOSOTIS',
+  'NIAOULIS', 'OASIS', 'ORANGERS', 'YAHOUE', 'PETUNIAS', 'RUSSIER', 'SURLEAU',
+  'ECOLE', 'CLASSE', 'ELEVE', 'ENSEIGNANT', 'CYCLE', ' CC ', ' EE ', 'EQUIPE EDUCATIVE',
+  'EQUIPES EDUCATIVES', 'EQUIPE TECHNIQUE', 'MATERNELLE', 'ELEMENTAIRE', 'COLLEGE', 'LYCEE', 'SEGPA',
+  'ULIS', 'CLIS', ' CP ', ' CE1', ' CE2', ' CM1', ' CM2', ' GS ', ' MS ', ' PS ',
+  'CIRCONSCRIPTION', 'IEP', 'CPC', 'PEMF', 'DENC', 'DESED', 'DANE', 'DINUM', 'DECAT', 'INSPECT', 'IEF',
+  'VISITE', 'FORMATION', 'FORMATEUR', 'ANIMATION', 'ACCOMPAGNEMENT', 'CONSEIL', 'RESIDENCE', 'JURY',
+  'CORRECTION', 'CAFIPEMF', 'CAPPEI', 'CRPE', 'CONCOURS', 'SUJET', 'PROJET', 'LIAISON', 'GT ',
+  'GROUPE DE TRAVAIL', 'ADMINISTRATI', 'REUNION', 'ATELIER', 'WEBINAIRE', 'SEMINAIRE', 'INTERVENTION',
+  'RENCONTRE', 'PRESENTATION', 'PREPARATION', 'ECHANGE', 'POINT ', 'PEDAGO', 'SCOLAIRE', 'EVALUATION',
+  'LSU', 'APER', 'EDUCNUM', 'EDUC NUM', 'EDUCATION', 'NUMERIQUE', ' IA ', 'PIX', 'TERRA NUMERICA',
+  'PIROGUE', ' PIL', 'ERASMUS', 'MATHS', 'HISTOIRE', 'GEO', 'EMC', 'SCIENCES', 'LECTURE',
+  'ESCAPE GAME', 'LABEL', 'USEP', 'CMJ', 'PARENTALITE', 'ALERTE', 'CRF', 'ORTHOPHON', 'PSYCHOLOGUE',
+  'RASED', 'AESH', 'MDPH'
 ];
 
 function normaliser(s: string) {
@@ -50,7 +64,7 @@ function dateISO(valeur: string): string | null {
   return new Date(Date.UTC(+a, +mo - 1, +j, +h, +mi, +s || 0) + 11 * 3600000).toISOString().slice(0, 10);
 }
 
-type Evenement = { uid: string; date: string; summary?: string; description?: string; location?: string; annule?: boolean };
+type Evenement = { uid: string; date: string; summary?: string; description?: string; location?: string; annule?: boolean; prive?: boolean };
 
 function parserICS(texte: string): Evenement[] {
   const lignes: string[] = [];
@@ -63,7 +77,7 @@ function parserICS(texte: string): Evenement[] {
   for (const ligne of lignes) {
     if (ligne.startsWith('BEGIN:VEVENT')) { courant = { uid: '', date: '' }; continue; }
     if (ligne.startsWith('END:VEVENT')) {
-      if (courant && courant.uid && courant.date && !courant.annule) {
+      if (courant && courant.uid && courant.date && !courant.annule && !courant.prive) {
         // Une occurrence modifiée d'un évènement récurrent garde l'UID du parent : on la distingue,
         // sinon l'importer ferait disparaître toutes les autres occurrences (agenda_imports.uid).
         if (courant.recurrenceId) courant.uid += '#' + courant.recurrenceId;
@@ -85,6 +99,7 @@ function parserICS(texte: string): Evenement[] {
     else if (cle === 'DTSTART') courant.date = dateISO(valeur) || '';
     else if (cle === 'RECURRENCE-ID') courant.recurrenceId = valeur.trim();
     else if (cle === 'STATUS' && valeur.trim().toUpperCase() === 'CANCELLED') courant.annule = true;
+    else if (cle === 'CLASS') courant.prive = /PRIVATE|CONFIDENTIAL/i.test(valeur);
   }
   return evenements;
 }
@@ -123,14 +138,15 @@ Deno.serve(async (req) => {
   const aujourdhui = new Date(Date.now() + 11 * 3600000).toISOString().slice(0, 10);
   const debut = new Date(Date.now() + 11 * 3600000 - 30 * 86400000).getUTCFullYear() + '-01-01';
 
-  // Un évènement créé par Poésie (description « Actions : … ») est toujours professionnel : gardé
-  // quels que soient ses mots. Les autres ne passent que s'ils contiennent un mot-clé.
+  // Un évènement créé par Poésie (description « Actions : … ») est toujours professionnel : gardé.
+  // Les autres doivent passer le filtre éducatif (voir MOTS_EDUCATIFS / MOTS_PERSONNELS).
   const tous = parserICS(texte);
   const evenements = tous.filter(e => {
     if (e.date < debut || e.date > aujourdhui) return false;
     if (/^\s*Actions\s*:/i.test(e.description || '')) return true;
+    if (MOTS_PERSONNELS.some(m => normaliser(e.summary || '').includes(m))) return false;
     const t = normaliser([e.summary, e.description, e.location].filter(Boolean).join(' '));
-    return MOTS_PERTINENTS.some(m => t.includes(m));
+    return MOTS_EDUCATIFS.some(m => t.includes(m));
   });
 
   await admin.from('agenda_liens').update({ derniere_lecture: new Date().toISOString(), derniere_erreur: null }).eq('intervenant_id', intervenantId);

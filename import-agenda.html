@@ -93,14 +93,18 @@
           <button class="btn btn-sm btn-secondaire" id="btn-tout-decocher" type="button">Tout décocher</button>
         </div>
       </div>
+      <div class="champ" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0;">
+        <label for="ia-depuis" style="margin:0;">Afficher à partir du</label>
+        <input type="date" id="ia-depuis" style="width:auto;">
+        <span class="intro" id="ia-depuis-aide" style="margin:0;font-size:0.8rem;"></span>
+      </div>
       <p class="intro" id="msg-deja-importes" style="display:none;"></p>
       <p class="intro" style="font-size:0.85rem;">
-        Tout est prérempli d'après Poésie et reste modifiable : corrigez école, type, précision ou
-        thème si besoin, puis importez les lignes cochées. Les lignes « à vérifier » sont décochées.
+        Tout est prérempli (d'après Poésie, ou d'après le titre pour ce que vous avez saisi à la main)
+        et reste modifiable : corrigez école, type, précision ou thème si besoin, puis importez les
+        lignes cochées. Sont décochées d'office : les lignes sans école de la circonscription, les
+        doublons possibles et les lignes « à vérifier ».
       </p>
-      <div id="zone-hors-poesie" style="display:none;margin-bottom:10px;font-size:0.85rem;">
-        <label style="font-weight:normal;cursor:pointer;"><input type="checkbox" id="chk-hors-poesie"> <span id="lbl-hors-poesie"></span></label>
-      </div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -111,6 +115,7 @@
               <th>Type</th>
               <th>Précision</th>
               <th>Thème / intitulé d'origine</th>
+              <th></th>
               <th></th>
             </tr>
           </thead>
@@ -131,13 +136,13 @@
 
 <p class="pied">IEP1 — Import depuis Google Agenda</p>
 
-<script src="js/seed-data.js?v=23"></script>
+<script src="js/seed-data.js?v=24"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/supabase-client.js?v=1"></script>
 <script src="js/data-store.js?v=14"></script>
-<script src="js/stats.js?v=13"></script>
-<script src="js/ics-parser.js?v=1"></script>
-<script src="js/import-agenda.js?v=4"></script>
+<script src="js/stats.js?v=14"></script>
+<script src="js/ics-parser.js?v=2"></script>
+<script src="js/import-agenda.js?v=6"></script>
 <script src="js/layout.js?v=18"></script>
 <script>
 injecterEntete('conseillers.html');
@@ -152,7 +157,8 @@ let TYPES = [];
 let quiId = null;
 let UIDS_DEJA_IMPORTES = new Set();
 let CLES_ACTIONS_EXISTANTES = new Set(); // "ecoleId|date" déjà présents dans le suivi pour cette personne
-let LIGNES_IMPORT = []; // lignes affichées, correspond 1-1 avec les <tr> du tableau
+let LIGNES_IMPORT = [];
+let DATE_DERNIER_IMPORT = null; // voir rafraichirDonneesExistantes // lignes affichées, correspond 1-1 avec les <tr> du tableau
 
 function cleActionExistante(ecoleId, date) {
   return ecoleId + '|' + date;
@@ -171,6 +177,9 @@ async function rafraichirDonneesExistantes() {
   ]);
   UIDS_DEJA_IMPORTES = uids;
   CLES_ACTIONS_EXISTANTES = new Set(actions.filter(a => a.ecoleId).map(a => cleActionExistante(a.ecoleId, a.date)));
+  // Date du plus récent évènement déjà importé depuis l'agenda : point de reprise proposé par défaut.
+  DATE_DERNIER_IMPORT = actions.filter(a => (a.notes || '').startsWith('Importé depuis Google Agenda'))
+    .map(a => a.date).sort().pop() || null;
 }
 
 function rendreChipsQuiImport() {
@@ -254,6 +263,11 @@ function remplirSelectProfilLigne(sel, ligne) {
   sel.disabled = !profils.length;
 }
 
+/* Lieu libre saisi/corrigé : sans école (DENC…) ou nom réel d'une école hors circonscription. */
+function lieuModifiable(ligne) {
+  return !ligne.ecoleId || estEcoleHorsCirco(ligne.ecoleId);
+}
+
 function echapperAttr(s) {
   return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
@@ -281,35 +295,53 @@ function ligneDoublonPossible(ligne) {
 
 function badgeLigne(ligne) {
   const badges = [];
-  if (ligneDoublonPossible(ligne)) badges.push('doublon possible ?');
+  if (ligneDoublonPossible(ligne)) badges.push('<b style="color:var(--corail);">action possiblement déjà rentrée</b>');
+  else if (ligne.doublonPoesie) badges.push('déjà dans Poésie ?');
   else if (!ligneReconnue(ligne)) badges.push('à vérifier');
+  else if (!ligne.ecoleId) badges.push('sans école');
   // Voir MOTS_INFO_SENSIBLE (js/import-agenda.js) : à relire/raccourcir avant d'importer.
   if (ligne.infoSensible) badges.push('info élève / santé ? relire le thème');
   return badges.map(b => `<span class="badge badge-a-valider" style="display:inline-block;margin:1px 0;">${b}</span>`).join('<br>');
 }
 
-/* Hors Poésie : jamais coché d'office (texte libre, souvent doublon d'une entrée Poésie). */
+/*
+ * Cochée d'office seulement si tout est clair : type sûr, une école de la circonscription (choix
+ * de l'IEP1, 2026-10-01 : les actions sans école restent affichées mais décochées pour le moment),
+ * aucun doublon possible (suivi ou Poésie) et aucune info élève/santé à relire.
+ */
 function cocheeParDefaut(ligne) {
-  return ligne.poesie && ligneReconnue(ligne) && !ligneDoublonPossible(ligne) && !ligne.infoSensible;
+  return ligneReconnue(ligne) && !!ligne.ecoleId && !ligneDoublonPossible(ligne) && !ligne.doublonPoesie && !ligne.infoSensible;
 }
 
-function afficherHorsPoesie() {
-  return document.getElementById('chk-hors-poesie').checked;
+/* Lignes encore à traiter et postérieures au « À partir du » choisi (voir #ia-depuis). */
+function lignesAffichees() {
+  const depuis = document.getElementById('ia-depuis').value;
+  return LIGNES_IMPORT.filter(l => !l.importee && (!depuis || l.date >= depuis));
+}
+
+/* Action possiblement déjà rentrée dans le suivi : ligne encadrée de rouge. */
+function styleLigne(ligne) {
+  return ligneDoublonPossible(ligne)
+    ? 'background:var(--corail-light);box-shadow:inset 0 0 0 2px var(--corail);'
+    : '';
 }
 
 function rendreLignesImport() {
   const corps = document.getElementById('corps-import');
-  corps.innerHTML = LIGNES_IMPORT.map((ligne, i) => ligne.importee ? '' : `
-    <tr data-i="${i}" class="${ligne.poesie ? '' : 'ligne-hors-poesie'}" style="${!ligne.poesie && !afficherHorsPoesie() ? 'display:none;' : ''}">
-      <td><input type="checkbox" class="chk-ligne" ${cocheeParDefaut(ligne) ? 'checked' : ''}></td>
+  const depuis = document.getElementById('ia-depuis').value;
+  corps.innerHTML = LIGNES_IMPORT.map((ligne, i) => ligne.importee || (depuis && ligne.date < depuis) ? '' : `
+    <tr data-i="${i}" style="${styleLigne(ligne)}">
+      <td><input type="checkbox" class="chk-ligne" ${ligne.coche ? 'checked' : ''}></td>
       <td style="white-space:nowrap;">${formaterDate(ligne.date)}</td>
       <td><select class="sel-ecole-ligne" style="min-width:170px;"></select>
-        ${ligne.lieuLibre ? `<div style="font-size:0.75rem;color:var(--texte-muted);margin-top:3px;">${echapperAttr(ligne.lieuLibre)}</div>` : ''}</td>
+        <input type="text" class="txt-lieu-ligne" value="${echapperAttr(ligne.lieuLibre)}" placeholder="Lieu / nom de l'école"
+          style="width:100%;margin-top:4px;font-size:0.8rem;${lieuModifiable(ligne) ? '' : 'display:none;'}"></td>
       <td><select class="sel-type-ligne" style="min-width:190px;"></select></td>
       <td><select class="sel-profil-ligne" style="min-width:120px;"></select></td>
       <td><input type="text" class="txt-theme-ligne" value="${echapperAttr(ligne.theme)}" style="width:100%;min-width:160px;">
-        <div style="font-size:0.75rem;color:var(--texte-muted);margin-top:3px;">${echapperAttr(ligne.poesie ? 'Poésie : ' + ligne.intitulePoesie : ligne.texteOriginal)}</div></td>
-      <td>${badgeLigne(ligne)}</td>
+        <div style="font-size:0.75rem;color:var(--texte-muted);margin-top:3px;">${echapperAttr(ligne.poesie ? 'Poésie : ' + ligne.intitulePoesie : 'Saisi à la main : ' + ligne.texteOriginal)}</div></td>
+      <td class="cellule-badges">${badgeLigne(ligne)}</td>
+      <td><button type="button" class="btn btn-sm btn-primaire btn-valider-ligne" title="Importer cette ligne seule, telle qu'elle est">Valider</button></td>
     </tr>`).join('');
 
   corps.querySelectorAll('tr').forEach(tr => {
@@ -321,7 +353,14 @@ function rendreLignesImport() {
     remplirSelectTypeLigne(selType, ligne.typeId);
     remplirSelectProfilLigne(selProfil, ligne);
     // Toute correction à la main vaut validation de ce champ : la ligne n'est plus « à vérifier ».
-    selEcole.addEventListener('change', () => { ligne.ecoleId = selEcole.value || null; ligne.ecoleAmbigue = false; majBadgeLigne(tr, ligne); });
+    const txtLieu = tr.querySelector('.txt-lieu-ligne');
+    selEcole.addEventListener('change', () => {
+      ligne.ecoleId = selEcole.value || null;
+      ligne.ecoleAmbigue = false;
+      txtLieu.style.display = lieuModifiable(ligne) ? '' : 'none';
+      majBadgeLigne(tr, ligne);
+    });
+    txtLieu.addEventListener('input', () => { ligne.lieuLibre = txtLieu.value; });
     selType.addEventListener('change', () => {
       ligne.typeId = selType.value || null;
       ligne.typeAVerifier = !ligne.typeId;
@@ -329,6 +368,8 @@ function rendreLignesImport() {
       majBadgeLigne(tr, ligne);
     });
     selProfil.addEventListener('change', () => { ligne.profil = selProfil.value; });
+    tr.querySelector('.chk-ligne').addEventListener('change', (e) => { ligne.coche = e.target.checked; });
+    tr.querySelector('.btn-valider-ligne').addEventListener('click', (e) => importerLignes([ligne], e.target));
     tr.querySelector('.txt-theme-ligne').addEventListener('input', (e) => {
       ligne.theme = e.target.value;
       ligne.infoSensible = contientInfoSensible(ligne.theme);
@@ -338,20 +379,21 @@ function rendreLignesImport() {
 }
 
 function majBadgeLigne(tr, ligne) {
-  tr.lastElementChild.innerHTML = badgeLigne(ligne);
+  tr.querySelector('.cellule-badges').innerHTML = badgeLigne(ligne);
+  tr.style.cssText = styleLigne(ligne);
 }
 
 function majCompteurs() {
-  const restantes = LIGNES_IMPORT.filter(l => !l.importee);
-  const poesie = restantes.filter(l => l.poesie);
-  const pretes = poesie.filter(cocheeParDefaut).length;
-  const horsPoesie = restantes.length - poesie.length;
-  document.getElementById('titre-resultats').textContent = poesie.length
-    ? `${poesie.length} action(s) Poésie à valider — ${pretes} prête(s), ${poesie.length - pretes} à vérifier`
-    : 'Rien de nouveau à importer depuis Poésie';
-  document.getElementById('lbl-hors-poesie').textContent =
-    `Afficher aussi les ${horsPoesie} autre(s) évènement(s) de l'agenda (hors Poésie, souvent en double)`;
-  document.getElementById('zone-hors-poesie').style.display = horsPoesie ? 'block' : 'none';
+  const restantes = lignesAffichees();
+  const pretes = restantes.filter(l => l.coche).length;
+  const nbPoesie = restantes.filter(l => l.poesie).length;
+  const masquees = LIGNES_IMPORT.filter(l => !l.importee).length - restantes.length;
+  document.getElementById('titre-resultats').textContent = restantes.length
+    ? `${restantes.length} action(s) à valider (${nbPoesie} Poésie, ${restantes.length - nbPoesie} saisies à la main) — ${pretes} cochée(s)`
+    : 'Rien de nouveau à importer';
+  document.getElementById('ia-depuis-aide').textContent = masquees
+    ? `${masquees} action(s) plus ancienne(s) masquée(s) — videz la date pour tout revoir.`
+    : '';
   document.getElementById('msg-vide-import').style.display = restantes.length ? 'none' : 'block';
 }
 
@@ -359,7 +401,11 @@ function majCompteurs() {
    (fonction serveur lire-agenda) ou d'un fichier .ics déposé (parserICS). */
 async function traiterEvenements(evenements) {
   await rafraichirDonneesExistantes(); // actions potentiellement saisies à la main entre-temps
-  const toutes = evenements.flatMap(e => analyserEvenementAgenda(e, ECOLES));
+  // Filtre éducatif (déjà appliqué côté serveur pour l'agenda connecté, refait ici pour un fichier
+  // .ics déposé) : ce qui n'est ni Poésie ni éducatif n'apparaît pas du tout.
+  const toutes = evenements
+    .filter(e => estEvenementPoesie(e) || estEvenementEducatif(e))
+    .flatMap(e => analyserEvenementAgenda(e, ECOLES));
   const nouvelles = toutes.filter(l => !UIDS_DEJA_IMPORTES.has(l.uid));
   const dejaImportes = toutes.length - nouvelles.length; // ceux-là, on ne les reverra jamais (même évènement)
   // Volontairement non reprises (voir POESIE_VERS_TYPE) : rédaction de bulletin de visite, réunion
@@ -373,14 +419,25 @@ async function traiterEvenements(evenements) {
   // affichée mais décochée et marquée "doublon possible ?" — ça peut très bien être une deuxième
   // action bien réelle le même jour, donc jamais masquée d'office.
   LIGNES_IMPORT = nouvelles.filter(l => !l.ignoree)
-    .sort((a, b) => (b.poesie - a.poesie) || b.date.localeCompare(a.date));
+    .sort((a, b) => b.date.localeCompare(a.date) || (b.poesie - a.poesie));
   const doublonsPossibles = LIGNES_IMPORT.filter(ligneDoublonPossible).length;
+
+  // Anti-doublon Poésie : un évènement saisi à la main à la même date et dans la même école qu'une
+  // action Poésie est très probablement la même action écrite deux fois — décoché, jamais masqué.
+  const clesPoesie = new Set(toutes.filter(l => l.poesie && l.ecoleId).map(l => cleActionExistante(l.ecoleId, l.date)));
+  LIGNES_IMPORT.forEach(l => { l.doublonPoesie = !l.poesie && !!l.ecoleId && clesPoesie.has(cleActionExistante(l.ecoleId, l.date)); });
+  const doublonsPoesie = LIGNES_IMPORT.filter(l => l.doublonPoesie).length;
+  LIGNES_IMPORT.forEach(l => { l.coche = cocheeParDefaut(l); });
+  // Reprise : par défaut, à partir du jour du dernier évènement déjà importé (inclus : il peut en
+  // rester d'autres ce jour-là) ; tout est affiché la première fois.
+  document.getElementById('ia-depuis').value = DATE_DERNIER_IMPORT || '';
 
   const infos = [];
   if (dejaImportes) infos.push(`${dejaImportes} déjà importé(s) précédemment, ignoré(s)`);
   if (nbBulletins) infos.push(`${nbBulletins} rédaction(s) de bulletin de visite non reprise(s) (la visite est déjà comptée)`);
   if (nbPartenaires) infos.push(`${nbPartenaires} réunion(s) avec des partenaires extérieurs sans école de la circonscription, non reprise(s)`);
-  if (doublonsPossibles) infos.push(`${doublonsPossibles} correspondent à une action déjà enregistrée le même jour dans la même école — décoché(s), à vérifier avant de cocher (pas forcément un doublon)`);
+  if (doublonsPoesie) infos.push(`${doublonsPoesie} évènement(s) saisi(s) à la main le même jour dans la même école qu'une action Poésie — décoché(s) (déjà dans Poésie ?)`);
+  if (doublonsPossibles) infos.push(`${doublonsPossibles} correspondent à une action déjà enregistrée le même jour dans la même école — encadrée(s) en rouge et décoché(s), à vérifier (pas forcément un doublon)`);
   document.getElementById('msg-deja-importes').style.display = infos.length ? 'block' : 'none';
   document.getElementById('msg-deja-importes').textContent = infos.length ? infos.join(' — ') + '.' : '';
   document.getElementById('msg-import').style.display = 'none';
@@ -389,75 +446,78 @@ async function traiterEvenements(evenements) {
   document.getElementById('carte-resultats').style.display = 'block';
 }
 
-async function importerSelection() {
-  const btn = document.getElementById('btn-importer-selection');
+/* Enregistre une ligne de revue comme action du suivi ; renvoie l'entrée agenda_imports correspondante. */
+async function enregistrerLigneImport(ligne) {
+  const intervenant = INTERVENANTS.find(i => i.id === quiId);
+  const ecole = ligne.ecoleId ? ECOLES.find(e => e.id === ligne.ecoleId) : null;
+  const action = {
+    id: genererIdIntervention(),
+    date: ligne.date,
+    typeId: ligne.typeId,
+    intervenantId: quiId,
+    theme: (ligne.theme || '').trim(),
+    notes: ligne.poesie ? `Importé depuis Google Agenda (Poésie : ${ligne.intitulePoesie}).` : 'Importé depuis Google Agenda.',
+    profil: ligne.profil || '',
+    origine: '',
+    lieuLibre: lieuModifiable(ligne) ? (ligne.lieuLibre || '').trim() : '',
+    horodatage: horodatageMaintenant()
+  };
+  if (ecole) await Store.ajouterIntervention(ecole.id, action, ecole.nom);
+  else await Store.ajouterActionGenerale(quiId, action, intervenant ? intervenant.nom : quiId);
+  return { uid: ligne.uid, actionId: action.id };
+}
+
+/*
+ * Importe les lignes données (toutes les cochées via « Importer la sélection », ou une seule via
+ * le bouton « Valider » de sa ligne). Les lignes importées sont marquées importee (pas retirées de
+ * LIGNES_IMPORT : les data-i des autres <tr> restent valides), puis le tableau est redessiné pour
+ * que les autres lignes de la même école/date passent en « possiblement déjà rentrée ».
+ */
+async function importerLignes(lignes, btn) {
   const msg = document.getElementById('msg-import');
-  const corps = document.getElementById('corps-import');
-  const lignesCochees = [];
-  corps.querySelectorAll('tr').forEach(tr => {
-    if (tr.querySelector('.chk-ligne').checked) lignesCochees.push({ tr, ligne: LIGNES_IMPORT[Number(tr.dataset.i)] });
-  });
-  if (!lignesCochees.length) {
-    msg.className = 'alerte alerte-warn'; msg.textContent = 'Coche au moins une ligne à importer.'; msg.style.display = 'block';
-    return;
-  }
-  const sansType = lignesCochees.filter(({ ligne }) => !ligne.typeId);
+  const sansType = lignes.filter(l => !l.typeId);
   if (sansType.length) {
     msg.className = 'alerte alerte-warn';
-    msg.textContent = `Choisis un type pour chaque ligne cochée (${sansType.length} ligne(s) sans type).`;
+    msg.textContent = lignes.length === 1
+      ? 'Choisis un type pour cette ligne avant de la valider.'
+      : `Choisis un type pour chaque ligne cochée (${sansType.length} ligne(s) sans type).`;
     msg.style.display = 'block';
     return;
   }
-
-  btn.disabled = true;
+  if (btn) btn.disabled = true;
   msg.className = 'alerte alerte-info'; msg.textContent = 'Importation en cours…'; msg.style.display = 'block';
-  const intervenant = INTERVENANTS.find(i => i.id === quiId);
   const entreesImportees = [];
   let nbErreurs = 0;
-  const lignesReussies = [];
-
-  for (const { tr, ligne } of lignesCochees) {
+  for (const ligne of lignes) {
     try {
-      const ecole = ligne.ecoleId ? ECOLES.find(e => e.id === ligne.ecoleId) : null;
-      const action = {
-        id: genererIdIntervention(),
-        date: ligne.date,
-        typeId: ligne.typeId,
-        intervenantId: quiId,
-        theme: (ligne.theme || '').trim(),
-        notes: ligne.poesie ? `Importé depuis Google Agenda (Poésie : ${ligne.intitulePoesie}).` : 'Importé depuis Google Agenda.',
-        profil: ligne.profil || '',
-        origine: '',
-        lieuLibre: ecole ? '' : (ligne.lieuLibre || ''),
-        horodatage: horodatageMaintenant()
-      };
-      if (ecole) {
-        await Store.ajouterIntervention(ecole.id, action, ecole.nom);
-      } else {
-        await Store.ajouterActionGenerale(quiId, action, intervenant ? intervenant.nom : quiId);
-      }
-      entreesImportees.push({ uid: ligne.uid, actionId: action.id });
-      lignesReussies.push(tr);
+      entreesImportees.push(await enregistrerLigneImport(ligne));
+      ligne.importee = true;
     } catch (e) {
       nbErreurs++;
       console.warn('Import agenda, ligne ignorée :', e.message);
     }
   }
-
   if (entreesImportees.length) {
     await Store.enregistrerImportsAgenda(quiId, entreesImportees);
     await rafraichirDonneesExistantes();
   }
-  // Les lignes importées sont marquées (pas retirées du tableau LIGNES_IMPORT) : les autres <tr>
-  // gardent ainsi leur data-i valide pour un import suivant.
-  lignesReussies.forEach(tr => { LIGNES_IMPORT[Number(tr.dataset.i)].importee = true; tr.remove(); });
-
+  rendreLignesImport();
+  majCompteurs();
   msg.className = nbErreurs ? 'alerte alerte-warn' : 'alerte alerte-ok';
   msg.textContent = nbErreurs
     ? `${entreesImportees.length} action(s) importée(s), ${nbErreurs} échec(s) — voir la console pour le détail.`
     : `${entreesImportees.length} action(s) importée(s) ✓`;
-  majCompteurs();
-  btn.disabled = false;
+  if (btn) btn.disabled = false;
+}
+
+async function importerSelection() {
+  const lignes = lignesAffichees().filter(l => l.coche);
+  if (!lignes.length) {
+    const msg = document.getElementById('msg-import');
+    msg.className = 'alerte alerte-warn'; msg.textContent = 'Coche au moins une ligne à importer.'; msg.style.display = 'block';
+    return;
+  }
+  await importerLignes(lignes, document.getElementById('btn-importer-selection'));
 }
 
 document.getElementById('fichier-ics').addEventListener('change', (e) => {
@@ -480,15 +540,15 @@ document.getElementById('fichier-ics').addEventListener('change', (e) => {
   lecteur.readAsText(fichier);
 });
 document.getElementById('btn-tout-cocher').addEventListener('click', () => {
-  document.querySelectorAll('#corps-import .chk-ligne').forEach(c => c.checked = true);
+  lignesAffichees().forEach(l => { l.coche = true; });
+  rendreLignesImport();
 });
 document.getElementById('btn-tout-decocher').addEventListener('click', () => {
-  document.querySelectorAll('#corps-import .chk-ligne').forEach(c => c.checked = false);
+  lignesAffichees().forEach(l => { l.coche = false; });
+  rendreLignesImport();
 });
+document.getElementById('ia-depuis').addEventListener('change', () => { rendreLignesImport(); majCompteurs(); });
 document.getElementById('btn-importer-selection').addEventListener('click', importerSelection);
-document.getElementById('chk-hors-poesie').addEventListener('change', () => {
-  document.querySelectorAll('#corps-import .ligne-hors-poesie').forEach(tr => { tr.style.display = afficherHorsPoesie() ? '' : 'none'; });
-});
 document.getElementById('btn-enregistrer-lien').addEventListener('click', async () => {
   const champ = document.getElementById('lien-agenda');
   const btn = document.getElementById('btn-enregistrer-lien');

@@ -25,11 +25,11 @@
 
 <p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
 
-<script src="js/seed-data.js?v=23"></script>
+<script src="js/seed-data.js?v=24"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/supabase-client.js?v=1"></script>
 <script src="js/data-store.js?v=14"></script>
-<script src="js/stats.js?v=13"></script>
+<script src="js/stats.js?v=14"></script>
 <script src="js/layout.js?v=18"></script>
 <script>
 injecterEntete('ecoles.html');
@@ -41,12 +41,12 @@ function rendreGroupes(filtre) {
   const f = (filtre || '').trim().toLowerCase();
   const filtrees = ECOLES_AVEC_DONNEES.filter(e => e.nom.toLowerCase().includes(f));
 
-  const ordreTypes = ['maternelle', 'elementaire', 'groupe-scolaire', 'structure'];
+  const ordreTypes = ['maternelle', 'elementaire', 'groupe-scolaire', 'structure', 'hors-circonscription'];
   let html = '';
   ordreTypes.forEach(type => {
     const groupe = filtrees.filter(e => e.type === type);
     if (!groupe.length) return;
-    html += `<div class="groupe-ecoles-titre">${TYPES_ECOLE[type]}s</div><div class="grille-ecoles">`;
+    html += `<div class="groupe-ecoles-titre">${type === 'hors-circonscription' ? 'Hors circonscription' : TYPES_ECOLE[type] + 's'}</div><div class="grille-ecoles">`;
     groupe.forEach(e => {
       const fraicheur = calculerFraicheurEcole(e.interventions);
       html += `

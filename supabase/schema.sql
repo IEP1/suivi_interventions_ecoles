@@ -183,3 +183,11 @@ $$;
 
 revoke all on function public.enregistrer_lien_agenda(text, text), public.retirer_lien_agenda(text), public.statut_lien_agenda(text) from public;
 grant execute on function public.enregistrer_lien_agenda(text, text), public.retirer_lien_agenda(text), public.statut_lien_agenda(text) to anon, authenticated;
+
+-- ===== « Autre école (hors circonscription) » (2026-10-01) =====
+-- Une seule ligne qui regroupe les interventions dans des écoles extérieures à la circonscription
+-- (nom réel de l'école dans actions.lieu_libre). Comptée dans les totaux, jamais dans les taux de
+-- couverture ni comme école de référence — voir ID_ECOLE_HORS_CIRCO dans js/seed-data.js.
+insert into public.ecoles (id, nom, type)
+values ('hors-circonscription', 'Autre école (hors circonscription)', 'hors-circonscription')
+on conflict (id) do nothing;

@@ -72,6 +72,10 @@ function detecterEcoleAgenda(texteNormalise, ecoles) {
 /* Mots-clés par type, uniquement pour proposer une suggestion — la revue humaine reste requise
    pour confirmer ou corriger. Testés dans cet ordre : le premier qui correspond gagne. */
 const TYPES_MOTS_CLES_AGENDA = [
+  // Équipe éducative / technique (souvent « EE prénom-de-l'élève ») : toujours une situation d'élève.
+  ['situation-particuliere', [' EE ', 'EQUIPE EDUCATIVE', 'EQUIPES EDUCATIVES', 'EQUIPE TECHNIQUE']],
+  ['instance-ecole', [' CC '], 'Conseil de cycle'],
+  ['groupe-travail', ['EDUCNUM', 'EDUC NUM']],
   ['animation-pedagogique', ['ANIMATION PEDA']],
   ['formation-donnee', ['FORMATION']],
   ['instance-ecole', ["CONSEIL D'ECOLE", 'CONSEIL ECOLE', 'CONSEIL DE CYCLE', 'CONSEIL DES MAITRES', 'RESIDENCE PEDAGOGIQUE', "VISITE D'ACCOMPAGNEMENT"]],
@@ -90,10 +94,58 @@ const TYPES_MOTS_CLES_AGENDA = [
 
 /** Renvoie un typeId suggéré (ou null si aucun mot-clé ne correspond) à partir d'un texte normalisé. */
 function detecterTypeAgenda(texteNormalise) {
-  for (const [typeId, mots] of TYPES_MOTS_CLES_AGENDA) {
-    if (mots.some(mot => texteNormalise.includes(mot))) return typeId;
+  return detecterTypeEtProfilAgenda(texteNormalise).typeId;
+}
+
+/** Comme detecterTypeAgenda, avec la précision (profil) éventuelle : { typeId, profil }. */
+function detecterTypeEtProfilAgenda(texteNormalise) {
+  for (const [typeId, mots, profil] of TYPES_MOTS_CLES_AGENDA) {
+    if (mots.some(mot => texteNormalise.includes(mot))) return { typeId, profil: profil || '' };
   }
-  return null;
+  return { typeId: null, profil: '' };
+}
+
+/*
+ * ===== Filtre éducatif (évènements saisis à la main) =====
+ * L'agenda relu est l'agenda professionnel, mais il peut contenir quelques rendez-vous personnels.
+ * Un évènement hors Poésie n'est gardé que s'il contient un mot du monde éducatif
+ * (MOTS_EDUCATIFS_AGENDA) ET aucun mot manifestement personnel dans son titre
+ * (MOTS_PERSONNELS_AGENDA) ; un évènement marqué « Privé » dans Google Agenda n'est jamais gardé.
+ * Même filtre côté serveur (supabase/functions/lire-agenda/index.ts, listes recopiées — à garder
+ * alignées) : ce qui n'est pas éducatif ne quitte jamais le serveur.
+ */
+const MOTS_PERSONNELS_AGENDA = [
+  'COIFF', 'BANQUE', 'MEDECIN', 'DOCTEUR', 'DENTISTE', 'KINE', 'OSTEO', 'OPHTALMO', 'PHARMACIE',
+  'VETERINAIRE', 'GARAGE', 'CONTROLE TECHNIQUE', 'VIDANGE', 'NOTAIRE', 'IMPOTS', 'ASSURANCE',
+  'MUTUELLE', 'ANNIVERSAIRE', 'MARIAGE', 'VACANCES', ' CONGE', ' PERSO', 'PRIVE', 'COURSES',
+  'SALLE DE SPORT', 'FITNESS', 'YOGA', 'MASSAGE', 'ESTHETI', 'MANUCURE', 'PEDICURE', 'RADIOLOG',
+  'PRISE DE SANG', 'LABORATOIRE', 'NOUNOU', 'BABY-SIT', 'BABYSIT'
+];
+const MOTS_EDUCATIFS_AGENDA = [
+  'BARDOU', 'BENEBIG', 'MEDIPOLE', 'CHT', 'CLAIN', 'DORBRITZ', 'DUMBEA-SUR-MER', 'DUMBEA SUR MER',
+  'FONG', 'DELACHARLERIE', 'ROLLY', 'MDR', 'DILLENSEGER', 'GRESLAN', 'MAINGUET', 'MYOSOTIS',
+  'NIAOULIS', 'OASIS', 'ORANGERS', 'YAHOUE', 'PETUNIAS', 'RUSSIER', 'SURLEAU',
+  'ECOLE', 'CLASSE', 'ELEVE', 'ENSEIGNANT', 'CYCLE', ' CC ', ' EE ', 'EQUIPE EDUCATIVE',
+  'EQUIPES EDUCATIVES', 'EQUIPE TECHNIQUE', 'MATERNELLE', 'ELEMENTAIRE', 'COLLEGE', 'LYCEE', 'SEGPA',
+  'ULIS', 'CLIS', ' CP ', ' CE1', ' CE2', ' CM1', ' CM2', ' GS ', ' MS ', ' PS ',
+  'CIRCONSCRIPTION', 'IEP', 'CPC', 'PEMF', 'DENC', 'DESED', 'DANE', 'DINUM', 'DECAT', 'INSPECT', 'IEF',
+  'VISITE', 'FORMATION', 'FORMATEUR', 'ANIMATION', 'ACCOMPAGNEMENT', 'CONSEIL', 'RESIDENCE', 'JURY',
+  'CORRECTION', 'CAFIPEMF', 'CAPPEI', 'CRPE', 'CONCOURS', 'SUJET', 'PROJET', 'LIAISON', 'GT ',
+  'GROUPE DE TRAVAIL', 'ADMINISTRATI', 'REUNION', 'ATELIER', 'WEBINAIRE', 'SEMINAIRE', 'INTERVENTION',
+  'RENCONTRE', 'PRESENTATION', 'PREPARATION', 'ECHANGE', 'POINT ', 'PEDAGO', 'SCOLAIRE', 'EVALUATION',
+  'LSU', 'APER', 'EDUCNUM', 'EDUC NUM', 'EDUCATION', 'NUMERIQUE', ' IA ', 'PIX', 'TERRA NUMERICA',
+  'PIROGUE', ' PIL', 'ERASMUS', 'MATHS', 'HISTOIRE', 'GEO', 'EMC', 'SCIENCES', 'LECTURE',
+  'ESCAPE GAME', 'LABEL', 'USEP', 'CMJ', 'PARENTALITE', 'ALERTE', 'CRF', 'ORTHOPHON', 'PSYCHOLOGUE',
+  'RASED', 'AESH', 'MDPH'
+];
+
+/** true si l'évènement (hors Poésie) relève du travail éducatif — voir le commentaire ci-dessus. */
+function estEvenementEducatif(evenement) {
+  if (evenement.prive) return false;
+  const titre = ' ' + normaliserTexteAgenda(evenement.summary) + ' ';
+  if (MOTS_PERSONNELS_AGENDA.some(m => titre.includes(m))) return false;
+  const texte = ' ' + normaliserTexteAgenda([evenement.summary, evenement.description, evenement.location].filter(Boolean).join(' ')) + ' ';
+  return MOTS_EDUCATIFS_AGENDA.some(m => texte.includes(m));
 }
 
 /*
@@ -163,7 +215,7 @@ const POESIE_VERS_TYPE = [
 const MOTS_INFO_SENSIBLE = [
   'ELEVE', 'ENFANT', 'HANDICAP', 'CLIS', 'ULIS', 'MDPH', 'AESH', ' PPS', ' PAP', 'SAUT DE CLASSE',
   'MAINTIEN', 'EQUIPE EDUCATIVE', 'FAMILLE', 'PARENT', 'MALADIE', 'SANTE', 'SIGNALEMENT',
-  'INFORMATION PREOCCUPANTE', 'MALTRAITANCE', 'DECES'
+  'INFORMATION PREOCCUPANTE', 'MALTRAITANCE', 'DECES', ' EE ', 'EQUIPE TECHNIQUE'
 ];
 function contientInfoSensible(texte) {
   const t = ' ' + normaliserTexteAgenda(texte) + ' ';
@@ -177,8 +229,8 @@ function contientInfoSensible(texte) {
 function lireLieuPoesie(titre) {
   const propre = (titre || '').replace(/\s+/g, ' ').trim();
   const m = /^(.+?) - (.+?) ?: ?(.+)$/.exec(propre);
-  if (m && /^ECOLE$/.test(normaliserTexteAgenda(m[2]).trim())) return { ecoleNom: m[3], lieu: propre };
-  return { ecoleNom: null, lieu: propre };
+  if (m && /^ECOLE$/.test(normaliserTexteAgenda(m[2]).trim())) return { ecoleNom: m[3], commune: m[1], lieu: propre };
+  return { ecoleNom: null, commune: null, lieu: propre };
 }
 
 /** Lignes « - Cat / Sous-cat / Détail ( Durée… ) ( commentaire ) » → [{ intitule, detail, commentaire }]. */
@@ -204,10 +256,17 @@ function lireActionsPoesie(description) {
 
 /** Ligne(s) de revue pour un évènement Poésie : une par action listée dans la description. */
 function analyserEvenementPoesie(evenement, ecoles) {
-  const { ecoleNom, lieu } = lireLieuPoesie(evenement.summary);
-  const { ecoleId, ambigu } = ecoleNom
+  const { ecoleNom, commune, lieu } = lireLieuPoesie(evenement.summary);
+  let { ecoleId, ambigu } = ecoleNom
     ? detecterEcoleAgenda(normaliserTexteAgenda(' ' + ecoleNom + ' '), ecoles)
     : { ecoleId: null, ambigu: false };
+  // « … - Ecole : X » avec X hors de nos 21 écoles : école hors circonscription, comptée à part
+  // (voir ID_ECOLE_HORS_CIRCO), son nom réel gardé dans le lieu.
+  let lieuHorsCirco = '';
+  if (ecoleNom && !ecoleId && ecoles.some(e => estEcoleHorsCirco(e))) {
+    ecoleId = ID_ECOLE_HORS_CIRCO;
+    lieuHorsCirco = `${ecoleNom.trim()} (${commune.trim()})`;
+  }
   const actions = lireActionsPoesie(evenement.description);
   return actions.map((action, i) => {
     let regle = POESIE_VERS_TYPE.find(r => r.motif.test(normaliserTexteAgenda(action.intitule))) || {};
@@ -228,8 +287,9 @@ function analyserEvenementPoesie(evenement, ecoles) {
       texteOriginal: evenement.summary || '(sans titre)',
       ecoleId: ecole.ecoleId,
       ecoleAmbigue: ecole.ambigu,
-      // Lieu gardé pour une action sans école du suivi (DENC, Institut de formation, école hors circo…).
-      lieuLibre: ecole.ecoleId ? '' : lieu,
+      // Lieu gardé pour une action sans école (DENC, Institut de formation…) ou pour le nom réel
+      // d'une école hors circonscription.
+      lieuLibre: estEcoleHorsCirco(ecole.ecoleId) ? lieuHorsCirco : (ecole.ecoleId ? '' : lieu),
       typeId: regle.typeId || null,
       profil: regle.profil || '',
       ignoree,
@@ -252,9 +312,10 @@ function analyserEvenementAgenda(evenement, ecoles) {
     if (lignes.length) return lignes;
   }
   const texteComplet = [evenement.summary, evenement.description, evenement.location].filter(Boolean).join(' — ');
-  const texteNormalise = normaliserTexteAgenda(texteComplet);
+  // Espaces autour : pour reconnaître aussi un sigle en début/fin de titre (« EE charlie », « Cc Clain »).
+  const texteNormalise = ' ' + normaliserTexteAgenda(texteComplet) + ' ';
   const { ecoleId, ambigu } = detecterEcoleAgenda(texteNormalise, ecoles);
-  const typeId = detecterTypeAgenda(texteNormalise);
+  const { typeId, profil } = detecterTypeEtProfilAgenda(texteNormalise);
   return [{
     uid: evenement.uid,
     date: evenement.date,
@@ -264,9 +325,10 @@ function analyserEvenementAgenda(evenement, ecoles) {
     ecoleAmbigue: ambigu,
     lieuLibre: '',
     typeId,
-    profil: '',
+    profil,
     ignoree: false,
     typeAVerifier: !typeId,
+    infoSensible: contientInfoSensible(texteComplet),
     theme: (evenement.summary || '').trim()
   }];
 }

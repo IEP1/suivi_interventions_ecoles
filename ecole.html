@@ -148,11 +148,11 @@
 
 <p class="pied">IEP1 — Suivi des interventions dans les écoles</p>
 
-<script src="js/seed-data.js?v=23"></script>
+<script src="js/seed-data.js?v=24"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/supabase-client.js?v=1"></script>
 <script src="js/data-store.js?v=14"></script>
-<script src="js/stats.js?v=13"></script>
+<script src="js/stats.js?v=14"></script>
 <script src="js/type-selector.js?v=11"></script>
 <script src="js/assistant-etapes.js?v=5"></script>
 <script src="js/layout.js?v=18"></script>
@@ -258,7 +258,7 @@ function rendreHistorique() {
       <td>${formaterDate(iv.date)}</td>
       <td>${libelleType(iv.typeId, TYPES)}${iv.profil ? ' (' + iv.profil + ')' : ''}<br><span class="categorie-badge cat-${categorieResolue(type ? type.categorie : null)}">${CATEGORIES_INTERVENTION[categorieResolue(type ? type.categorie : null)]}</span></td>
       <td>${intervenant ? intervenant.nom : iv.intervenantId}</td>
-      <td>${iv.theme || '—'}</td>
+      <td>${iv.lieuLibre ? `<b>${iv.lieuLibre}</b>${iv.theme ? '<br>' : ''}` : ''}${iv.theme || (iv.lieuLibre ? '' : '—')}</td>
       <td>${iv.notes || '—'}</td>
     </tr>`;
   }).join('');

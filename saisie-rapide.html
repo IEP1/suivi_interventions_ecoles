@@ -52,11 +52,16 @@
         <div class="onglets">
           <button type="button" class="onglet actif" id="onglet-mode-referentes">Mes écoles de référence</button>
           <button type="button" class="onglet" id="onglet-mode-choisir">Choisir une/des écoles</button>
+          <button type="button" class="onglet" id="onglet-mode-hors-circo">École hors circonscription</button>
           <button type="button" class="onglet" id="onglet-mode-autre">Autre / pas d'école</button>
         </div>
         <div id="vue-action-referentes"></div>
         <div id="vue-action-choisir" style="display:none;">
           <div class="grille-chips-ecoles" id="chips-action-ecoles"></div>
+        </div>
+        <div id="vue-action-hors-circo" style="display:none;">
+          <input type="text" id="ci-ecole-hors-circo" placeholder="Nom de l'école (et commune) — ex : École Courtot, Nouméa">
+          <p class="intro" style="margin:8px 0 0;">Comptée dans « Autre école (hors circonscription) » : visible dans la liste des écoles et dans les bilans, sans fausser le taux de couverture des écoles de la circonscription.</p>
         </div>
         <div id="vue-action-autre" style="display:none;">
           <input type="text" id="ci-lieu-libre" placeholder="Ex : DENC, domicile, Médipôle… (facultatif)">
@@ -112,11 +117,11 @@
 
 <p class="pied">IEP1 — Saisie rapide</p>
 
-<script src="js/seed-data.js?v=23"></script>
+<script src="js/seed-data.js?v=24"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/supabase-client.js?v=1"></script>
 <script src="js/data-store.js?v=14"></script>
-<script src="js/stats.js?v=13"></script>
+<script src="js/stats.js?v=14"></script>
 <script src="js/type-selector.js?v=11"></script>
 <script src="js/assistant-etapes.js?v=5"></script>
 <script src="js/school-picker.js?v=7"></script>
@@ -187,15 +192,18 @@ function basculerModeAction(mode) {
   modeAction = mode;
   document.getElementById('onglet-mode-referentes').classList.toggle('actif', mode === 'referentes');
   document.getElementById('onglet-mode-choisir').classList.toggle('actif', mode === 'choisir');
+  document.getElementById('onglet-mode-hors-circo').classList.toggle('actif', mode === 'hors-circo');
   document.getElementById('onglet-mode-autre').classList.toggle('actif', mode === 'autre');
   document.getElementById('vue-action-referentes').style.display = mode === 'referentes' ? 'block' : 'none';
   document.getElementById('vue-action-choisir').style.display = mode === 'choisir' ? 'block' : 'none';
+  document.getElementById('vue-action-hors-circo').style.display = mode === 'hors-circo' ? 'block' : 'none';
   document.getElementById('vue-action-autre').style.display = mode === 'autre' ? 'block' : 'none';
   rendrePersonneSuivieRapide();
 }
 
 function ecolesSelectionnees() {
   if (modeAction === 'autre') return [];
+  if (modeAction === 'hors-circo') return [ID_ECOLE_HORS_CIRCO];
   return modeAction === 'referentes' ? mesEcolesReferentes().map(e => e.id) : chipsActionPicker.getSelection();
 }
 
@@ -213,6 +221,7 @@ function reinitialiserFormulaire() {
   selecteurType.reset();
   majVisibiliteProfil();
   document.getElementById('ci-lieu-libre').value = '';
+  document.getElementById('ci-ecole-hors-circo').value = '';
   document.getElementById('sr-origine').value = '';
   document.getElementById('sr-notes').value = '';
   document.getElementById('sr-precision-equipe').style.display = 'none';
@@ -226,7 +235,9 @@ function construireRecapSaisieRapide() {
   const ecolesChoisies = ecolesSelectionnees();
 
   let ou;
-  if (ecolesChoisies.length) {
+  if (modeAction === 'hors-circo') {
+    ou = `Hors circonscription — ${document.getElementById('ci-ecole-hors-circo').value.trim() || '(nom à préciser)'}`;
+  } else if (ecolesChoisies.length) {
     ou = ecolesChoisies.map(id => { const e = ECOLES.find(e => e.id === id); return e ? e.nom : id; }).join(', ');
   } else if (modeAction === 'autre') {
     const lieu = document.getElementById('ci-lieu-libre').value.trim();
@@ -276,6 +287,8 @@ async function enregistrer() {
         const ecole = ECOLES.find(e => e.id === ecoleId);
         if (ecolesChoisies.length > 1) assistant.afficherMessage(`Enregistrement… (${i + 1}/${ecolesChoisies.length} : ${ecole.nom})`, 'alerte-info');
         const intervention = { id: genererIdIntervention(), groupeId, date, typeId, intervenantId: quiId, theme, notes, profil, origine, horodatage: horodatageMaintenant() };
+        // Nom réel de l'école pour « Autre école (hors circonscription) » (voir ID_ECOLE_HORS_CIRCO).
+        if (estEcoleHorsCirco(ecoleId)) intervention.lieuLibre = document.getElementById('ci-ecole-hors-circo').value.trim();
         await Store.ajouterIntervention(ecoleId, intervention, ecole.nom);
       }
       messageFinal = ecolesChoisies.length > 1 ? `Action enregistrée sur ${ecolesChoisies.length} écoles.` : 'Enregistré ✓';
@@ -296,6 +309,7 @@ document.getElementById('sr-type').addEventListener('change', majVisibiliteProfi
 document.getElementById('sr-profil').addEventListener('change', () => rendrePersonneSuivieRapide());
 document.getElementById('onglet-mode-referentes').addEventListener('click', () => basculerModeAction('referentes'));
 document.getElementById('onglet-mode-choisir').addEventListener('click', () => basculerModeAction('choisir'));
+document.getElementById('onglet-mode-hors-circo').addEventListener('click', () => basculerModeAction('hors-circo'));
 document.getElementById('onglet-mode-autre').addEventListener('click', () => basculerModeAction('autre'));
 
 async function init() {
@@ -315,14 +329,14 @@ async function init() {
   selecteurType = initialiserSelecteurType({ selTypeId: 'sr-type', types: TYPES });
   majVisibiliteProfil();
   rendreVueActionReferentes();
-  chipsActionPicker = creerGrilleChipsEcoles(document.getElementById('chips-action-ecoles'), ECOLES, mesEcolesReferentes().map(e => e.id));
+  chipsActionPicker = creerGrilleChipsEcoles(document.getElementById('chips-action-ecoles'), ecolesDeLaCirconscription(ECOLES), mesEcolesReferentes().map(e => e.id));
 
   assistant = creerAssistant({
     racine: document,
     etapes: [
       { id: 'qui', titre: 'Qui es-tu ?', valider: () => quiId ? true : 'Choisis qui tu es.' },
       { id: 'quoi', titre: 'Quoi ?', valider: () => selecteurType.typeSelectionneId() ? true : "Choisis un type d'intervention." },
-      { id: 'ou', titre: 'Où ?' },
+      { id: 'ou', titre: 'Où ?', valider: () => modeAction !== 'hors-circo' || document.getElementById('ci-ecole-hors-circo').value.trim() ? true : "Indique le nom de l'école hors circonscription." },
       { id: 'details', titre: 'Détails' }
     ],
     construireRecap: construireRecapSaisieRapide,
