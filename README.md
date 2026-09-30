@@ -202,6 +202,24 @@ automatiquement, sans export :
 - Pour couper l'accès : bouton « Retirer » sur la page, ou « Réinitialiser » l'adresse secrète
   dans Google Agenda.
 
+**Évènements Poésie (règle principale, 2026-10-01)** — Poésie écrit des évènements structurés :
+titre `COMMUNE - Ecole : NOM` (ou `DENC : …`, `NOUMEA - Institut formation`…) et description
+`Actions : - Catégorie / Sous-catégorie / Détail ( Durée… ) ( commentaire )`. Ils sont lus de
+façon fiable (`analyserEvenementPoesie()` dans `js/import-agenda.js`) :
+
+- **école** lue uniquement après « Ecole : » (jamais la commune en préfixe) ; les autres lieux
+  deviennent une action sans école avec le lieu noté ;
+- **type** donné par la table `POESIE_VERS_TYPE` (intitulé Poésie → type IEP1 + précision),
+  validée avec l'IEP1 sur un agenda réel. Non repris : rédaction de bulletin de visite (la visite
+  est déjà comptée), réunions avec des partenaires extérieurs sans école de la circonscription ;
+- **thème** = commentaire libre Poésie (utile : nom de l'enseignant accompagné). Si le commentaire
+  contient des mots liés aux élèves, familles ou à la santé (`MOTS_INFO_SENSIBLE`), la ligne est
+  décochée et signalée « info élève / santé ? » pour être relue avant import ;
+- les évènements **hors Poésie** (texte libre, souvent en double d'une entrée Poésie) sont
+  masqués par défaut, jamais cochés d'office.
+
+Tout reste modifiable ligne par ligne (école, type, précision, thème) avant import.
+
 **Méthode de secours** (repliée sur la page) : déposer un fichier `.ics` exporté depuis Google
 Agenda → Paramètres → son agenda → Exporter.
 

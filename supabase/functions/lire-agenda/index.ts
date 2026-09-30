@@ -22,7 +22,7 @@ const CORS = {
 
 const MOTS_PERTINENTS = [
   // Écoles (ECOLES_MOTS_CLES_AGENDA)
-  'BARDOU', 'BENEBIG', 'MEDIPOLE', 'CHT', 'CLAIN', 'DORBRITZ', 'DUMBEA', 'FONG', 'DELACHARLERIE',
+  'BARDOU', 'BENEBIG', 'MEDIPOLE', 'CHT', 'CLAIN', 'DORBRITZ', 'DUMBEA-SUR-MER', 'DUMBEA SUR MER', 'FONG', 'DELACHARLERIE',
   'ROLLY', 'MDR', 'DILLENSEGER', 'GRESLAN', 'MAINGUET', 'MYOSOTIS', 'NIAOULIS', 'OASIS', 'ORANGERS',
   'YAHOUE', 'PETUNIAS', 'RUSSIER', 'SURLEAU',
   // Types (TYPES_MOTS_CLES_AGENDA)
@@ -123,9 +123,12 @@ Deno.serve(async (req) => {
   const aujourdhui = new Date(Date.now() + 11 * 3600000).toISOString().slice(0, 10);
   const debut = new Date(Date.now() + 11 * 3600000 - 30 * 86400000).getUTCFullYear() + '-01-01';
 
+  // Un évènement créé par Poésie (description « Actions : … ») est toujours professionnel : gardé
+  // quels que soient ses mots. Les autres ne passent que s'ils contiennent un mot-clé.
   const tous = parserICS(texte);
   const evenements = tous.filter(e => {
     if (e.date < debut || e.date > aujourdhui) return false;
+    if (/^\s*Actions\s*:/i.test(e.description || '')) return true;
     const t = normaliser([e.summary, e.description, e.location].filter(Boolean).join(' '));
     return MOTS_PERTINENTS.some(m => t.includes(m));
   });
