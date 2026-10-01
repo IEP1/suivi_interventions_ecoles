@@ -105,6 +105,12 @@ identifiants Supabase sont dans le code, pas dépendants de l'hébergeur.
   d'école » inclut aussi la visite d'accompagnement (VA) et la résidence pédagogique, aux côtés des
   conseils de cycle/maîtres/école. Le champ « action personnalisée » rappelle de ne pas y noter « à
   la demande de… » (c'est le rôle du champ Origine, à l'étape suivante).
+- **Modifier / supprimer une intervention** : depuis la fiche d'un formateur (✎ / ✕ dans ses
+  dernières actions) ou depuis une fiche école (✕ supprime, ✎ ouvre la modification dans la fiche
+  du formateur concerné). **Corbeille** (`js/corbeille.js`, table `actions_corbeille`) : une
+  action supprimée y reste **5 jours**, récupérable par « Restaurer » en bas de la fiche formateur
+  ou école, puis est effacée définitivement (`purger_corbeille()`, lancée à chaque suppression et à
+  chaque ouverture d'une corbeille).
 - **Intervenants** (`conseillers.html`) : ajout et suppression manuels d'intervenants (nom + rôle
   parmi conseiller pédagogique / PEMF / secrétariat / IAP). Les noms dans `SEED_INTERVENANTS`
   (`js/seed-data.js`, public) sont volontairement des noms de démonstration génériques — les vrais
@@ -235,6 +241,10 @@ cochées, ou bouton **Valider** au bout de chaque ligne pour l'importer seule. B
 importer** (par ligne ou pour la sélection) : l'évènement n'est plus jamais reproposé
 (`agenda_imports.ecarte`) et apparaît dans l'onglet **« Non importées »**, d'où « Remettre à
 importer » le renvoie dans la liste en cas d'erreur.
+
+**Notes** — chaque action importée reçoit une note courte et lisible (`noteSynthetique()`, ex.
+« Accompagnement d'un enseignant remplaçant (1 h 30) », « Groupe de travail Numérique (3 h) »),
+sans mention technique de l'origine : celle-ci reste tracée dans `agenda_imports`.
 
 **Limite Google (erreur 429)** — Google refuse temporairement les lectures trop rapprochées d'une
 même adresse iCal. La fonction `lire-agenda` garde donc la dernière lecture réussie (évènements

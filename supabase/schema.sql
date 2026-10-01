@@ -219,3 +219,54 @@ begin
     set ics_url = excluded.ics_url, enregistre_le = now(), derniere_lecture = null, derniere_erreur = null,
         cache_evenements = null, cache_le = null;
 end $$;
+
+-- ===== Corbeille des actions (2026-10-01) =====
+-- Supprimer une action la déplace ici (ligne complète en jsonb + lien éventuel vers l'agenda) :
+-- récupérable 5 jours depuis la fiche formateur ou la fiche école, puis effacée définitivement par
+-- purger_corbeille() (appelée à chaque suppression et à l'ouverture des corbeilles).
+create table public.actions_corbeille (
+  id text primary key,
+  intervenant_id text,
+  ecole_id text,
+  ligne jsonb not null,
+  agenda_uid text,
+  supprime_le timestamptz not null default now()
+);
+create index actions_corbeille_intervenant_idx on public.actions_corbeille (intervenant_id);
+create index actions_corbeille_ecole_idx on public.actions_corbeille (ecole_id);
+alter table public.actions_corbeille enable row level security;
+create policy "ouvert" on public.actions_corbeille for all using (true) with check (true);
+grant all on public.actions_corbeille to anon, authenticated, service_role;
+
+create or replace function public.purger_corbeille() returns integer
+language sql set search_path = public as $$
+  with suppr as (delete from actions_corbeille where supprime_le < now() - interval '5 days' returning 1)
+  select count(*)::int from suppr;
+$$;
+
+create or replace function public.mettre_action_a_la_corbeille(p_id text) returns void
+language plpgsql set search_path = public as $$
+begin
+  perform purger_corbeille();
+  insert into actions_corbeille (id, intervenant_id, ecole_id, ligne, agenda_uid, supprime_le)
+  select a.id, a.intervenant_id, a.ecole_id, to_jsonb(a),
+         (select g.uid from agenda_imports g where g.action_id = a.id limit 1), now()
+  from actions a where a.id = p_id
+  on conflict (id) do update set ligne = excluded.ligne, agenda_uid = excluded.agenda_uid, supprime_le = now();
+  delete from actions where id = p_id;
+end $$;
+
+create or replace function public.restaurer_action(p_id text) returns void
+language plpgsql set search_path = public as $$
+declare c actions_corbeille;
+begin
+  select * into c from actions_corbeille where id = p_id and supprime_le >= now() - interval '5 days';
+  if not found then raise exception 'Action introuvable dans la corbeille (délai de 5 jours dépassé ?)'; end if;
+  insert into actions select * from jsonb_populate_record(null::actions, c.ligne);
+  if c.agenda_uid is not null then
+    update agenda_imports set action_id = p_id where intervenant_id = c.intervenant_id and uid = c.agenda_uid;
+  end if;
+  delete from actions_corbeille where id = p_id;
+end $$;
+
+grant execute on function public.purger_corbeille(), public.mettre_action_a_la_corbeille(text), public.restaurer_action(text) to anon, authenticated;

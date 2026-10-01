@@ -173,35 +173,35 @@ function estEvenementPoesie(evenement) {
 const POESIE_VERS_TYPE = [
   // La visite elle-même est déjà comptée : le bulletin la compterait deux fois.
   { motif: /REDACTION (DE )?BULLETIN DE VISITE/, ignorer: true },
-  { motif: /ACCOMPAGNEMENT D.ENSEIGNANTS \/ ENSEIGNANT TITULAIRE/, typeId: 'accompagnement-individuel', profil: 'Titulaire' },
-  { motif: /ACCOMPAGNEMENT D.ENSEIGNANTS \/ ENSEIGNANT REMPLACANT/, typeId: 'accompagnement-individuel', profil: 'Remplaçant' },
-  { motif: /IFMNC \/ SUIVI DE STAGIAIRE/, typeId: 'accompagnement-individuel', profil: 'Stagiaire' },
-  { motif: /PLAN DE FORMATION/, typeId: 'formation-donnee' },
-  { motif: /CAFIPEMF \/ FORMATEUR/, typeId: 'formation-donnee', theme: 'CAFIPEMF' },
+  { motif: /ACCOMPAGNEMENT D.ENSEIGNANTS \/ ENSEIGNANT TITULAIRE/, typeId: 'accompagnement-individuel', profil: 'Titulaire', note: "Accompagnement d'un enseignant titulaire" },
+  { motif: /ACCOMPAGNEMENT D.ENSEIGNANTS \/ ENSEIGNANT REMPLACANT/, typeId: 'accompagnement-individuel', profil: 'Remplaçant', note: "Accompagnement d'un enseignant remplaçant" },
+  { motif: /IFMNC \/ SUIVI DE STAGIAIRE/, typeId: 'accompagnement-individuel', profil: 'Stagiaire', note: "Suivi d'un stagiaire" },
+  { motif: /PLAN DE FORMATION/, typeId: 'formation-donnee', note: 'Formation (plan de formation)' },
+  { motif: /CAFIPEMF \/ FORMATEUR/, typeId: 'formation-donnee', theme: 'CAFIPEMF', note: 'Formation des candidats au CAFIPEMF' },
   // « Préparation animation pédagogique / conseil de cycle » : animation pédagogique par défaut,
   // instance d'école quand le commentaire parle d'un conseil de cycle (voir analyserEvenementPoesie).
-  { motif: /PREPARATION ANIMATION PEDAGOGIQUE/, typeId: 'animation-pedagogique',
-    siCommentaire: { motif: /CONSEIL DE CYCLE/, typeId: 'instance-ecole', profil: 'Conseil de cycle' } },
-  { motif: /REUNIONS PEDAGOGIQUES \/ ANIMATION PEDAGOGIQUE/, typeId: 'animation-pedagogique' },
-  { motif: /CONSEIL DE CYCLE/, typeId: 'instance-ecole', profil: 'Conseil de cycle' },
-  { motif: /CONSEIL D.ECOLE/, typeId: 'instance-ecole', profil: "Conseil d'école" },
-  { motif: /CONSEIL DES MAITRES/, typeId: 'instance-ecole', profil: 'Conseil des maîtres' },
-  { motif: /REUNION GROUPE DE TRAVAIL/, typeId: 'groupe-travail', themeDetail: true },
-  { motif: /SUIVI DE DOSSIERS REFERENTS/, typeId: 'groupe-travail-referent', themeDetail: true },
-  { motif: /REUNIONS? DE SERVICE|REUNION MAITRES FORMATEURS/, typeId: 'reunion-circonscription' },
-  { motif: /CONCEPTION DE SUJETS/, typeId: 'redaction-sujets' },
-  { motif: /\/ JURY|REUNION EN LIEN AVEC LES CONCOURS/, typeId: 'jury-correction' },
-  { motif: /LIAISON INTER/, typeId: 'liaison-intercycles' },
-  { motif: /TACHES ADMINISTRATIVES|TACHES PEDAGOGIQUES/, typeId: 'tache-administrative' },
-  { motif: /RELATION DIRECTEUR, EQUIPE, ECOLE ET FAMILLE/, typeId: 'situation-particuliere' },
+  { motif: /PREPARATION ANIMATION PEDAGOGIQUE/, typeId: 'animation-pedagogique', note: "Préparation d'une animation pédagogique",
+    siCommentaire: { motif: /CONSEIL DE CYCLE/, typeId: 'instance-ecole', profil: 'Conseil de cycle', note: "Préparation d'un conseil de cycle" } },
+  { motif: /REUNIONS PEDAGOGIQUES \/ ANIMATION PEDAGOGIQUE/, typeId: 'animation-pedagogique', note: 'Animation pédagogique' },
+  { motif: /CONSEIL DE CYCLE/, typeId: 'instance-ecole', profil: 'Conseil de cycle', note: 'Conseil de cycle' },
+  { motif: /CONSEIL D.ECOLE/, typeId: 'instance-ecole', profil: "Conseil d'école", note: "Conseil d'école" },
+  { motif: /CONSEIL DES MAITRES/, typeId: 'instance-ecole', profil: 'Conseil des maîtres', note: 'Conseil des maîtres' },
+  { motif: /REUNION GROUPE DE TRAVAIL/, typeId: 'groupe-travail', themeDetail: true, note: 'Groupe de travail {detail}' },
+  { motif: /SUIVI DE DOSSIERS REFERENTS/, typeId: 'groupe-travail-referent', themeDetail: true, note: 'Mission référent {detail}' },
+  { motif: /REUNIONS? DE SERVICE|REUNION MAITRES FORMATEURS/, typeId: 'reunion-circonscription', note: 'Réunion de service' },
+  { motif: /CONCEPTION DE SUJETS/, typeId: 'redaction-sujets', note: 'Conception de sujets de concours' },
+  { motif: /\/ JURY|REUNION EN LIEN AVEC LES CONCOURS/, typeId: 'jury-correction', note: 'Jury de concours ou d\'examen' },
+  { motif: /LIAISON INTER/, typeId: 'liaison-intercycles', note: 'Liaison inter-établissements' },
+  { motif: /TACHES ADMINISTRATIVES|TACHES PEDAGOGIQUES/, typeId: 'tache-administrative', note: 'Travail administratif et préparation' },
+  { motif: /RELATION DIRECTEUR, EQUIPE, ECOLE ET FAMILLE/, typeId: 'situation-particuliere', note: "Échange avec la direction, l'équipe ou la famille" },
   // Pas de type « famille / partenaire » dans la typologie : équipe par défaut, à confirmer.
-  { motif: /EVALUATION IEF/, typeId: 'accompagnement-equipe', aVerifier: true },
-  { motif: /VISITE DE RENTREE/, typeId: 'accompagnement-equipe', profil: 'Équipe complète' },
-  { motif: /EVENEMENTS \/ RENCONTRES/, typeId: 'accompagnement-equipe', profil: 'Équipe complète' },
-  { motif: /REUNION DESED/, typeId: 'accompagnement-individuel' },
+  { motif: /EVALUATION IEF/, typeId: 'accompagnement-equipe', aVerifier: true, note: "Évaluation d'une instruction en famille" },
+  { motif: /VISITE DE RENTREE/, typeId: 'accompagnement-equipe', profil: 'Équipe complète', note: 'Tournée de rentrée' },
+  { motif: /EVENEMENTS \/ RENCONTRES/, typeId: 'accompagnement-equipe', profil: 'Équipe complète', note: 'Évènement / rencontre' },
+  { motif: /REUNION DESED/, typeId: 'accompagnement-individuel', note: 'Réunion DESED' },
   // Réunions avec des partenaires extérieurs : hors suivi des écoles, sauf si une de nos écoles
   // est citée (titre ou commentaire) — le type reste alors à choisir.
-  { motif: /AUTRES REUNIONS \/ PARTENAIRES/, ignorerSansEcole: true }
+  { motif: /AUTRES REUNIONS \/ PARTENAIRES/, ignorerSansEcole: true, note: 'Réunion avec des partenaires extérieurs' }
   // Non listés : pas de type évident, à choisir ligne par ligne.
 ];
 
@@ -248,10 +248,25 @@ function lireActionsPoesie(description) {
         commentaire = mCom[1].trim();
         texte = texte.slice(0, mCom.index).trim();
       }
+      const mDuree = /\(\s*Durée\s*:\s*(\d+)\s*h\s*(\d+)?\s*min\s*\)/i.exec(texte);
+      const [h, min] = mDuree ? [+mDuree[1], +(mDuree[2] || 0)] : [0, 0];
+      const duree = !mDuree ? '' : h === 0 ? `${min} min` : `${h} h${min ? ' ' + String(min).padStart(2, '0') : ''}`;
       texte = texte.replace(/\(\s*(Durée|Nombre)\s*:[^)]*\)/gi, '').replace(/\s+/g, ' ').trim();
       const morceaux = texte.split(' / ');
-      return { intitule: texte, detail: morceaux[morceaux.length - 1], commentaire };
+      return { intitule: texte, detail: morceaux[morceaux.length - 1], commentaire, duree };
     });
+}
+
+/*
+ * Note courte et lisible enregistrée avec l'action (2026-10-01, demande IEP1 : pas de « Importé
+ * depuis Poésie… », une phrase humaine) : la phrase de la règle (POESIE_VERS_TYPE, {detail} =
+ * dernier niveau de l'intitulé Poésie) + la durée si Poésie la donne, ex. « Accompagnement d'un
+ * enseignant remplaçant (1 h 30) ». Sans règle : le dernier niveau de l'intitulé.
+ */
+function noteSynthetique(regle, action) {
+  const detail = (action.detail || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+  const phrase = regle.note ? regle.note.replace('{detail}', detail) : detail;
+  return phrase + (action.duree ? ` (${action.duree})` : '');
 }
 
 /** Ligne(s) de revue pour un évènement Poésie : une par action listée dans la description. */
@@ -296,6 +311,7 @@ function analyserEvenementPoesie(evenement, ecoles) {
       raisonIgnoree: regle.ignorer ? 'bulletin' : (ignoree ? 'partenaire' : ''),
       typeAVerifier: !!regle.aVerifier || !regle.typeId,
       infoSensible: contientInfoSensible(action.commentaire),
+      note: noteSynthetique(regle, action),
       theme: action.commentaire || (regle.themeDetail ? action.detail : '') || regle.theme || ''
     };
   });

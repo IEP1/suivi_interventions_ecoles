@@ -48,12 +48,14 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Date</th><th>Type</th><th>Intervenant</th><th>Thème / personne suivie</th><th>Notes</th></tr></thead>
+            <thead><tr><th>Date</th><th>Type</th><th>Intervenant</th><th>Thème / personne suivie</th><th>Notes</th><th class="no-print"></th></tr></thead>
             <tbody id="corps-historique"></tbody>
           </table>
         </div>
         <p class="intro" id="msg-vide" style="display:none;margin-top:10px;">Aucune intervention enregistrée pour cette école pour l'instant.</p>
       </div>
+
+      <details class="carte no-print" id="bloc-corbeille"></details>
     </div>
 
     <div id="vue-structure" style="display:none;">
@@ -151,10 +153,11 @@
 <script src="js/seed-data.js?v=24"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/supabase-client.js?v=1"></script>
-<script src="js/data-store.js?v=16"></script>
+<script src="js/data-store.js?v=17"></script>
 <script src="js/stats.js?v=14"></script>
 <script src="js/type-selector.js?v=11"></script>
 <script src="js/assistant-etapes.js?v=5"></script>
+<script src="js/corbeille.js?v=1"></script>
 <script src="js/layout.js?v=18"></script>
 <script>
 injecterEntete('ecoles.html');
@@ -260,8 +263,13 @@ function rendreHistorique() {
       <td>${intervenant ? intervenant.nom : iv.intervenantId}</td>
       <td>${iv.lieuLibre ? `<b>${iv.lieuLibre}</b>${iv.theme ? '<br>' : ''}` : ''}${iv.theme || (iv.lieuLibre ? '' : '—')}</td>
       <td>${iv.notes || '—'}</td>
+      <td class="no-print" style="white-space:nowrap;">
+        <a class="btn-icone" title="Modifier (ouvre la fiche du formateur)" href="conseiller.html?id=${encodeURIComponent(iv.intervenantId)}&modifier=${encodeURIComponent(iv.id)}">✎</a>
+        <button type="button" class="btn-icone" title="Supprimer (récupérable ${DUREE_CORBEILLE_JOURS} jours dans la corbeille)" data-suppr="${iv.id}">✕</button>
+      </td>
     </tr>`;
   }).join('');
+  corps.querySelectorAll('[data-suppr]').forEach(btn => btn.addEventListener('click', () => supprimerInterventionEcole(btn.dataset.suppr)));
   document.getElementById('msg-vide').style.display = tri.length ? 'none' : 'block';
 }
 
@@ -352,6 +360,37 @@ async function validerIntervention() {
   }
 }
 
+async function supprimerInterventionEcole(actionId) {
+  const iv = INTERVENTIONS.find(i => i.id === actionId);
+  if (!iv) return;
+  if (!confirm(`Supprimer cette intervention (${libelleType(iv.typeId, TYPES)}, ${formaterDate(iv.date)}) ? Elle reste récupérable ${DUREE_CORBEILLE_JOURS} jours dans la corbeille, en bas de page.`)) return;
+  try {
+    const intervenant = INTERVENANTS.find(i => i.id === iv.intervenantId);
+    await Store.supprimerAction(iv.intervenantId, intervenant ? intervenant.nom : iv.intervenantId, iv.id, ecoleId, ECOLE.nom);
+    await rechargerInterventionsEcole();
+  } catch (e) {
+    alert('Échec de la suppression : ' + e.message);
+  }
+}
+
+async function rechargerInterventionsEcole() {
+  INTERVENTIONS = (await Store.chargerInterventionsEcole(ecoleId)).interventions;
+  rendreStats();
+  rendreGraphique();
+  rendreHistorique();
+  await rendreCorbeilleEcole();
+}
+
+function rendreCorbeilleEcole() {
+  return rendreCorbeille({
+    conteneurId: 'bloc-corbeille', filtre: { ecoleId }, types: TYPES, intervenants: INTERVENANTS,
+    apresRestauration: async () => {
+      INTERVENTIONS = (await Store.chargerInterventionsEcole(ecoleId)).interventions;
+      rendreStats(); rendreGraphique(); rendreHistorique();
+    }
+  });
+}
+
 async function init() {
   const ecoles = await Store.chargerEcoles();
   ECOLE = ecoles.find(e => e.id === ecoleId);
@@ -384,6 +423,7 @@ async function init() {
   rendreStats();
   rendreGraphique();
   rendreHistorique();
+  await rendreCorbeilleEcole();
 
   document.getElementById('zone-chargement').style.display = 'none';
   document.getElementById('zone-contenu').style.display = 'block';

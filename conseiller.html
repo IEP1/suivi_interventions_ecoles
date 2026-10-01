@@ -88,6 +88,8 @@
       </div>
       <p class="intro" id="msg-vide-historique" style="display:none;margin-top:10px;">Aucune action saisie par cet intervenant pour l'instant.</p>
     </div>
+
+    <details class="carte no-print" id="bloc-corbeille"></details>
   </div>
 </main>
 
@@ -142,10 +144,11 @@
 <script src="js/seed-data.js?v=24"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/supabase-client.js?v=1"></script>
-<script src="js/data-store.js?v=16"></script>
+<script src="js/data-store.js?v=17"></script>
 <script src="js/stats.js?v=14"></script>
 <script src="js/type-selector.js?v=11"></script>
 <script src="js/school-picker.js?v=7"></script>
+<script src="js/corbeille.js?v=1"></script>
 <script src="js/layout.js?v=18"></script>
 <script>
 injecterEntete('conseillers.html');
@@ -335,14 +338,22 @@ async function validerModifAction() {
   }
 }
 
+function rendreCorbeilleFormateur() {
+  return rendreCorbeille({
+    conteneurId: 'bloc-corbeille', filtre: { intervenantId }, types: TYPES, ecoles: ECOLES,
+    apresRestauration: async () => { await chargerHistorique(); await rendreBilan(); }
+  });
+}
+
 async function supprimerActionHistorique(actionId) {
   const action = HISTORIQUE_ACTIONS.find(a => a.id === actionId);
   if (!action) return;
-  if (!confirm(`Supprimer définitivement cette action (${libelleType(action.typeId, TYPES)}, ${formaterDate(action.date)}) ?`)) return;
+  if (!confirm(`Supprimer cette action (${libelleType(action.typeId, TYPES)}, ${formaterDate(action.date)}) ? Elle reste récupérable ${DUREE_CORBEILLE_JOURS} jours dans la corbeille, en bas de page.`)) return;
   try {
     await Store.supprimerAction(intervenantId, INTERVENANT.nom, action.id, action.ecoleId, action.ecoleNom);
     await chargerHistorique();
     await rendreBilan();
+    await rendreCorbeilleFormateur();
   } catch (e) {
     alert('Échec de la suppression : ' + e.message);
   }
@@ -403,6 +414,10 @@ async function init() {
   await chargerHistorique();
   remplirSelecteurAnneeBilan();
   await rendreBilan();
+  await rendreCorbeilleFormateur();
+  // Arrivée depuis une fiche école (« ✎ » d'une intervention) : ouvre directement sa modification.
+  const actionAModifier = params.get('modifier');
+  if (actionAModifier && HISTORIQUE_ACTIONS.some(a => a.id === actionAModifier)) ouvrirModaleModif(actionAModifier);
 
   document.getElementById('zone-chargement').style.display = 'none';
   document.getElementById('zone-contenu').style.display = 'block';

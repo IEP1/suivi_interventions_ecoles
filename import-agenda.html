@@ -161,10 +161,10 @@
 <script src="js/seed-data.js?v=24"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/supabase-client.js?v=1"></script>
-<script src="js/data-store.js?v=16"></script>
+<script src="js/data-store.js?v=17"></script>
 <script src="js/stats.js?v=14"></script>
 <script src="js/ics-parser.js?v=2"></script>
-<script src="js/import-agenda.js?v=6"></script>
+<script src="js/import-agenda.js?v=7"></script>
 <script src="js/layout.js?v=18"></script>
 <script>
 injecterEntete('conseillers.html');
@@ -565,7 +565,8 @@ async function enregistrerLigneImport(ligne) {
     typeId: ligne.typeId,
     intervenantId: quiId,
     theme: (ligne.theme || '').trim(),
-    notes: ligne.poesie ? `Importé depuis Google Agenda (Poésie : ${ligne.intitulePoesie}).` : 'Importé depuis Google Agenda.',
+    // Note courte et humaine (voir noteSynthetique) ; l'origine « agenda » reste tracée dans agenda_imports.
+    notes: ligne.note || '',
     profil: ligne.profil || '',
     origine: '',
     lieuLibre: lieuModifiable(ligne) ? (ligne.lieuLibre || '').trim() : '',

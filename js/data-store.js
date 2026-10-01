@@ -208,11 +208,33 @@ const Store = {
   },
 
   /** Supprime une action déjà enregistrée (école ou générale, retrouvée par son id unique). */
+  /* Suppression = mise à la corbeille (table actions_corbeille, récupérable 5 jours — voir
+     mettre_action_a_la_corbeille() dans supabase/schema.sql). */
   async supprimerAction(intervenantId, nomIntervenant, actionId, ecoleId, nomEcole) {
     const { data: avant } = await sb.from('actions').select('*').eq('id', actionId).maybeSingle();
-    const { error } = await sb.from('actions').delete().eq('id', actionId);
+    const { error } = await sb.rpc('mettre_action_a_la_corbeille', { p_id: actionId });
     leverSiErreur(error);
     journaliser('actions', actionId, 'delete', avant || null, null);
+  },
+
+  /**
+   * Corbeille (moins de 5 jours) d'un formateur ou d'une école : filtre { intervenantId } ou
+   * { ecoleId }. Purge d'abord les éléments trop anciens. Renvoie des actions (format JS) avec
+   * supprimeLe en plus.
+   */
+  async chargerCorbeille(filtre) {
+    await sb.rpc('purger_corbeille');
+    let requete = sb.from('actions_corbeille').select('*').order('supprime_le', { ascending: false });
+    if (filtre.intervenantId) requete = requete.eq('intervenant_id', filtre.intervenantId);
+    if (filtre.ecoleId) requete = requete.eq('ecole_id', filtre.ecoleId);
+    const { data, error } = await requete;
+    leverSiErreur(error);
+    return (data || []).map(r => ({ ...mapActionVersJs(r.ligne), ecoleId: r.ecole_id, supprimeLe: r.supprime_le }));
+  },
+  async restaurerAction(actionId) {
+    const { error } = await sb.rpc('restaurer_action', { p_id: actionId });
+    leverSiErreur(error);
+    journaliser('actions', actionId, 'insert', null, { restaure_depuis_corbeille: true });
   },
 
   /** Remplace une action existante par sa nouvelle version (même id) — gère aussi un changement d'école. */
